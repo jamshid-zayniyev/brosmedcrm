@@ -1,33 +1,39 @@
-import { useState } from 'react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Activity, User, Lock, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from './ui/alert';
+import { useState } from "react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
+import { Activity, User, Lock, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "./ui/alert";
 
 interface LoginPageProps {
   onLogin: (username: string, password: string) => boolean;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    
+    setError("");
+
     const success = onLogin(username, password);
     if (!success) {
-      setError('Noto\'g\'ri foydalanuvchi nomi yoki parol');
+      setError("Noto'g'ri foydalanuvchi nomi yoki parol");
     }
   };
 
   const quickLogin = (user: string) => {
     setUsername(user);
-    setPassword('password');
+    setPassword("password");
   };
 
   return (
@@ -61,7 +67,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Parol</Label>
               <div className="relative">
@@ -106,7 +112,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => quickLogin('admin')}
+                onClick={() => quickLogin("admin")}
                 className="text-xs"
               >
                 Superadmin
@@ -114,7 +120,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => quickLogin('reception')}
+                onClick={() => quickLogin("reception")}
                 className="text-xs"
               >
                 Qabul
@@ -122,7 +128,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => quickLogin('lab')}
+                onClick={() => quickLogin("lab")}
                 className="text-xs"
               >
                 Laboratoriya
@@ -130,15 +136,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => quickLogin('doctor')}
+                onClick={() => quickLogin("doctor")}
                 className="text-xs"
               >
                 Shifokor
               </Button>
             </div>
-            
+
             <p className="text-xs text-center text-muted-foreground mt-4">
-              Demo: Barcha hisoblar uchun parol - <code className="bg-muted px-1 py-0.5 rounded">password</code>
+              Demo: Barcha hisoblar uchun parol -{" "}
+              <code className="bg-muted px-1 py-0.5 rounded">password</code>
             </p>
           </div>
         </CardContent>
