@@ -2,6 +2,8 @@ import { DoctorDashboard } from "../components/doctor/DoctorDashboard";
 import { LabDashboard } from "../components/laboratory/LabDashboard";
 import { LoginPage } from "../components/LoginPage";
 import { ReportsPage } from "../components/ReportsPage";
+import { PatientQueue } from "../components/reception/PatientQueue";
+import { PatientRegistration } from "../components/reception/PatientRegistration";
 import { ReceptionDashboard } from "../components/reception/ReceptionDashboard";
 import { SettingsPage } from "../components/SettingsPage";
 import { DepartmentPage } from "../components/superadmin/DepartmentPage";
@@ -54,6 +56,16 @@ export const privateRoutes: (RouteType & { allowedRoles: string[] })[] = [
     allowedRoles: ["r"],
   },
   {
+    path: "/reception/patient-queue",
+    element: <PatientQueue />,
+    allowedRoles: ["r"],
+  },
+  {
+    path: "/reception/patient-registration",
+    element: <PatientRegistration />,
+    allowedRoles: ["r"],
+  },
+  {
     path: "/lab",
     element: <LabDashboard />,
     allowedRoles: ["l"],
@@ -72,3 +84,4 @@ export const defaultRoutes: { [key: string]: string } = {
   d: "/doctor",
   c: "/cashier",
 };
+

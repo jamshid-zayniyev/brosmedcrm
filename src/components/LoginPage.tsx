@@ -45,13 +45,6 @@ export function LoginPage() {
     }
   };
 
-  const quickLogin = (user: string) => {
-    setUsername(user);
-    setPassword("password");
-    // Trigger handleSubmit after state updates
-    // This will be handled by the useEffect below
-  };
-
   // This useEffect will handle fetching user and navigation after token is set
   useEffect(() => {
     if (tokenForRefetch) {
@@ -72,13 +65,6 @@ export function LoginPage() {
       fetchUserAndNavigate();
     }
   }, [tokenForRefetch, setUser, navigate]); // Dependencies
-
-  // This useEffect handles quick login by triggering handleSubmit
-  useEffect(() => {
-    if (username && password === "password" && !isSubmitting) {
-      handleSubmit();
-    }
-  }, [username, password, isSubmitting]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
@@ -141,63 +127,6 @@ export function LoginPage() {
               {isSubmitting ? "Kirilmoqda..." : "Kirish"}
             </Button>
           </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Tezkor kirish (demo)
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => quickLogin("superadmin")}
-                className="text-xs"
-                disabled={isSubmitting}
-              >
-                Superadmin
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => quickLogin("reception")}
-                className="text-xs"
-                disabled={isSubmitting}
-              >
-                Qabul
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => quickLogin("lab")}
-                className="text-xs"
-                disabled={isSubmitting}
-              >
-                Laboratoriya
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => quickLogin("doctor")}
-                className="text-xs"
-                disabled={isSubmitting}
-              >
-                Shifokor
-              </Button>
-            </div>
-
-            <p className="text-xs text-center text-muted-foreground mt-4">
-              Demo: Barcha hisoblar uchun parol -{" "}
-              <code className="bg-muted px-1 py-0.5 rounded">password</code>
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

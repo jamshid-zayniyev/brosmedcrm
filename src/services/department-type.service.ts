@@ -17,6 +17,7 @@ class DepartmentTypeService {
     title: string;
     title_uz: string;
     title_ru: string;
+    price: number;
   }) {
     try {
       const res = await apiInstance.post(
@@ -36,6 +37,7 @@ class DepartmentTypeService {
     title_uz: string;
     title_ru: string;
     department: number;
+    price: number;
   }) {
     try {
       const res = await apiInstance.put(

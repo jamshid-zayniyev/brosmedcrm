@@ -41,6 +41,7 @@ interface DepartmentType {
   title_uz: string;
   title_ru: string;
   department: number;
+  price: number;
   department_title?: string;
 }
 
@@ -62,6 +63,7 @@ export function DepartmentTypePage() {
     title_uz: "",
     title_ru: "",
     department: 0,
+    price: 0,
   });
 
   useEffect(() => {
@@ -94,7 +96,10 @@ export function DepartmentTypePage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "price" ? parseFloat(value) : value,
+    }));
   };
 
   const handleSelectChange = (value: string) => {
@@ -102,7 +107,13 @@ export function DepartmentTypePage() {
   };
 
   const resetForm = () => {
-    setFormData({ title: "", title_uz: "", title_ru: "", department: 0 });
+    setFormData({
+      title: "",
+      title_uz: "",
+      title_ru: "",
+      department: 0,
+      price: 0,
+    });
     setEditingDepartmentType(null);
   };
 
@@ -114,6 +125,7 @@ export function DepartmentTypePage() {
         title_uz: departmentType.title_uz,
         title_ru: departmentType.title_ru,
         department: departmentType.department,
+        price: departmentType.price,
       });
     } else {
       resetForm();
@@ -194,6 +206,7 @@ export function DepartmentTypePage() {
                 <TableHead>Nomi (Rus)</TableHead>
                 <TableHead>Nomi (Eng)</TableHead>
                 <TableHead>Bo'lim</TableHead>
+                <TableHead>Narx</TableHead>
                 <TableHead className="text-right">Amallar</TableHead>
               </TableRow>
             </TableHeader>
@@ -216,6 +229,9 @@ export function DepartmentTypePage() {
                       <TableCell>
                         <Skeleton className="h-5 w-32" />
                       </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-5 w-24" />
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Skeleton className="h-8 w-8" />
@@ -234,6 +250,7 @@ export function DepartmentTypePage() {
                         {deptType.department_title ||
                           getDepartmentTitle(deptType.department)}
                       </TableCell>
+                      <TableCell>{deptType.price}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
@@ -316,6 +333,18 @@ export function DepartmentTypePage() {
                 id="title"
                 name="title"
                 value={formData.title}
+                onChange={handleFormChange}
+                required
+                disabled={isSubmitting}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="price">Narx</Label>
+              <Input
+                id="price"
+                name="price"
+                type="number"
+                value={formData.price}
                 onChange={handleFormChange}
                 required
                 disabled={isSubmitting}

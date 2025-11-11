@@ -34,6 +34,8 @@ interface SystemUser {
   phone_number: string;
   is_active: boolean;
   department: string | null;
+  price: number;
+  passport: string | null;
 }
 
 interface Department {
@@ -67,6 +69,8 @@ export function UserManagement() {
     password: "",
     role: "d" as "s" | "r" | "l" | "d" | "c",
     is_active: true,
+    price: 0,
+    passport: "",
   });
 
   useEffect(() => {
@@ -120,6 +124,8 @@ export function UserManagement() {
         full_name: formData.full_name,
         username: formData.username,
         phone_number: formData.phone_number,
+        price: formData.price,
+        passport: formData.passport,
       };
 
       if (formData.password) {
@@ -181,6 +187,8 @@ export function UserManagement() {
       password: "",
       role: "d",
       is_active: true,
+      price: 0,
+      passport: "",
     });
   };
 
@@ -235,113 +243,145 @@ export function UserManagement() {
               <DialogTitle>Yangi foydalanuvchi qo'shish</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Foydalanuvchi nomi *</Label>
-                <Input
-                  id="username"
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
-                  }
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="username">Foydalanuvchi nomi *</Label>
+                  <Input
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) =>
+                      setFormData({ ...formData, username: e.target.value })
+                    }
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="full_name">To'liq ismi *</Label>
-                <Input
-                  id="full_name"
-                  value={formData.full_name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, full_name: e.target.value })
-                  }
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">To'liq ismi *</Label>
+                  <Input
+                    id="full_name"
+                    value={formData.full_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, full_name: e.target.value })
+                    }
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone_number">Telefon *</Label>
-                <Input
-                  id="phone_number"
-                  type="tel"
-                  value={formData.phone_number}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone_number: e.target.value })
-                  }
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone_number">Telefon *</Label>
+                  <Input
+                    id="phone_number"
+                    type="tel"
+                    value={formData.phone_number}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone_number: e.target.value })
+                    }
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Parol *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Parol *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="role">Rol *</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value: any) =>
-                    setFormData({ ...formData, role: value })
-                  }
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="s">Superadmin</SelectItem>
-                    <SelectItem value="r">Qabul</SelectItem>
-                    <SelectItem value="l">Laboratoriya</SelectItem>
-                    <SelectItem value="d">Shifokor</SelectItem>
-                    <SelectItem value="c">Kassir</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price">Narx *</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    value={formData.price}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        price: parseInt(e.target.value),
+                      })
+                    }
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="department">Bo'lim</Label>
-                <Select
-                  onValueChange={(value: any) =>
-                    setFormData({ ...formData, department: parseInt(value) })
-                  }
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Bo'limni tanlang" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept.id} value={dept.id.toString()}>
-                        {dept.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="passport">Pasport seriyasi va raqami *</Label>
+                  <Input
+                    id="passport"
+                    value={formData.passport}
+                    onChange={(e) =>
+                      setFormData({ ...formData, passport: e.target.value })
+                    }
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
 
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked: boolean) =>
-                    setFormData({ ...formData, is_active: checked })
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="is_active">Faol</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Rol *</Label>
+                  <Select
+                    value={formData.role}
+                    onValueChange={(value: any) =>
+                      setFormData({ ...formData, role: value })
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="s">Superadmin</SelectItem>
+                      <SelectItem value="r">Qabul</SelectItem>
+                      <SelectItem value="l">Laboratoriya</SelectItem>
+                      <SelectItem value="d">Shifokor</SelectItem>
+                      <SelectItem value="c">Kassir</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="department">Bo'lim</Label>
+                  <Select
+                    onValueChange={(value: any) =>
+                      setFormData({ ...formData, department: parseInt(value) })
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Bo'limni tanlang" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id.toString()}>
+                          {dept.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="is_active"
+                    checked={formData.is_active}
+                    onCheckedChange={(checked: boolean) =>
+                      setFormData({ ...formData, is_active: checked })
+                    }
+                    disabled={isSubmitting}
+                  />
+                  <Label htmlFor="is_active">Faol</Label>
+                </div>
               </div>
 
               <div className="flex gap-2">
@@ -432,6 +472,18 @@ export function UserManagement() {
                               {user.phone_number}
                             </span>
                           </p>
+                          <p className="text-muted-foreground">
+                            Narx:{" "}
+                            <span className="text-foreground">
+                              {user.price}
+                            </span>
+                          </p>
+                          <p className="text-muted-foreground">
+                            Pasport:{" "}
+                            <span className="text-foreground">
+                              {user.passport}
+                            </span>
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -463,6 +515,8 @@ export function UserManagement() {
                                     (d) => d.title === user.department
                                   )?.id || 0,
                                 is_active: user.is_active,
+                                price: user.price,
+                                passport: user.passport || "",
                               });
                             }}
                           >
@@ -477,146 +531,188 @@ export function UserManagement() {
                             </DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="edit-username">
-                                Foydalanuvchi nomi *
-                              </Label>
-                              <Input
-                                id="edit-username"
-                                value={formData.username}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    username: e.target.value,
-                                  })
-                                }
-                                disabled={isSubmitting}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="edit-fullName">
-                                To'liq ismi *
-                              </Label>
-                              <Input
-                                id="edit-fullName"
-                                value={formData.full_name}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    full_name: e.target.value,
-                                  })
-                                }
-                                disabled={isSubmitting}
-                              />
-                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-username">
+                                  Foydalanuvchi nomi *
+                                </Label>
+                                <Input
+                                  id="edit-username"
+                                  value={formData.username}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      username: e.target.value,
+                                    })
+                                  }
+                                  disabled={isSubmitting}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-fullName">
+                                  To'liq ismi *
+                                </Label>
+                                <Input
+                                  id="edit-fullName"
+                                  value={formData.full_name}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      full_name: e.target.value,
+                                    })
+                                  }
+                                  disabled={isSubmitting}
+                                />
+                              </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor="edit-phone">Telefon *</Label>
-                              <Input
-                                id="edit-phone"
-                                type="tel"
-                                value={formData.phone_number}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    phone_number: e.target.value,
-                                  })
-                                }
-                                disabled={isSubmitting}
-                              />
-                            </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-phone">Telefon *</Label>
+                                <Input
+                                  id="edit-phone"
+                                  type="tel"
+                                  value={formData.phone_number}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      phone_number: e.target.value,
+                                    })
+                                  }
+                                  disabled={isSubmitting}
+                                />
+                              </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor="edit-password">
-                                Yangi parol (bo'sh qoldiring o'zgartirmaslik
-                                uchun)
-                              </Label>
-                              <Input
-                                id="edit-password"
-                                type="password"
-                                value={formData.password}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    password: e.target.value,
-                                  })
-                                }
-                                disabled={isSubmitting}
-                              />
-                            </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-password">
+                                  Yangi parol (bo'sh qoldiring o'zgartirmaslik
+                                  uchun)
+                                </Label>
+                                <Input
+                                  id="edit-password"
+                                  type="password"
+                                  value={formData.password}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      password: e.target.value,
+                                    })
+                                  }
+                                  disabled={isSubmitting}
+                                />
+                              </div>
 
-                            {currentUser?.id !== user.id && (
-                              <>
-                                <div className="space-y-2">
-                                  <Label htmlFor="role">Rol *</Label>
-                                  <Select
-                                    value={formData.role}
-                                    onValueChange={(value: any) =>
-                                      setFormData({ ...formData, role: value })
-                                    }
-                                    disabled={isSubmitting}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="s">
-                                        Superadmin
-                                      </SelectItem>
-                                      <SelectItem value="r">Qabul</SelectItem>
-                                      <SelectItem value="l">
-                                        Laboratoriya
-                                      </SelectItem>
-                                      <SelectItem value="d">Shifokor</SelectItem>
-                                      <SelectItem value="c">Kassir</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="price">Narx *</Label>
+                                <Input
+                                  id="price"
+                                  type="number"
+                                  value={formData.price}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      price: parseInt(e.target.value),
+                                    })
+                                  }
+                                  required
+                                  disabled={isSubmitting}
+                                />
+                              </div>
 
-                                <div className="space-y-2">
-                                  <Label htmlFor="department">Bo'lim</Label>
-                                  <Select
-                                    value={formData.department.toString()}
-                                    onValueChange={(value: any) =>
-                                      setFormData({
-                                        ...formData,
-                                        department: parseInt(value),
-                                      })
-                                    }
-                                    disabled={isSubmitting}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Bo'limni tanlang" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {departments.map((dept) => (
-                                        <SelectItem
-                                          key={dept.id}
-                                          value={dept.id.toString()}
-                                        >
-                                          {dept.title}
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-passport">
+                                  Pasport seriyasi va raqami *
+                                </Label>
+                                <Input
+                                  id="edit-passport"
+                                  value={formData.passport}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      passport: e.target.value,
+                                    })
+                                  }
+                                  required
+                                  disabled={isSubmitting}
+                                />
+                              </div>
+
+                              {currentUser?.id !== user.id && (
+                                <>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="role">Rol *</Label>
+                                    <Select
+                                      value={formData.role}
+                                      onValueChange={(value: any) =>
+                                        setFormData({
+                                          ...formData,
+                                          role: value,
+                                        })
+                                      }
+                                      disabled={isSubmitting}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="s">
+                                          Superadmin
                                         </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
+                                        <SelectItem value="r">Qabul</SelectItem>
+                                        <SelectItem value="l">
+                                          Laboratoriya
+                                        </SelectItem>
+                                        <SelectItem value="d">
+                                          Shifokor
+                                        </SelectItem>
+                                        <SelectItem value="c">Kassir</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
 
-                                <div className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id="is_active"
-                                    checked={formData.is_active}
-                                    onCheckedChange={(checked: boolean) =>
-                                      setFormData({
-                                        ...formData,
-                                        is_active: checked,
-                                      })
-                                    }
-                                    disabled={isSubmitting}
-                                  />
-                                  <Label htmlFor="is_active">Faol</Label>
-                                </div>
-                              </>
-                            )}
+                                  <div className="space-y-2">
+                                    <Label htmlFor="department">Bo'lim</Label>
+                                    <Select
+                                      value={formData.department.toString()}
+                                      onValueChange={(value: any) =>
+                                        setFormData({
+                                          ...formData,
+                                          department: parseInt(value),
+                                        })
+                                      }
+                                      disabled={isSubmitting}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Bo'limni tanlang" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {departments.map((dept) => (
+                                          <SelectItem
+                                            key={dept.id}
+                                            value={dept.id.toString()}
+                                          >
+                                            {dept.title}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id="is_active"
+                                      checked={formData.is_active}
+                                      onCheckedChange={(checked: boolean) =>
+                                        setFormData({
+                                          ...formData,
+                                          is_active: checked,
+                                        })
+                                      }
+                                      disabled={isSubmitting}
+                                    />
+                                    <Label htmlFor="is_active">Faol</Label>
+                                  </div>
+                                </>
+                              )}
+                            </div>
 
                             <div className="flex gap-2">
                               <Button

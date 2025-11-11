@@ -12,6 +12,9 @@ export const API_ENDPOINTS = {
   DEPARTMENT_TYPE: {
     base: "/department/department_types/",
   },
+  CLINIC_ABOUT: {
+    base: "/utils/clinicabout/",
+  },
 };
 
 export const serverUrl = import.meta.env.VITE_API_URL;

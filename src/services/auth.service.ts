@@ -49,6 +49,8 @@ class AuthService {
     password: string;
     role: string;
     is_active: boolean;
+    price: number;
+    passport: string;
   }) {
     try {
       const res = await apiInstance.post(API_ENDPOINTS.USER.users, dto);
@@ -67,12 +69,15 @@ class AuthService {
     password?: string;
     role?: string;
     is_active?: boolean;
+    price?: number;
+    passport?: string;
   }) {
     try {
       const res = await apiInstance.put(
         `${API_ENDPOINTS.USER.users}${dto.id}/`,
         dto
       );
+      return res.data;
     } catch (error) {
       console.error(error);
       throw error;

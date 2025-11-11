@@ -1,20 +1,6 @@
 import { useUserStore } from "../stores/user.store";
 import { Button } from "./ui/button";
-import {
-  LayoutDashboard,
-  Users,
-  UserPlus,
-  TestTube,
-  FileText,
-  Settings,
-  LogOut,
-  Sun,
-  Moon,
-  Stethoscope,
-  ClipboardList,
-  Menu,
-  X,
-} from "lucide-react";
+import { LayoutDashboard, LogOut, Sun, Moon, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { handleStorage } from "../utils/handle-storage";
@@ -62,18 +48,19 @@ export function Layout({ children }: LayoutProps) {
 
   const menuItems: MenuItem[] = privateRoutes.map((route) => ({
     id: route.path,
-    label: route.path
-      .split("/")
-      .pop()
-      ?.replace("-", " ")
-      .replace(/\b\w/g, (l) => l.toUpperCase()) || "",
+    label:
+      route.path
+        .split("/")
+        .pop()
+        ?.replace("-", " ")
+        .replace(/\b\w/g, (l) => l.toUpperCase()) || "",
     icon: <LayoutDashboard className="w-5 h-5" />,
     roles: route.allowedRoles,
     path: route.path,
   }));
 
   const filteredMenuItems = menuItems.filter((item) =>
-    item.roles.includes(user.role)
+    item.roles.includes(user?.role)
   );
 
   const handleNavigate = (path: string) => {
@@ -161,13 +148,13 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex items-center gap-3 px-3 py-2 bg-muted rounded-lg">
               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground">
-                  {user.fullName ? user.fullName.charAt(0) : "U"}
+                  {user?.full_name ? user?.full_name.charAt(0) : "U"}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="truncate">{user.fullName}</p>
+                <p className="truncate">{user?.full_name}</p>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {roleMap[user.role] || user.role}
+                  {roleMap[user?.role] || user?.role}
                 </p>
               </div>
             </div>
