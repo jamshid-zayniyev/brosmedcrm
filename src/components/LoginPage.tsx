@@ -135,6 +135,14 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               >
                 Shifokor
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => quickLogin('cashier')}
+                className="text-xs col-span-2"
+              >
+                Kassa
+              </Button>
             </div>
             
             <p className="text-xs text-center text-muted-foreground mt-4">

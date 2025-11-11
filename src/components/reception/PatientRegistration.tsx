@@ -33,8 +33,6 @@ export function PatientRegistration({ context }: PatientRegistrationProps) {
     department: '',
     doctorId: '',
     labTestId: '',
-    paymentAmount: '',
-    paymentStatus: 'pending' as 'pending' | 'paid' | 'partial',
   });
 
   const departments = [
@@ -91,8 +89,6 @@ export function PatientRegistration({ context }: PatientRegistrationProps) {
         department: '',
         doctorId: '',
         labTestId: '',
-        paymentAmount: '',
-        paymentStatus: 'pending',
       });
       toast.success('Bemor topildi!');
     } else {
@@ -107,25 +103,20 @@ export function PatientRegistration({ context }: PatientRegistrationProps) {
       department: value,
       doctorId: '',
       labTestId: '',
-      paymentAmount: ''
     });
   };
 
   const handleDoctorChange = (value: string) => {
-    const doctorPrice = doctorPrices[value] || 150000;
     setFormData({ 
       ...formData, 
       doctorId: value,
-      paymentAmount: doctorPrice.toString()
     });
   };
 
   const handleLabTestChange = (value: string) => {
-    const labTest = labTests.find(lt => lt.id === value);
     setFormData({ 
       ...formData, 
       labTestId: value,
-      paymentAmount: labTest ? labTest.price.toString() : ''
     });
   };
 
@@ -134,6 +125,15 @@ export function PatientRegistration({ context }: PatientRegistrationProps) {
 
     const queueNumber = patients.filter(p => p.department === formData.department).length + 1;
     const doctor = doctors.find(d => d.id === formData.doctorId);
+    const labTest = labTests.find(lt => lt.id === formData.labTestId);
+    
+    // Calculate payment amount
+    let paymentAmount = 0;
+    if (formData.department === 'Laboratoriya' && labTest) {
+      paymentAmount = labTest.price;
+    } else if (formData.doctorId) {
+      paymentAmount = doctorPrices[formData.doctorId] || 150000;
+    }
 
     const newPatient: Patient = {
       id: `p${Date.now()}`,
@@ -147,10 +147,12 @@ export function PatientRegistration({ context }: PatientRegistrationProps) {
       department: formData.department,
       doctorId: formData.doctorId,
       doctorName: doctor?.fullName,
+      labTestId: formData.department === 'Laboratoriya' ? formData.labTestId : undefined,
+      labTestName: formData.department === 'Laboratoriya' ? labTest?.name : undefined,
       queueNumber,
       registrationDate: new Date().toISOString(),
-      paymentStatus: formData.paymentStatus,
-      paymentAmount: parseFloat(formData.paymentAmount) || 0,
+      paymentStatus: 'pending',
+      paymentAmount: paymentAmount,
       status: formData.department === 'Laboratoriya' ? 'in-lab' : 'registered',
       history: selectedPatient?.history || [],
     };
@@ -163,11 +165,11 @@ export function PatientRegistration({ context }: PatientRegistrationProps) {
       date: new Date().toISOString(),
       type: 'registration' as const,
       description: formData.department === 'Laboratoriya' 
-        ? `Laboratoriya tahlili uchun ro'yxatga olindi: ${labTests.find(t => t.id === formData.labTestId)?.name}`
+        ? `Laboratoriya tahlili uchun ro'yxatga olindi: ${labTest?.name}`
         : `Ro'yxatga olindi - ${formData.department} bo'limi`,
       department: formData.department,
       doctorName: doctor?.fullName,
-      amount: parseFloat(formData.paymentAmount) || 0,
+      amount: paymentAmount,
     };
     
     addPatientHistory(newPatient.id, historyEntry);
@@ -188,8 +190,6 @@ export function PatientRegistration({ context }: PatientRegistrationProps) {
       department: '',
       doctorId: '',
       labTestId: '',
-      paymentAmount: '',
-      paymentStatus: 'pending',
     });
     setSelectedPatient(null);
     setSearchQuery('');
@@ -438,48 +438,6 @@ export function PatientRegistration({ context }: PatientRegistrationProps) {
               </div>
             </div>
 
-            {/* Payment Information */}
-            <div className="border-t pt-6">
-              <h3 className="mb-4">To'lov ma'lumotlari</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="paymentAmount">To'lov miqdori (so'm) *</Label>
-                  <Input
-                    id="paymentAmount"
-                    type="text"
-                    value={formData.paymentAmount ? parseFloat(formData.paymentAmount).toLocaleString() + ' so\'m' : ''}
-                    readOnly
-                    className="bg-muted"
-                    placeholder="Bo'lim va xizmatni tanlang"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Narx avtomatik hisoblanadi
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="paymentStatus">To'lov holati *</Label>
-                  <Select
-                    value={formData.paymentStatus}
-                    onValueChange={(value: 'pending' | 'paid' | 'partial') => 
-                      setFormData({ ...formData, paymentStatus: value })
-                    }
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Kutilmoqda</SelectItem>
-                      <SelectItem value="paid">To'langan</SelectItem>
-                      <SelectItem value="partial">Qisman to'langan</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
             <Button type="submit" className="w-full">
               <UserPlus className="w-4 h-4 mr-2" />
               Ro'yxatga olish va check chiqarish
@@ -517,29 +475,30 @@ export function PatientRegistration({ context }: PatientRegistrationProps) {
                   <span className="text-muted-foreground">Bo'lim:</span>
                   <span>{receiptData.department}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Shifokor:</span>
-                  <span>{receiptData.doctorName}</span>
-                </div>
+                {receiptData.doctorName && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Shifokor:</span>
+                    <span>{receiptData.doctorName}</span>
+                  </div>
+                )}
+                {receiptData.labTestName && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tahlil:</span>
+                    <span>{receiptData.labTestName}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Sana:</span>
                   <span>{new Date(receiptData.registrationDate).toLocaleString('uz-UZ')}</span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
-                  <span className="text-muted-foreground">To'lov:</span>
+                  <span className="text-muted-foreground">To'lov miqdori:</span>
                   <span>{receiptData.paymentAmount?.toLocaleString()} so'm</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Holat:</span>
-                  <span className={
-                    receiptData.paymentStatus === 'paid' ? 'text-green-600' :
-                    receiptData.paymentStatus === 'partial' ? 'text-yellow-600' :
-                    'text-red-600'
-                  }>
-                    {receiptData.paymentStatus === 'paid' ? 'To\'langan' :
-                     receiptData.paymentStatus === 'partial' ? 'Qisman' :
-                     'Kutilmoqda'}
-                  </span>
+                <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <p className="text-sm text-center">
+                    To'lovni kassadan amalga oshiring
+                  </p>
                 </div>
               </div>
 

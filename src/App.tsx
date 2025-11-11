@@ -10,11 +10,13 @@ import { DoctorDashboard } from './components/doctor/DoctorDashboard';
 import { PatientConsultation } from './components/doctor/PatientConsultation';
 import { SuperadminDashboard } from './components/superadmin/SuperadminDashboard';
 import { UserManagement } from './components/superadmin/UserManagement';
+import { CashierDashboard } from './components/cashier/CashierDashboard';
+import { PaymentProcessing } from './components/cashier/PaymentProcessing';
 import { ReportsPage } from './components/ReportsPage';
 import { SettingsPage } from './components/SettingsPage';
 import { Toaster } from './components/ui/sonner';
 
-export type UserRole = 'superadmin' | 'reception' | 'laboratory' | 'doctor';
+export type UserRole = 'superadmin' | 'reception' | 'laboratory' | 'doctor' | 'cashier';
 
 export interface User {
   id: string;
@@ -35,10 +37,13 @@ export interface Patient {
   department: string;
   doctorId?: string;
   doctorName?: string;
+  labTestId?: string;
+  labTestName?: string;
   queueNumber?: number;
   registrationDate: string;
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentAmount?: number;
+  partialPaymentAmount?: number;
   status: 'registered' | 'in-lab' | 'with-doctor' | 'completed' | 'under-treatment' | 'cured' | 'discharged' | 'cancelled';
   labResults?: LabResult[];
   consultation?: Consultation;
@@ -131,7 +136,54 @@ export default function App() {
       paymentAmount: 150000,
       status: 'under-treatment',
       history: [
-        { id: 'h1', date: '2024-10-15', type: 'Konsultatsiya', description: 'Gipertoniya tashxisi qo\'yildi' }
+        { 
+          id: 'h1', 
+          date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'registration', 
+          description: 'Birinchi ro\'yxatdan o\'tish', 
+          department: 'Kardiologiya',
+          doctorName: 'Dr. Alisher Aliyev'
+        },
+        { 
+          id: 'h2', 
+          date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'payment', 
+          description: 'To\'lov amalga oshirildi', 
+          amount: 150000
+        },
+        { 
+          id: 'h3', 
+          date: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'lab-test', 
+          description: 'Biokimyoviy qon tahlili', 
+          labTest: 'Biokimyoviy qon tahlili',
+          labResult: 'Xolesterin darajasi: 6.2 mmol/l (yuqori)\nQand miqdori: 5.4 mmol/l (normal)\nKreatinin: 88 μmol/l (normal)'
+        },
+        { 
+          id: 'h4', 
+          date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'consultation', 
+          description: 'Kardiolog konsultatsiyasi', 
+          doctorName: 'Dr. Alisher Aliyev',
+          diagnosis: 'Gipertoniya boshlang\'ich bosqichi',
+          recommendations: 'Tuzni kamaytiring, muntazam bosimni o\'lchang',
+          prescription: 'Enalapril 10mg - kuniga 1 marta, ertalab\nAspirin 75mg - kuniga 1 marta'
+        },
+        { 
+          id: 'h5', 
+          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'registration', 
+          description: 'Nevrologga yo\'naltirildi', 
+          department: 'Nevrologiya',
+          doctorName: 'Dr. Nodira Karimova'
+        },
+        { 
+          id: 'h6', 
+          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'payment', 
+          description: 'Qo\'shimcha to\'lov (nevrologiya)', 
+          amount: 180000
+        }
       ]
     },
     {
@@ -143,14 +195,61 @@ export default function App() {
       phone: '+998902345678',
       address: 'Toshkent sh., Chilonzor t., Bunyodkor ko\'chasi, 45-uy',
       diseaseType: 'Tizza og\'rig\'i, harakat cheklanganligi',
-      department: 'Ortopediya',
-      doctorId: 'd3',
-      doctorName: 'Dr. Jamshid Rahimov',
+      department: 'Laboratoriya',
       queueNumber: 2,
       registrationDate: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
       paymentStatus: 'paid',
       paymentAmount: 200000,
-      status: 'in-lab'
+      status: 'in-lab',
+      history: [
+        { 
+          id: 'h1', 
+          date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'registration', 
+          description: 'Birinchi ro\'yxatdan o\'tish - Ortopediya', 
+          department: 'Ortopediya',
+          doctorName: 'Dr. Jamshid Rahimov'
+        },
+        { 
+          id: 'h2', 
+          date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'payment', 
+          description: 'To\'lov amalga oshirildi', 
+          amount: 200000
+        },
+        { 
+          id: 'h3', 
+          date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'consultation', 
+          description: 'Ortoped konsultatsiyasi', 
+          doctorName: 'Dr. Jamshid Rahimov',
+          diagnosis: 'Tizza bo\'g\'imida yallig\'lanish',
+          recommendations: 'Jismoniy yukni cheklang, sovuq kompress qo\'llang',
+          prescription: 'Ibuprofen 400mg - kuniga 3 marta\nDiklofenak gel - kuniga 2-3 marta'
+        },
+        { 
+          id: 'h4', 
+          date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'registration', 
+          description: 'Rentgen tahlili uchun laboratoriyaga yo\'naltirildi', 
+          department: 'Laboratoriya'
+        },
+        { 
+          id: 'h5', 
+          date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'payment', 
+          description: 'Qo\'shimcha to\'lov (rentgen)', 
+          amount: 150000
+        },
+        { 
+          id: 'h6', 
+          date: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), 
+          type: 'lab-test', 
+          description: 'Rentgen tahlili', 
+          labTest: 'Rentgen',
+          labResult: 'Tizza bo\'g\'imida yengil degenerativ o\'zgarishlar kuzatildi. Suyak sinishi belgilari yo\'q.'
+        }
+      ]
     },
     {
       id: 'p1003',
@@ -168,7 +267,72 @@ export default function App() {
       registrationDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
       paymentStatus: 'partial',
       paymentAmount: 180000,
-      status: 'with-doctor'
+      partialPaymentAmount: 100000,
+      status: 'with-doctor',
+      history: [
+        { 
+          id: 'h1', 
+          date: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'registration', 
+          description: 'Birinchi ro\'yxatdan o\'tish - Terapiya', 
+          department: 'Terapiya',
+          doctorName: 'Dr. Alisher Aliyev'
+        },
+        { 
+          id: 'h2', 
+          date: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'payment', 
+          description: 'To\'lov amalga oshirildi', 
+          amount: 150000
+        },
+        { 
+          id: 'h3', 
+          date: new Date(Date.now() - 19 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'consultation', 
+          description: 'Terapevt konsultatsiyasi', 
+          doctorName: 'Dr. Alisher Aliyev',
+          diagnosis: 'Umumiy nevrologik simptomlar',
+          recommendations: 'Nevrologga yo\'naltirish tavsiya etiladi',
+          prescription: 'Multivitamin kompleksi - kuniga 1 dona'
+        },
+        { 
+          id: 'h4', 
+          date: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'registration', 
+          description: 'MRI tahlili uchun laboratoriyaga yo\'naltirildi', 
+          department: 'Laboratoriya'
+        },
+        { 
+          id: 'h5', 
+          date: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'payment', 
+          description: 'Qo\'shimcha to\'lov (MRI tahlili)', 
+          amount: 500000
+        },
+        { 
+          id: 'h7', 
+          date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'lab-test', 
+          description: 'MRI tahlili', 
+          labTest: 'MRI',
+          labResult: 'Miya to\'qimasida kichik o\'zgarishlar. Qo\'shimcha tekshiruv talab etiladi.'
+        },
+        { 
+          id: 'h8', 
+          date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'registration', 
+          description: 'Nevrologga yo\'naltirildi', 
+          department: 'Nevrologiya',
+          doctorName: 'Dr. Nodira Karimova'
+        },
+        { 
+          id: 'h9', 
+          date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), 
+          type: 'payment', 
+          description: 'Qo\'shimcha to\'lov (nevrolog)', 
+          amount: 180000
+        }
+      ]
     },
     {
       id: 'p1004',
@@ -286,7 +450,7 @@ export default function App() {
       patientId: 'p1003',
       testType: 'MRI',
       result: 'Miya to\'qimasida kichik o\'zgarishlar. Qo\'shimcha tekshiruv talab etiladi.',
-      date: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+      date: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(),
       technicianName: 'Laborant Shoxrux',
       status: 'in-progress'
     }
@@ -393,6 +557,7 @@ export default function App() {
       'reception': { id: 'r1', username: 'reception', role: 'reception', fullName: 'Qabul xonasi' },
       'lab': { id: 'l1', username: 'lab', role: 'laboratory', fullName: 'Laboratoriya' },
       'doctor': { id: 'd1', username: 'doctor', role: 'doctor', fullName: 'Dr. Alisher Aliyev' },
+      'cashier': { id: 'c1', username: 'cashier', role: 'cashier', fullName: 'Kassa' },
     };
 
     if (users[username] && password === 'password') {
@@ -480,6 +645,7 @@ export default function App() {
         if (user.role === 'laboratory') return <LabDashboard context={context} />;
         if (user.role === 'doctor') return <DoctorDashboard context={context} />;
         if (user.role === 'superadmin') return <SuperadminDashboard context={context} />;
+        if (user.role === 'cashier') return <CashierDashboard context={context} />;
         break;
       case 'register-patient':
         return <PatientRegistration context={context} />;
@@ -491,6 +657,8 @@ export default function App() {
         return <PatientConsultation context={context} />;
       case 'user-management':
         return <UserManagement context={context} />;
+      case 'payment-processing':
+        return <PaymentProcessing context={context} />;
       case 'reports':
         return <ReportsPage context={context} />;
       case 'settings':

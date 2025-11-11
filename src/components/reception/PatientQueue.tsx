@@ -8,7 +8,7 @@ import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { Users, Search, Edit, UserCog, FlaskConical, Stethoscope, History, PlusCircle, Printer } from 'lucide-react';
+import { Users, Search, Edit, History, PlusCircle, Printer } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../ui/dialog';
 import { toast } from 'sonner@2.0.3';
 import { Separator } from '../ui/separator';
@@ -28,10 +28,6 @@ export function PatientQueue({ context }: PatientQueueProps) {
   const [editDepartment, setEditDepartment] = useState('');
   const [editDoctorId, setEditDoctorId] = useState('');
   const [editLabTestId, setEditLabTestId] = useState('');
-  const [referringPatient, setReferringPatient] = useState<Patient | null>(null);
-  const [referralType, setReferralType] = useState<'doctor' | 'lab' | null>(null);
-  const [selectedDoctor, setSelectedDoctor] = useState('');
-  const [selectedLabTest, setSelectedLabTest] = useState('');
   const [reRegisteringPatient, setReRegisteringPatient] = useState<Patient | null>(null);
   const [reRegisterDepartment, setReRegisterDepartment] = useState('');
   const [reRegisterDoctorId, setReRegisterDoctorId] = useState('');
@@ -183,74 +179,7 @@ export function PatientQueue({ context }: PatientQueueProps) {
     setEditLabTestId('');
   };
 
-  const handleReferToDoctor = (patientId: string, doctorId: string) => {
-    const doctor = doctors.find(d => d.id === doctorId);
-    updatePatient(patientId, { 
-      doctorId, 
-      doctorName: doctor?.fullName,
-      status: 'registered'
-    });
-    toast.success(`Bemor ${doctor?.fullName}ga yo'naltirildi`);
-  };
 
-  const handleOpenReferral = (patient: Patient, type: 'doctor' | 'lab') => {
-    setReferringPatient(patient);
-    setReferralType(type);
-    setSelectedDoctor('');
-    setSelectedLabTest('');
-  };
-
-  const handleReferToLab = () => {
-    if (!referringPatient || !selectedLabTest) {
-      toast.error('Tahlil turini tanlang');
-      return;
-    }
-
-    const labTest = labTests.find(lt => lt.id === selectedLabTest);
-    if (!labTest) return;
-
-    updatePatient(referringPatient.id, { 
-      status: 'in-lab',
-      paymentAmount: (referringPatient.paymentAmount || 0) + labTest.price
-    });
-    
-    toast.success(`Bemor laboratoriyaga yo'naltirildi - ${labTest.name}`);
-    setReferringPatient(null);
-    setReferralType(null);
-    setSelectedLabTest('');
-  };
-
-  const handleReferToDoctorWithPrice = () => {
-    if (!referringPatient || !selectedDoctor) {
-      toast.error('Shifokorni tanlang');
-      return;
-    }
-
-    const doctor = doctors.find(d => d.id === selectedDoctor);
-    const doctorPrice = doctorPrices[selectedDoctor] || 150000;
-
-    updatePatient(referringPatient.id, { 
-      doctorId: selectedDoctor, 
-      doctorName: doctor?.fullName,
-      status: 'registered',
-      paymentAmount: (referringPatient.paymentAmount || 0) + doctorPrice
-    });
-
-    // Add to patient history
-    addPatientHistory(referringPatient.id, {
-      id: `h${Date.now()}`,
-      date: new Date().toISOString(),
-      type: 'registration',
-      description: `Shifokorga yo'naltirildi: ${doctor?.fullName}`,
-      doctorName: doctor?.fullName,
-      amount: doctorPrice,
-    });
-    
-    toast.success(`Bemor ${doctor?.fullName}ga yo'naltirildi`);
-    setReferringPatient(null);
-    setReferralType(null);
-    setSelectedDoctor('');
-  };
 
   const handleReRegisterPatient = () => {
     if (!reRegisteringPatient) return;
@@ -268,6 +197,8 @@ export function PatientQueue({ context }: PatientQueueProps) {
       
       updatePatient(reRegisteringPatient.id, {
         department: reRegisterDepartment,
+        labTestId: reRegisterLabTestId,
+        labTestName: labTest.name,
         status: 'in-lab',
         paymentAmount: newPaymentAmount,
         paymentStatus: 'pending',
@@ -583,130 +514,6 @@ export function PatientQueue({ context }: PatientQueueProps) {
                                   </div>
                                 </div>
                               </>
-                            )}
-                          </div>
-                        )}
-                      </DialogContent>
-                    </Dialog>
-
-                    {/* Refer to Lab or Doctor Dialog */}
-                    <Dialog open={referringPatient?.id === patient.id} onOpenChange={(open) => !open && setReferringPatient(null)}>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setReferringPatient(patient)}
-                        >
-                          <UserCog className="w-4 h-4 mr-2" />
-                          Yo'naltirish
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Bemorni yo'naltirish</DialogTitle>
-                          <DialogDescription>
-                            Bemorni laboratoriya yoki shifokorga yo'naltirish
-                          </DialogDescription>
-                        </DialogHeader>
-                        {referringPatient && (
-                          <div className="space-y-4">
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Bemor</p>
-                              <p>{referringPatient.firstName} {referringPatient.lastName}</p>
-                            </div>
-
-                            <Separator />
-
-                            <div className="space-y-2">
-                              <Label>Yo'naltirish turi</Label>
-                              <div className="grid grid-cols-2 gap-2">
-                                <Button
-                                  variant={referralType === 'lab' ? 'default' : 'outline'}
-                                  className="justify-start"
-                                  onClick={() => setReferralType('lab')}
-                                >
-                                  <FlaskConical className="w-4 h-4 mr-2" />
-                                  Laboratoriya
-                                </Button>
-                                <Button
-                                  variant={referralType === 'doctor' ? 'default' : 'outline'}
-                                  className="justify-start"
-                                  onClick={() => setReferralType('doctor')}
-                                >
-                                  <Stethoscope className="w-4 h-4 mr-2" />
-                                  Shifokor
-                                </Button>
-                              </div>
-                            </div>
-
-                            {referralType === 'lab' && (
-                              <div className="space-y-2">
-                                <Label>Tahlil turini tanlang</Label>
-                                <Select value={selectedLabTest} onValueChange={setSelectedLabTest}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Tahlil tanlang" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {labTests.map((test) => (
-                                      <SelectItem key={test.id} value={test.id}>
-                                        {test.name} - {test.price.toLocaleString()} so'm
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                {selectedLabTest && (
-                                  <div className="mt-2 p-3 bg-muted rounded-lg">
-                                    <p className="text-sm">
-                                      <span className="text-muted-foreground">Narx:</span>{' '}
-                                      <span className="font-medium">
-                                        {labTests.find(t => t.id === selectedLabTest)?.price.toLocaleString()} so'm
-                                      </span>
-                                    </p>
-                                  </div>
-                                )}
-                                <Button
-                                  onClick={handleReferToLab}
-                                  disabled={!selectedLabTest}
-                                  className="w-full mt-4"
-                                >
-                                  Laboratoriyaga yuborish
-                                </Button>
-                              </div>
-                            )}
-
-                            {referralType === 'doctor' && (
-                              <div className="space-y-2">
-                                <Label>Shifokorni tanlang</Label>
-                                <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Shifokor tanlang" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {doctors.map((doctor) => (
-                                      <SelectItem key={doctor.id} value={doctor.id}>
-                                        {doctor.fullName} - {doctorPrices[doctor.id]?.toLocaleString() || '150,000'} so'm
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                {selectedDoctor && (
-                                  <div className="mt-2 p-3 bg-muted rounded-lg">
-                                    <p className="text-sm">
-                                      <span className="text-muted-foreground">Narx:</span>{' '}
-                                      <span className="font-medium">
-                                        {doctorPrices[selectedDoctor]?.toLocaleString() || '150,000'} so'm
-                                      </span>
-                                    </p>
-                                  </div>
-                                )}
-                                <Button
-                                  onClick={handleReferToDoctorWithPrice}
-                                  disabled={!selectedDoctor}
-                                  className="w-full mt-4"
-                                >
-                                  Shifokorga yuborish
-                                </Button>
-                              </div>
                             )}
                           </div>
                         )}

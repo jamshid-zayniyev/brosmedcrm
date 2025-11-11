@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Menu,
   X,
+  DollarSign,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -50,7 +51,7 @@ export function Layout({
       id: 'dashboard',
       label: 'Dashboard',
       icon: <LayoutDashboard className="w-5 h-5" />,
-      roles: ['superadmin', 'reception', 'laboratory', 'doctor'],
+      roles: ['superadmin', 'reception', 'laboratory', 'doctor', 'cashier'],
     },
     {
       id: 'register-patient',
@@ -75,6 +76,12 @@ export function Layout({
       label: 'Bemorlar',
       icon: <Stethoscope className="w-5 h-5" />,
       roles: ['doctor'],
+    },
+    {
+      id: 'payment-processing',
+      label: 'To\'lov qabul qilish',
+      icon: <DollarSign className="w-5 h-5" />,
+      roles: ['cashier'],
     },
     {
       id: 'user-management',
