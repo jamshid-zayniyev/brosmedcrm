@@ -182,7 +182,7 @@ export function Layout({
             <div className="flex items-center gap-3 px-3 py-2 bg-muted rounded-lg">
               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground">
-                  {user.fullName.charAt(0)}
+                  {user?.fullName?.charAt(0)}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
