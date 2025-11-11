@@ -3,6 +3,14 @@ export const API_ENDPOINTS = {
     base: "/user/",
     login: "/user/login/",
     findMe: "/user/me/",
+    refreshToken: "/user/auth/refresh/",
+    users: "/user/users/",
+  },
+  DEPARTMENT: {
+    base: "/department/department/",
+  },
+  DEPARTMENT_TYPE: {
+    base: "/department/department_types/",
   },
 };
 

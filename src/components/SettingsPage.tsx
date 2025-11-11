@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AppContextType } from '../App';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -7,13 +6,9 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Separator } from './ui/separator';
 import { Settings, Bell, Shield, Database, Globe } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
-interface SettingsPageProps {
-  context: AppContextType;
-}
-
-export function SettingsPage({ context }: SettingsPageProps) {
+export function SettingsPage() {
   const [clinicSettings, setClinicSettings] = useState({
     clinicName: 'Klinika Boshqaruv Tizimi',
     address: 'Toshkent shahar, Yunusobod tumani',

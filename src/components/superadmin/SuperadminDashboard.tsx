@@ -1,14 +1,23 @@
-import { AppContextType } from '../../App';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Users, UserCheck, TestTube, Stethoscope, Activity, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 
-interface SuperadminDashboardProps {
-  context: AppContextType;
-}
-
-export function SuperadminDashboard({ context }: SuperadminDashboardProps) {
-  const { patients, labResults, consultations, doctors } = context;
+export function SuperadminDashboard() {
+  // Mock data
+  const patients = [
+    { id: 1, department: 'Kardiologiya', gender: 'male' },
+    { id: 2, department: 'Nevrologiya', gender: 'female' },
+    { id: 3, department: 'Kardiologiya', gender: 'female' },
+    { id: 4, department: 'Ginekologiya', gender: 'female' },
+    { id: 5, department: 'Urologiya', gender: 'male' },
+  ];
+  const labResults = [ { id: 1 }, { id: 2 } ];
+  const consultations = [
+    { id: 1, patientId: 1, doctorName: 'Dr. Akmal', date: new Date().toISOString() },
+    { id: 2, patientId: 2, doctorName: 'Dr. Sevara', date: new Date().toISOString() },
+    { id: 3, patientId: 3, doctorName: 'Dr. Akmal', date: new Date().toISOString() },
+  ];
+  const doctors = [ { id: 1 }, { id: 2 }, { id: 3 } ];
 
   const stats = {
     totalPatients: patients.length,

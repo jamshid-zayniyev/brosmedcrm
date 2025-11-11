@@ -1,5 +1,5 @@
-import { User } from '../App';
-import { Button } from './ui/button';
+import { useUserStore } from "../stores/user.store";
+import { Button } from "./ui/button";
 import {
   LayoutDashboard,
   Users,
@@ -14,16 +14,13 @@ import {
   ClipboardList,
   Menu,
   X,
-} from 'lucide-react';
-import { useState } from 'react';
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { handleStorage } from "../utils/handle-storage";
+import { defaultRoutes, privateRoutes } from "../router";
 
 interface LayoutProps {
-  user: User;
-  currentPage: string;
-  onNavigate: (page: string) => void;
-  onLogout: () => void;
-  theme: 'light' | 'dark';
-  onToggleTheme: () => void;
   children: React.ReactNode;
 }
 
@@ -32,77 +29,66 @@ interface MenuItem {
   label: string;
   icon: React.ReactNode;
   roles: string[];
+  path: string;
 }
 
-export function Layout({
-  user,
-  currentPage,
-  onNavigate,
-  onLogout,
-  theme,
-  onToggleTheme,
-  children,
-}: LayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+const roleMap: { [key: string]: string } = {
+  s: "Superadmin",
+  r: "Receptionist",
+  l: "Laboratory",
+  d: "Doctor",
+  c: "Cashier",
+};
 
-  const menuItems: MenuItem[] = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: <LayoutDashboard className="w-5 h-5" />,
-      roles: ['superadmin', 'reception', 'laboratory', 'doctor'],
-    },
-    {
-      id: 'register-patient',
-      label: 'Bemor ro\'yxatga olish',
-      icon: <UserPlus className="w-5 h-5" />,
-      roles: ['reception'],
-    },
-    {
-      id: 'patient-queue',
-      label: 'Navbat',
-      icon: <ClipboardList className="w-5 h-5" />,
-      roles: ['reception'],
-    },
-    {
-      id: 'test-results',
-      label: 'Tahlillar',
-      icon: <TestTube className="w-5 h-5" />,
-      roles: ['laboratory'],
-    },
-    {
-      id: 'consultations',
-      label: 'Bemorlar',
-      icon: <Stethoscope className="w-5 h-5" />,
-      roles: ['doctor'],
-    },
-    {
-      id: 'user-management',
-      label: 'Foydalanuvchilar',
-      icon: <Users className="w-5 h-5" />,
-      roles: ['superadmin'],
-    },
-    {
-      id: 'reports',
-      label: 'Hisobotlar',
-      icon: <FileText className="w-5 h-5" />,
-      roles: ['superadmin', 'reception'],
-    },
-    {
-      id: 'settings',
-      label: 'Sozlamalar',
-      icon: <Settings className="w-5 h-5" />,
-      roles: ['superadmin'],
-    },
-  ];
+export function Layout({ children }: LayoutProps) {
+  const { user, setUser } = useUserStore();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(
+    (localStorage.getItem("theme") as "light" | "dark") || "light"
+  );
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const menuItems: MenuItem[] = privateRoutes.map((route) => ({
+    id: route.path,
+    label: route.path
+      .split("/")
+      .pop()
+      ?.replace("-", " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase()) || "",
+    icon: <LayoutDashboard className="w-5 h-5" />,
+    roles: route.allowedRoles,
+    path: route.path,
+  }));
 
   const filteredMenuItems = menuItems.filter((item) =>
     item.roles.includes(user.role)
   );
 
-  const handleNavigate = (page: string) => {
-    onNavigate(page);
+  const handleNavigate = (path: string) => {
+    navigate(path);
     setSidebarOpen(false);
+  };
+
+  const onLogout = () => {
+    handleStorage({ key: "access_token", value: null });
+    setUser(null);
+    navigate("/login");
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === "light" ? "dark" : "light");
   };
 
   return (
@@ -136,7 +122,7 @@ export function Layout({
         className={`
           fixed top-0 left-0 h-full w-64 bg-card border-r border-border z-50
           transform transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
         `}
       >
@@ -152,14 +138,14 @@ export function Layout({
               {filteredMenuItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => handleNavigate(item.id)}
+                  onClick={() => handleNavigate(item.path)}
                   className={`
                     w-full flex items-center gap-3 px-3 py-2 rounded-lg
                     transition-colors duration-200
                     ${
-                      currentPage === item.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-foreground hover:bg-accent'
+                      location.pathname === item.path
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent"
                     }
                   `}
                 >
@@ -175,13 +161,13 @@ export function Layout({
             <div className="flex items-center gap-3 px-3 py-2 bg-muted rounded-lg">
               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground">
-                  {user.fullName.charAt(0)}
+                  {user.fullName ? user.fullName.charAt(0) : "U"}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="truncate">{user.fullName}</p>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {user.role}
+                  {roleMap[user.role] || user.role}
                 </p>
               </div>
             </div>
@@ -190,10 +176,10 @@ export function Layout({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onToggleTheme}
                 className="flex-1"
+                onClick={toggleTheme}
               >
-                {theme === 'light' ? (
+                {theme === "light" ? (
                   <Moon className="w-4 h-4" />
                 ) : (
                   <Sun className="w-4 h-4" />

@@ -1,13 +1,15 @@
-import { AppContextType } from '../../App';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Users, UserCheck, Baby, UserX, Heart, AlertCircle } from 'lucide-react';
+import { Users, UserCheck, Baby, Heart, AlertCircle } from 'lucide-react';
 
-interface ReceptionDashboardProps {
-  context: AppContextType;
-}
-
-export function ReceptionDashboard({ context }: ReceptionDashboardProps) {
-  const { patients } = context;
+export function ReceptionDashboard() {
+  // Mock data
+  const patients = [
+    { id: 1, firstName: 'Ali', lastName: 'Valiyev', department: 'Kardiologiya', queueNumber: 1, registrationDate: new Date().toISOString(), status: 'registered', paymentStatus: 'paid', gender: 'male', birthDate: '1990-01-01', diseaseType: '' },
+    { id: 2, firstName: 'Vali', lastName: 'Aliyev', department: 'Nevrologiya', queueNumber: 2, registrationDate: new Date().toISOString(), status: 'in-lab', paymentStatus: 'partial', gender: 'male', birthDate: '1985-05-10', diseaseType: '' },
+    { id: 3, firstName: 'Omina', lastName: 'Qosimova', department: 'Ginekologiya', queueNumber: 3, registrationDate: new Date().toISOString(), status: 'with-doctor', paymentStatus: 'unpaid', gender: 'female', birthDate: '1992-11-20', diseaseType: 'homila' },
+    { id: 4, firstName: 'Sobir', lastName: 'Raximov', department: 'Urologiya', queueNumber: 4, registrationDate: new Date().toISOString(), status: 'completed', paymentStatus: 'paid', gender: 'male', birthDate: '2024-01-15', diseaseType: '' },
+    { id: 5, firstName: 'Laylo', lastName: 'Majnunova', department: 'Kardiologiya', queueNumber: 5, registrationDate: new Date().toISOString(), status: 'cured', paymentStatus: 'paid', gender: 'female', birthDate: '1978-08-08', diseaseType: 'nogiron' },
+  ];
 
   const stats = {
     total: patients.length,

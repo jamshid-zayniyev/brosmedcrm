@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -11,30 +11,74 @@ import {
 } from "./ui/card";
 import { Activity, User, Lock, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "./ui/alert";
+import { useUserStore } from "../stores/user.store";
+import { useNavigate } from "react-router-dom";
+import { authService } from "../services/auth.service";
+import { handleStorage } from "../utils/handle-storage";
+import { defaultRoutes } from "../router";
 
-interface LoginPageProps {
-  onLogin: (username: string, password: string) => boolean;
-}
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tokenForRefetch, setTokenForRefetch] = useState<string | null>(null); // New state
+  const { setUser } = useUserStore();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setError("");
+    setIsSubmitting(true);
 
-    const success = onLogin(username, password);
-    if (!success) {
+    try {
+      const { data } = await authService.login({
+        phone_number: username,
+        password,
+      });
+      handleStorage({ key: "access_token", value: data.access });
+      setTokenForRefetch(data.access); // Trigger useEffect
+    } catch (err) {
       setError("Noto'g'ri foydalanuvchi nomi yoki parol");
+      setIsSubmitting(false); // Reset submitting state on error
     }
   };
 
   const quickLogin = (user: string) => {
     setUsername(user);
     setPassword("password");
+    // Trigger handleSubmit after state updates
+    // This will be handled by the useEffect below
   };
+
+  // This useEffect will handle fetching user and navigation after token is set
+  useEffect(() => {
+    if (tokenForRefetch) {
+      const fetchUserAndNavigate = async () => {
+        try {
+          const user = await authService.findMe();
+          setUser(user);
+          navigate(defaultRoutes[user.role] || "/");
+        } catch (err) {
+          // If findMe fails, clear token and show error
+          handleStorage({ key: "access_token", value: null });
+          setError("Foydalanuvchi ma'lumotlarini yuklashda xatolik");
+        } finally {
+          setIsSubmitting(false);
+          setTokenForRefetch(null); // Reset tokenForRefetch
+        }
+      };
+      fetchUserAndNavigate();
+    }
+  }, [tokenForRefetch, setUser, navigate]); // Dependencies
+
+  // This useEffect handles quick login by triggering handleSubmit
+  useEffect(() => {
+    if (username && password === "password" && !isSubmitting) {
+      handleSubmit();
+    }
+  }, [username, password, isSubmitting]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
@@ -64,6 +108,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   onChange={(e) => setUsername(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -80,6 +125,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -91,8 +137,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               </Alert>
             )}
 
-            <Button type="submit" className="w-full">
-              Kirish
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Kirilmoqda..." : "Kirish"}
             </Button>
           </form>
 
@@ -112,8 +158,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => quickLogin("admin")}
+                onClick={() => quickLogin("superadmin")}
                 className="text-xs"
+                disabled={isSubmitting}
               >
                 Superadmin
               </Button>
@@ -122,6 +169,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 variant="outline"
                 onClick={() => quickLogin("reception")}
                 className="text-xs"
+                disabled={isSubmitting}
               >
                 Qabul
               </Button>
@@ -130,6 +178,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 variant="outline"
                 onClick={() => quickLogin("lab")}
                 className="text-xs"
+                disabled={isSubmitting}
               >
                 Laboratoriya
               </Button>
@@ -138,6 +187,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 variant="outline"
                 onClick={() => quickLogin("doctor")}
                 className="text-xs"
+                disabled={isSubmitting}
               >
                 Shifokor
               </Button>
