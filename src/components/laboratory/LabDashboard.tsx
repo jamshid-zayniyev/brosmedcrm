@@ -1,13 +1,17 @@
-import { AppContextType } from '../../App';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { TestTube, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 
-interface LabDashboardProps {
-  context: AppContextType;
-}
-
-export function LabDashboard({ context }: LabDashboardProps) {
-  const { patients, labResults } = context;
+export function LabDashboard() {
+  // Mock data
+  const patients = [
+    { id: 1, firstName: 'Ali', lastName: 'Valiyev' },
+    { id: 2, firstName: 'Vali', lastName: 'Aliyev' },
+  ];
+  const labResults = [
+    { id: 1, patientId: 1, testType: 'Qon tahlili', date: new Date().toISOString(), status: 'completed' },
+    { id: 2, patientId: 2, testType: 'Siydik tahlili', date: new Date().toISOString(), status: 'in-progress' },
+    { id: 3, patientId: 1, testType: 'Rentgen', date: new Date().toISOString(), status: 'new' },
+  ];
 
   const stats = {
     total: labResults.length,

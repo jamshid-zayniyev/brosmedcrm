@@ -1,13 +1,22 @@
-import { AppContextType } from '../../App';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Users, Clock, CheckCircle, Calendar } from 'lucide-react';
+import { useUserStore } from '@/stores/user.store';
 
-interface DoctorDashboardProps {
-  context: AppContextType;
-}
-
-export function DoctorDashboard({ context }: DoctorDashboardProps) {
-  const { patients, consultations, user } = context;
+export function DoctorDashboard() {
+  const { user } = useUserStore();
+  // Mock data
+  const patients = [
+    { id: 1, doctorId: user?.id, firstName: 'Ali', lastName: 'Valiyev', status: 'registered', registrationDate: new Date().toISOString(), queueNumber: 1, diseaseType: 'Yurak xastaligi' },
+    { id: 2, doctorId: user?.id, firstName: 'Vali', lastName: 'Aliyev', status: 'in-lab', registrationDate: new Date().toISOString(), queueNumber: 2, diseaseType: 'Gripp' },
+    { id: 3, doctorId: 99, firstName: 'Omina', lastName: 'Qosimova', status: 'with-doctor', registrationDate: new Date().toISOString(), queueNumber: 3, diseaseType: 'LOR' },
+    { id: 4, doctorId: user?.id, firstName: 'Sobir', lastName: 'Raximov', status: 'under-treatment', registrationDate: new Date().toISOString(), queueNumber: 4, diseaseType: 'Oyoq og\'rig\'i' },
+    { id: 5, doctorId: user?.id, firstName: 'Laylo', lastName: 'Majnunova', status: 'completed', registrationDate: new Date().toISOString(), queueNumber: 5, diseaseType: 'Bosh og\'rig\'i' },
+    { id: 6, doctorId: user?.id, firstName: 'Karim', lastName: 'Karimov', status: 'cured', registrationDate: new Date().toISOString(), queueNumber: 6, diseaseType: 'Bel og\'rig\'i' },
+  ];
+  const consultations = [
+    { id: 1, patientId: 1, doctorId: user?.id, diagnosis: 'Stenokardiya', recommendations: 'Ko\'proq dam olish', date: new Date().toISOString() },
+    { id: 2, patientId: 2, doctorId: user?.id, diagnosis: 'Mavsumiy gripp', recommendations: 'Issiq choy ichish', date: new Date().toISOString() },
+  ];
 
   const myPatients = patients.filter(p => p.doctorId === user?.id);
   const myConsultations = consultations.filter(c => c.doctorId === user?.id);

@@ -1,25 +1,26 @@
-import { useState } from 'react';
-import { AppContextType } from '../App';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Switch } from './ui/switch';
-import { Separator } from './ui/separator';
-import { Settings, Bell, Shield, Database, Globe } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Switch } from "./ui/switch";
+import { Separator } from "./ui/separator";
+import { Settings, Bell, Shield, Database, Globe, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Skeleton } from "./ui/skeleton";
+import { clinicAboutService } from "../services/clinic-about.service";
 
-interface SettingsPageProps {
-  context: AppContextType;
-}
+export function SettingsPage() {
+  const [clinicSettingsId, setClinicSettingsId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-export function SettingsPage({ context }: SettingsPageProps) {
   const [clinicSettings, setClinicSettings] = useState({
-    clinicName: 'Klinika Boshqaruv Tizimi',
-    address: 'Toshkent shahar, Yunusobod tumani',
-    phone: '+998 71 123 45 67',
-    email: 'info@klinika.uz',
-    workingHours: '08:00 - 18:00',
+    name: "",
+    address: "",
+    phone_number: "",
+    email: "",
+    work_time: "",
   });
 
   const [notifications, setNotifications] = useState({
@@ -33,43 +34,83 @@ export function SettingsPage({ context }: SettingsPageProps) {
 
   const [security, setSecurity] = useState({
     twoFactorAuth: false,
-    sessionTimeout: '30',
-    passwordExpiry: '90',
+    sessionTimeout: "30",
+    passwordExpiry: "90",
     autoLogout: true,
   });
 
   const [system, setSystem] = useState({
     autoBackup: true,
-    backupFrequency: 'daily',
-    dataRetention: '365',
+    backupFrequency: "daily",
+    dataRetention: "365",
     maintenanceMode: false,
   });
 
-  const handleSaveClinicSettings = () => {
-    toast.success('Klinika sozlamalari saqlandi');
+  useEffect(() => {
+    const fetchClinicSettings = async () => {
+      setIsLoading(true);
+      try {
+        const data = await clinicAboutService.findAll();
+        if (data && data.length > 0) {
+          const settings = data[0];
+          setClinicSettings({
+            name: settings.name,
+            address: settings.address,
+            phone_number: settings.phone_number,
+            email: settings.email,
+            work_time: settings.work_time,
+          });
+          setClinicSettingsId(settings.id);
+        }
+      } catch (error) {
+        toast.error("Klinika ma'lumotlarini yuklashda xatolik yuz berdi");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchClinicSettings();
+  }, []);
+
+  const handleSaveClinicSettings = async () => {
+    setIsSubmitting(true);
+    try {
+      if (clinicSettingsId) {
+        await clinicAboutService.update({
+          id: clinicSettingsId,
+          ...clinicSettings,
+        });
+      } else {
+        await clinicAboutService.create(clinicSettings);
+      }
+      toast.success("Klinika sozlamalari saqlandi");
+    } catch (error) {
+      toast.error("Klinika sozlamalarini saqlashda xatolik yuz berdi");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSaveNotifications = () => {
-    toast.success('Bildirishnoma sozlamalari saqlandi');
+    toast.success("Bildirishnoma sozlamalari saqlandi");
   };
 
   const handleSaveSecurity = () => {
-    toast.success('Xavfsizlik sozlamalari saqlandi');
+    toast.success("Xavfsizlik sozlamalari saqlandi");
   };
 
   const handleSaveSystem = () => {
-    toast.success('Tizim sozlamalari saqlandi');
+    toast.success("Tizim sozlamalari saqlandi");
   };
 
   const handleBackup = () => {
-    toast.success('Zaxira nusxa yaratilmoqda...');
+    toast.success("Zaxira nusxa yaratilmoqda...");
     setTimeout(() => {
-      toast.success('Zaxira nusxa muvaffaqiyatli yaratildi');
+      toast.success("Zaxira nusxa muvaffaqiyatli yaratildi");
     }, 2000);
   };
 
   const handleRestore = () => {
-    toast.info('Tiklash jarayoni boshlandi...');
+    toast.info("Tiklash jarayoni boshlandi...");
   };
 
   return (
@@ -90,55 +131,108 @@ export function SettingsPage({ context }: SettingsPageProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="clinicName">Klinika nomi</Label>
-              <Input
-                id="clinicName"
-                value={clinicSettings.clinicName}
-                onChange={(e) => setClinicSettings({ ...clinicSettings, clinicName: e.target.value })}
-              />
+          {isLoading ? (
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
             </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clinicName">Klinika nomi</Label>
+                <Input
+                  id="clinicName"
+                  value={clinicSettings.name}
+                  onChange={(e) =>
+                    setClinicSettings({ ...clinicSettings, name: e.target.value })
+                  }
+                  disabled={isSubmitting}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefon raqami</Label>
-              <Input
-                id="phone"
-                value={clinicSettings.phone}
-                onChange={(e) => setClinicSettings({ ...clinicSettings, phone: e.target.value })}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="phone">Telefon raqami</Label>
+                <Input
+                  id="phone"
+                  value={clinicSettings.phone_number}
+                  onChange={(e) =>
+                    setClinicSettings({
+                      ...clinicSettings,
+                      phone_number: e.target.value,
+                    })
+                  }
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={clinicSettings.email}
+                  onChange={(e) =>
+                    setClinicSettings({
+                      ...clinicSettings,
+                      email: e.target.value,
+                    })
+                  }
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="workingHours">Ish vaqti</Label>
+                <Input
+                  id="workingHours"
+                  value={clinicSettings.work_time}
+                  onChange={(e) =>
+                    setClinicSettings({
+                      ...clinicSettings,
+                      work_time: e.target.value,
+                    })
+                  }
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="address">Manzil</Label>
+                <Input
+                  id="address"
+                  value={clinicSettings.address}
+                  onChange={(e) =>
+                    setClinicSettings({
+                      ...clinicSettings,
+                      address: e.target.value,
+                    })
+                  }
+                  disabled={isSubmitting}
+                />
+              </div>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={clinicSettings.email}
-                onChange={(e) => setClinicSettings({ ...clinicSettings, email: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="workingHours">Ish vaqti</Label>
-              <Input
-                id="workingHours"
-                value={clinicSettings.workingHours}
-                onChange={(e) => setClinicSettings({ ...clinicSettings, workingHours: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="address">Manzil</Label>
-              <Input
-                id="address"
-                value={clinicSettings.address}
-                onChange={(e) => setClinicSettings({ ...clinicSettings, address: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <Button onClick={handleSaveClinicSettings}>
+          <Button onClick={handleSaveClinicSettings} disabled={isSubmitting || isLoading}>
+            {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Saqlash
           </Button>
         </CardContent>
@@ -163,7 +257,9 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
               <Switch
                 checked={notifications.newPatient}
-                onCheckedChange={(checked) => setNotifications({ ...notifications, newPatient: checked })}
+                onCheckedChange={(checked) =>
+                  setNotifications({ ...notifications, newPatient: checked })
+                }
               />
             </div>
 
@@ -178,7 +274,9 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
               <Switch
                 checked={notifications.labResults}
-                onCheckedChange={(checked) => setNotifications({ ...notifications, labResults: checked })}
+                onCheckedChange={(checked) =>
+                  setNotifications({ ...notifications, labResults: checked })
+                }
               />
             </div>
 
@@ -193,7 +291,12 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
               <Switch
                 checked={notifications.consultationComplete}
-                onCheckedChange={(checked) => setNotifications({ ...notifications, consultationComplete: checked })}
+                onCheckedChange={(checked) =>
+                  setNotifications({
+                    ...notifications,
+                    consultationComplete: checked,
+                  })
+                }
               />
             </div>
 
@@ -208,7 +311,12 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
               <Switch
                 checked={notifications.paymentReminder}
-                onCheckedChange={(checked) => setNotifications({ ...notifications, paymentReminder: checked })}
+                onCheckedChange={(checked) =>
+                  setNotifications({
+                    ...notifications,
+                    paymentReminder: checked,
+                  })
+                }
               />
             </div>
 
@@ -223,7 +331,12 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
               <Switch
                 checked={notifications.emailNotifications}
-                onCheckedChange={(checked) => setNotifications({ ...notifications, emailNotifications: checked })}
+                onCheckedChange={(checked) =>
+                  setNotifications({
+                    ...notifications,
+                    emailNotifications: checked,
+                  })
+                }
               />
             </div>
 
@@ -238,14 +351,17 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
               <Switch
                 checked={notifications.smsNotifications}
-                onCheckedChange={(checked) => setNotifications({ ...notifications, smsNotifications: checked })}
+                onCheckedChange={(checked) =>
+                  setNotifications({
+                    ...notifications,
+                    smsNotifications: checked,
+                  })
+                }
               />
             </div>
           </div>
 
-          <Button onClick={handleSaveNotifications}>
-            Saqlash
-          </Button>
+          <Button onClick={handleSaveNotifications}>Saqlash</Button>
         </CardContent>
       </Card>
 
@@ -268,7 +384,9 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
               <Switch
                 checked={security.twoFactorAuth}
-                onCheckedChange={(checked) => setSecurity({ ...security, twoFactorAuth: checked })}
+                onCheckedChange={(checked) =>
+                  setSecurity({ ...security, twoFactorAuth: checked })
+                }
               />
             </div>
 
@@ -283,7 +401,9 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
               <Switch
                 checked={security.autoLogout}
-                onCheckedChange={(checked) => setSecurity({ ...security, autoLogout: checked })}
+                onCheckedChange={(checked) =>
+                  setSecurity({ ...security, autoLogout: checked })
+                }
               />
             </div>
 
@@ -296,25 +416,29 @@ export function SettingsPage({ context }: SettingsPageProps) {
                   id="sessionTimeout"
                   type="number"
                   value={security.sessionTimeout}
-                  onChange={(e) => setSecurity({ ...security, sessionTimeout: e.target.value })}
+                  onChange={(e) =>
+                    setSecurity({ ...security, sessionTimeout: e.target.value })
+                  }
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="passwordExpiry">Parol amal qilish muddati (kun)</Label>
+                <Label htmlFor="passwordExpiry">
+                  Parol amal qilish muddati (kun)
+                </Label>
                 <Input
                   id="passwordExpiry"
                   type="number"
                   value={security.passwordExpiry}
-                  onChange={(e) => setSecurity({ ...security, passwordExpiry: e.target.value })}
+                  onChange={(e) =>
+                    setSecurity({ ...security, passwordExpiry: e.target.value })
+                  }
                 />
               </div>
             </div>
           </div>
 
-          <Button onClick={handleSaveSecurity}>
-            Saqlash
-          </Button>
+          <Button onClick={handleSaveSecurity}>Saqlash</Button>
         </CardContent>
       </Card>
 
@@ -337,7 +461,9 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
               <Switch
                 checked={system.autoBackup}
-                onCheckedChange={(checked) => setSystem({ ...system, autoBackup: checked })}
+                onCheckedChange={(checked) =>
+                  setSystem({ ...system, autoBackup: checked })
+                }
               />
             </div>
 
@@ -352,7 +478,9 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
               <Switch
                 checked={system.maintenanceMode}
-                onCheckedChange={(checked) => setSystem({ ...system, maintenanceMode: checked })}
+                onCheckedChange={(checked) =>
+                  setSystem({ ...system, maintenanceMode: checked })
+                }
               />
             </div>
 
@@ -364,7 +492,9 @@ export function SettingsPage({ context }: SettingsPageProps) {
                 <select
                   id="backupFrequency"
                   value={system.backupFrequency}
-                  onChange={(e) => setSystem({ ...system, backupFrequency: e.target.value })}
+                  onChange={(e) =>
+                    setSystem({ ...system, backupFrequency: e.target.value })
+                  }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="hourly">Har soat</option>
@@ -375,12 +505,16 @@ export function SettingsPage({ context }: SettingsPageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dataRetention">Ma'lumotlarni saqlash (kun)</Label>
+                <Label htmlFor="dataRetention">
+                  Ma'lumotlarni saqlash (kun)
+                </Label>
                 <Input
                   id="dataRetention"
                   type="number"
                   value={system.dataRetention}
-                  onChange={(e) => setSystem({ ...system, dataRetention: e.target.value })}
+                  onChange={(e) =>
+                    setSystem({ ...system, dataRetention: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -399,9 +533,7 @@ export function SettingsPage({ context }: SettingsPageProps) {
             </div>
           </div>
 
-          <Button onClick={handleSaveSystem}>
-            Saqlash
-          </Button>
+          <Button onClick={handleSaveSystem}>Saqlash</Button>
         </CardContent>
       </Card>
 
@@ -463,9 +595,7 @@ export function SettingsPage({ context }: SettingsPageProps) {
             </div>
           </div>
 
-          <Button>
-            Saqlash
-          </Button>
+          <Button>Saqlash</Button>
         </CardContent>
       </Card>
     </div>

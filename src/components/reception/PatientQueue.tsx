@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { AppContextType, Patient } from '../../App';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -10,15 +9,122 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Users, Search, Edit, History, PlusCircle, Printer } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../ui/dialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Separator } from '../ui/separator';
 
-interface PatientQueueProps {
-  context: AppContextType;
+// Define types locally as AppContextType is removed
+interface PatientHistory {
+  id: string;
+  date: string;
+  type: 'registration' | 'lab-test' | 'consultation' | 'payment' | 'other';
+  description: string;
+  doctorName?: string;
+  department?: string;
+  amount?: number;
+  diagnosis?: string;
+  recommendations?: string;
+  prescription?: string;
+  labTest?: string;
+  labResult?: string;
 }
 
-export function PatientQueue({ context }: PatientQueueProps) {
-  const { patients, updatePatient, doctors, addPatientHistory } = context;
+interface Patient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  gender: 'male' | 'female';
+  birthDate: string;
+  phone: string;
+  address: string;
+  diseaseType: string;
+  department: string;
+  doctorId?: string;
+  doctorName?: string;
+  paymentAmount?: number;
+  paymentStatus: 'pending' | 'paid' | 'partial';
+  status: 'registered' | 'in-lab' | 'with-doctor' | 'completed' | 'under-treatment' | 'cured' | 'discharged' | 'cancelled';
+  queueNumber?: number;
+  registrationDate: string;
+  history: PatientHistory[];
+}
+
+interface Doctor {
+  id: string;
+  fullName: string;
+  department: string;
+}
+
+export function PatientQueue() {
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  
+  useEffect(() => {
+    // Mock data initialization
+    const mockDoctors: Doctor[] = [
+      { id: 'd1', fullName: 'Dr. Alisher Aliyev', department: 'Kardiologiya' },
+      { id: 'd2', fullName: 'Dr. Nodira Karimova', department: 'Nevrologiya' },
+      { id: 'd3', fullName: 'Dr. Jamshid Rahimov', department: 'Ortopediya' },
+      { id: 'd4', fullName: 'Dr. Dilnoza Yusupova', department: 'Terapiya' },
+    ];
+    setDoctors(mockDoctors);
+
+    const mockPatients: Patient[] = [
+      {
+        id: 'p1',
+        firstName: 'Ali',
+        lastName: 'Valiyev',
+        gender: 'male',
+        birthDate: '1990-05-10',
+        phone: '+998901234567',
+        address: 'Toshkent, Yunusobod',
+        diseaseType: 'Yurak sanchishi',
+        department: 'Kardiologiya',
+        doctorId: 'd1',
+        doctorName: 'Dr. Alisher Aliyev',
+        paymentAmount: 150000,
+        paymentStatus: 'paid',
+        status: 'with-doctor',
+        queueNumber: 1,
+        registrationDate: new Date().toISOString(),
+        history: [],
+      },
+      {
+        id: 'p2',
+        firstName: 'Zarina',
+        lastName: 'Saidova',
+        gender: 'female',
+        birthDate: '1985-11-20',
+        phone: '+998937654321',
+        address: 'Samarqand, Registon',
+        diseaseType: 'Umumiy qon tahlili',
+        department: 'Laboratoriya',
+        paymentAmount: 50000,
+        paymentStatus: 'pending',
+        status: 'in-lab',
+        queueNumber: 2,
+        registrationDate: new Date().toISOString(),
+        history: [],
+      },
+    ];
+    setPatients(mockPatients);
+  }, []);
+
+  const updatePatient = (patientId: string, updates: Partial<Patient>) => {
+    setPatients(prevPatients => 
+      prevPatients.map(p => p.id === patientId ? { ...p, ...updates } : p)
+    );
+  };
+
+  const addPatientHistory = (patientId: string, historyEntry: PatientHistory) => {
+    setPatients(prevPatients =>
+      prevPatients.map(p => 
+        p.id === patientId 
+          ? { ...p, history: [...p.history, historyEntry] } 
+          : p
+      )
+    );
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
