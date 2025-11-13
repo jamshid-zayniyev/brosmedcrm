@@ -204,10 +204,10 @@ export function PatientConsultation() {
         </p>
       </div>
 
-      <Tabs defaultValue="consultation">
+      <Tabs defaultValue="queue">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="consultation">Yangi konsultatsiya</TabsTrigger>
           <TabsTrigger value="queue">Navbatdagi bemorlar</TabsTrigger>
+          <TabsTrigger value="consultation">Yangi konsultatsiya</TabsTrigger>
         </TabsList>
 
         <TabsContent value="consultation" className="space-y-6">

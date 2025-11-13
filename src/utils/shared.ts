@@ -22,8 +22,9 @@ export const API_ENDPOINTS = {
     base: "/laboratory/analysis/",
   },
   DOCTOR: {
-    base: "/doctor/doctor/"
-  }
+    base: "/doctor/doctor/",
+    consultations: "/doctor/consultations",
+  },
 };
 
 export const serverUrl =

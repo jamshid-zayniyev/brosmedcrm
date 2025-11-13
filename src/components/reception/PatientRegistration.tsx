@@ -242,7 +242,7 @@ export function PatientRegistration() {
     }
 
     const dto = {
-      user: 1, // Assuming a fixed user ID
+      user: formData.doctorId || undefined, // Assign doctorId if selected, otherwise undefined
       department: formData.departmentId,
       department_types: formData.departmentTypeId || undefined,
       name: formData.firstName,

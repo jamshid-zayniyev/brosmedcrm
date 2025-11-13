@@ -5,6 +5,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Badge } from "../ui/badge";
+import { Skeleton } from "../ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -137,7 +138,7 @@ const toPatientDto = (patient: Partial<Patient>) => {
   if (patient.address) dto.address = patient.address;
   if (patient.diseaseType) dto.disease = patient.diseaseType;
   if (patient.departmentId) dto.department = patient.departmentId;
-  if (patient.departmentTypeId) dto.department_types = [patient.departmentTypeId];
+  if (patient.departmentTypeId) dto.department_types = patient.departmentTypeId;
   if (patient.doctorId) dto.user = patient.doctorId;
   if (patient.paymentStatus) dto.payment_status = patient.paymentStatus;
   if (patient.status) dto.patient_status = patient.status;
@@ -162,9 +163,12 @@ export function PatientQueue() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false); // New state for save button loading
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         const [patientData, departmentData, departmentTypeData] = await Promise.all([
           patientService.findAll(),
@@ -176,6 +180,8 @@ export function PatientQueue() {
         setDepartmentTypes(departmentTypeData.results || departmentTypeData);
       } catch (error) {
         toast.error("Ma'lumotlarni yuklashda xatolik");
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -360,6 +366,8 @@ export function PatientQueue() {
   const handleSaveEdit = async () => {
     if (!editingPatient) return;
 
+    setIsSaving(true); // Start loading
+
     try {
       await patientService.update(toPatientDto(editFormData));
 
@@ -385,6 +393,8 @@ export function PatientQueue() {
       setDoctors([]);
     } catch (error) {
       toast.error("Bemor ma'lumotlarini yangilashda xatolik");
+    } finally {
+      setIsSaving(false); // End loading
     }
   };
 
@@ -454,7 +464,23 @@ export function PatientQueue() {
 
       {/* Queue List */}
       <div className="grid gap-4">
-        {filteredPatients.length === 0 ? (
+        {isLoading ? (
+          Array.from({ length: 5 }).map((_, index) => (
+            <Card key={index} className="p-6">
+              <div className="flex items-center space-x-4">
+                <Skeleton className="h-16 w-16 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[200px]" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-5 w-[80px]" />
+                    <Skeleton className="h-5 w-[80px]" />
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))
+        ) : filteredPatients.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
