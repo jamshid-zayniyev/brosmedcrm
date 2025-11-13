@@ -1,13 +1,17 @@
-import { AppContextType } from '../../App';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { DollarSign, Users, TrendingUp, Clock } from 'lucide-react';
 
-interface CashierDashboardProps {
-  context: AppContextType;
-}
+// Mock data for patients
+const mockPatients = [
+  { id: '1', firstName: 'John', lastName: 'Doe', department: 'Cardiology', registrationDate: new Date().toISOString(), paymentStatus: 'paid', paymentAmount: 150000, phone: '123456789', doctorName: 'Dr. Smith' },
+  { id: '2', firstName: 'Jane', lastName: 'Smith', department: 'Neurology', registrationDate: new Date().toISOString(), paymentStatus: 'pending', paymentAmount: 200000, phone: '987654321', doctorName: 'Dr. Jones' },
+  { id: '3', firstName: 'Alice', lastName: 'Johnson', department: 'Pediatrics', registrationDate: new Date(Date.now() - 86400000).toISOString(), paymentStatus: 'partial', paymentAmount: 100000, partialPaymentAmount: 50000, phone: '555555555', doctorName: 'Dr. Brown' },
+  { id: '4', firstName: 'Bob', lastName: 'Williams', department: 'Orthopedics', registrationDate: new Date(Date.now() - 172800000).toISOString(), paymentStatus: 'paid', paymentAmount: 300000, phone: '111222333', doctorName: 'Dr. White' },
+  { id: '5', firstName: 'Charlie', lastName: 'Brown', department: 'Cardiology', registrationDate: new Date().toISOString(), paymentStatus: 'paid', paymentAmount: 120000, phone: '444555666', labTestName: 'Blood Test' },
+];
 
-export function CashierDashboard({ context }: CashierDashboardProps) {
-  const { patients } = context;
+export function CashierDashboard() {
+  const patients = mockPatients;
 
   // Calculate statistics
   const pendingPayments = patients.filter(p => p.paymentStatus === 'pending');

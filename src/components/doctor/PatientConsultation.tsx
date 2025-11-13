@@ -1,23 +1,52 @@
 import { useState } from 'react';
-import { AppContextType, Consultation } from '../../App';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Stethoscope, FileText, Pill, History, Edit } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Separator } from '../ui/separator';
+import { Consultation, Patient, LabResult, User } from '../../router/types';
 
-interface PatientConsultationProps {
-  context: AppContextType;
-}
+export function PatientConsultation() {
+  const user: User = {
+    id: 'doc1',
+    fullName: 'Dr. Akmal',
+    role: 'doctor',
+  };
 
-export function PatientConsultation({ context }: PatientConsultationProps) {
-  const { patients, labResults, consultations, addConsultation, updateConsultation, updatePatient, user, addPatientHistory } = context;
+  const [patients, setPatients] = useState<Patient[]>([
+    { id: 'p1', firstName: 'Ali', lastName: 'Valiyev', birthDate: '1990-01-01', gender: 'male', phone: '123456789', address: 'Tashkent', diseaseType: 'Gripp', queueNumber: 1, status: 'registered', doctorId: 'doc1', history: [] },
+    { id: 'p2', firstName: 'Vali', lastName: 'Aliyev', birthDate: '1985-05-10', gender: 'male', phone: '987654321', address: 'Samarkand', diseaseType: 'Angina', queueNumber: 2, status: 'in-lab', doctorId: 'doc1', history: [] },
+    { id: 'p3', firstName: 'Salima', lastName: 'Karimova', birthDate: '1995-02-20', gender: 'female', phone: '555555555', address: 'Bukhara', diseaseType: 'Shamollash', queueNumber: 3, status: 'with-doctor', doctorId: 'doc1', history: [] },
+  ]);
+
+  const [labResults, setLabResults] = useState<LabResult[]>([
+    { id: 'lr1', patientId: 'p2', testType: 'Qon tahlili', result: 'Natijalar normal', status: 'completed', date: new Date().toISOString() },
+  ]);
+
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+
+  const addConsultation = (consultation: Consultation) => {
+    setConsultations(prev => [...prev, consultation]);
+  };
+
+  const updateConsultation = (id: string, data: Partial<Consultation>) => {
+    setConsultations(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
+  };
+
+  const updatePatient = (id: string, data: Partial<Patient>) => {
+    setPatients(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+  };
+
+  const addPatientHistory = (patientId: string, historyEntry: any) => {
+    setPatients(prev => prev.map(p => p.id === patientId ? { ...p, history: [...(p.history || []), historyEntry] } : p));
+  };
+  
   const [selectedPatient, setSelectedPatient] = useState('');
   const [viewingPatient, setViewingPatient] = useState<string | null>(null);
   const [editingPatientId, setEditingPatientId] = useState<string | null>(null);

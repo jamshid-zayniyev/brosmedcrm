@@ -1,20 +1,35 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Textarea } from '../ui/textarea';
-import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { toast } from 'sonner';
-import { UserPlus, Search, Printer } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { Textarea } from "../ui/textarea";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { toast } from "sonner";
+import { UserPlus, Search, Printer } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../ui/dialog";
+import { patientService } from "../../services/patient.service";
+import { departmentService } from "../../services/department.service";
+import { departmentTypeService } from "../../services/department-type.service";
 
 // Define types locally
 interface PatientHistory {
   id: string;
   date: string;
-  type: 'registration' | 'lab-test' | 'consultation' | 'payment' | 'other';
+  type: "registration" | "lab-test" | "consultation" | "payment" | "other";
   description: string;
   doctorName?: string;
   department?: string;
@@ -25,261 +40,260 @@ interface Patient {
   id: string;
   firstName: string;
   lastName: string;
-  gender: 'male' | 'female';
+  gender: "e" | "a";
   birthDate: string;
   phone: string;
   address: string;
   diseaseType: string;
   department: string;
-  doctorId?: string;
+  departmentId: number;
+  departmentTypeId?: number;
+  departmentType?: string;
+  doctorId?: number;
   doctorName?: string;
   paymentAmount?: number;
-  paymentStatus: 'pending' | 'paid' | 'partial';
-  status: 'registered' | 'in-lab' | 'with-doctor' | 'completed' | 'under-treatment' | 'cured' | 'discharged' | 'cancelled';
   queueNumber?: number;
   registrationDate: string;
   history: PatientHistory[];
 }
 
 interface Doctor {
-  id: string;
-  fullName: string;
-  department: string;
+  id: number;
+  full_name: string;
+  price: string;
 }
+
+interface Department {
+  id: number;
+  title: string;
+  title_ru: string;
+  title_uz: string;
+  department_types: DepartmentType[];
+}
+
+interface DepartmentType {
+  id: number;
+  title: string;
+  title_ru: string;
+  title_uz: string;
+  department: number;
+  price: number;
+}
+
+const toPatient = (data: any): Patient => ({
+  id: data.id.toString(),
+  firstName: data.name,
+  lastName: data.last_name,
+  gender: data.gender,
+  birthDate: data.birth_date,
+  phone: data.phone_number,
+  address: data.address,
+  diseaseType: data.disease,
+  department: data.department?.title_uz || "",
+  departmentId: data.department?.id,
+  departmentTypeId: data.department_types,
+  departmentType: "",
+  doctorId: data.user,
+  doctorName: "",
+  paymentAmount: 0,
+  registrationDate: new Date().toISOString(),
+  history: [],
+});
 
 export function PatientRegistration() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
+
+  const [mode, setMode] = useState<"types" | "doctors" | null>(null);
+  const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
 
   useEffect(() => {
-    // Mock data initialization
-    const mockDoctors: Doctor[] = [
-      { id: 'd1', fullName: 'Dr. Alisher Aliyev', department: 'Kardiologiya' },
-      { id: 'd2', fullName: 'Dr. Nodira Karimova', department: 'Nevrologiya' },
-      { id: 'd3', fullName: 'Dr. Jamshid Rahimov', department: 'Ortopediya' },
-      { id: 'd4', fullName: 'Dr. Dilnoza Yusupova', department: 'Terapiya' },
-    ];
-    setDoctors(mockDoctors);
+    const fetchData = async () => {
+      try {
+        const [patientData, departmentData, departmentTypeData] =
+          await Promise.all([
+            patientService.findAll(),
+            departmentService.findAll(),
+            departmentTypeService.findAll(),
+          ]);
+        setPatients((patientData.results || patientData).map(toPatient));
+        setDepartments(departmentData.results || departmentData);
+        setDepartmentTypes(departmentTypeData.results || departmentTypeData);
+      } catch (error) {
+        toast.error("Ma'lumotlarni yuklashda xatolik");
+      }
+    };
 
-    const mockPatients: Patient[] = [
-      {
-        id: 'p1',
-        firstName: 'Ali',
-        lastName: 'Valiyev',
-        gender: 'male',
-        birthDate: '1990-05-10',
-        phone: '+998901234567',
-        address: 'Toshkent, Yunusobod',
-        diseaseType: 'Yurak sanchishi',
-        department: 'Kardiologiya',
-        doctorId: 'd1',
-        doctorName: 'Dr. Alisher Aliyev',
-        paymentAmount: 150000,
-        paymentStatus: 'paid',
-        status: 'with-doctor',
-        queueNumber: 1,
-        registrationDate: new Date().toISOString(),
-        history: [],
-      },
-    ];
-    setPatients(mockPatients);
+    fetchData();
   }, []);
 
-  const addPatient = (newPatient: Patient) => {
-    setPatients(prev => [...prev, newPatient]);
-  };
-
-  const addPatientHistory = (patientId: string, historyEntry: PatientHistory) => {
-    setPatients(prev =>
-      prev.map(p => 
-        p.id === patientId 
-          ? { ...p, history: [...p.history, historyEntry] } 
-          : p
-      )
-    );
-  };
-
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<Patient | null>(null);
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    gender: 'male' as 'male' | 'female',
-    birthDate: '',
-    phone: '',
-    address: '',
-    diseaseType: '',
-    department: '',
-    doctorId: '',
-    labTestId: '',
+    firstName: "",
+    lastName: "",
+    middleName: "",
+    gender: "e" as "e" | "a",
+    birthDate: "",
+    phone: "",
+    address: "",
+    diseaseType: "",
+    departmentId: 0,
+    departmentTypeId: 0,
+    doctorId: 0,
   });
-
-  const departments = [
-    'Kardiologiya',
-    'Nevrologiya',
-    'Ortopediya',
-    'Fizioterapiya',
-    'Terapiya',
-    'Pediatriya',
-    'Ginekologiya',
-    'Oftalmologiya',
-    'Lor',
-    'Dermatologiya',
-    'Laboratoriya',
-  ];
-
-  const labTests = [
-    { id: 'lt1', name: 'Umumiy qon tahlili', price: 50000 },
-    { id: 'lt2', name: 'Biokimyoviy qon tahlili', price: 120000 },
-    { id: 'lt3', name: 'Qand tahlili', price: 30000 },
-    { id: 'lt4', name: 'Siydik tahlili', price: 40000 },
-    { id: 'lt5', name: 'Rentgen', price: 150000 },
-    { id: 'lt6', name: 'Ultrasonografiya (USG)', price: 180000 },
-    { id: 'lt7', name: 'MRI', price: 800000 },
-    { id: 'lt8', name: 'KT (Kompyuter tomografiya)', price: 650000 },
-    { id: 'lt9', name: 'EKG', price: 60000 },
-    { id: 'lt10', name: 'Gormon tahlillari', price: 200000 },
-  ];
-
-  const doctorPrices: Record<string, number> = {
-    'd1': 150000, // Dr. Alisher Aliyev
-    'd2': 180000, // Dr. Nodira Karimova
-    'd3': 160000, // Dr. Jamshid Rahimov
-    'd4': 170000, // Dr. Dilnoza Yusupova
-  };
 
   const handleSearch = () => {
     const found = patients.find(
       (p) =>
         p.phone.includes(searchQuery) ||
-        `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
+        `${p.firstName} ${p.lastName}`
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
     );
 
     if (found) {
       setSelectedPatient(found);
       setFormData({
+        ...formData,
         firstName: found.firstName,
         lastName: found.lastName,
         gender: found.gender,
         birthDate: found.birthDate,
         phone: found.phone,
         address: found.address,
-        diseaseType: '',
-        department: '',
-        doctorId: '',
-        labTestId: '',
+        diseaseType: "",
+        departmentId: 0,
+        departmentTypeId: 0,
+        doctorId: 0,
       });
-      toast.success('Bemor topildi!');
+      toast.success("Bemor topildi!");
     } else {
-      toast.error('Bemor topilmadi');
+      toast.error("Bemor topilmadi");
       setSelectedPatient(null);
     }
   };
 
-  const handleDepartmentChange = (value: string) => {
-    setFormData({ 
-      ...formData, 
-      department: value,
-      doctorId: '',
-      labTestId: '',
+  const handleDepartmentChange = async (value: string) => {
+    const departmentId = parseInt(value, 10);
+    const department = departments.find((d) => d.id === departmentId);
+
+    setFormData({
+      ...formData,
+      departmentId: departmentId,
+      departmentTypeId: 0,
+      doctorId: 0,
+    });
+    setDoctors([]);
+    setMode(null);
+
+    if (!department) return;
+
+    if (department.department_types && department.department_types.length > 0) {
+      setMode("types");
+    } else {
+      setMode("doctors");
+      setIsLoadingDoctors(true);
+      try {
+        const doctorsData = await departmentService.findDoctorsByDepartment(
+          departmentId
+        );
+        setDoctors(doctorsData.results || []);
+      } catch (error) {
+        toast.error("Shifokorlarni yuklashda xatolik");
+      } finally {
+        setIsLoadingDoctors(false);
+      }
+    }
+  };
+
+  const handleDepartmentTypeChange = (value: string) => {
+    setFormData({
+      ...formData,
+      departmentTypeId: parseInt(value, 10),
     });
   };
 
   const handleDoctorChange = (value: string) => {
-    setFormData({ 
-      ...formData, 
-      doctorId: value,
+    setFormData({
+      ...formData,
+      doctorId: parseInt(value, 10),
     });
   };
 
-  const handleLabTestChange = (value: string) => {
-    setFormData({ 
-      ...formData, 
-      labTestId: value,
-    });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const queueNumber = patients.filter(p => p.department === formData.department).length + 1;
-    const doctor = doctors.find(d => d.id === formData.doctorId);
-    const labTest = labTests.find(lt => lt.id === formData.labTestId);
-    
-    // Calculate payment amount
+    const doctor = doctors.find((d) => d.id === formData.doctorId);
+    const departmentType = departmentTypes.find(
+      (dt) => dt.id === formData.departmentTypeId
+    );
+
     let paymentAmount = 0;
-    if (formData.department === 'Laboratoriya' && labTest) {
-      paymentAmount = labTest.price;
-    } else if (formData.doctorId) {
-      paymentAmount = doctorPrices[formData.doctorId] || 150000;
+    if (departmentType) {
+      paymentAmount = departmentType.price;
+    } else if (doctor) {
+      paymentAmount = parseInt(doctor.price, 10);
     }
 
-    const newPatient: Patient = {
-      id: `p${Date.now()}`,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+    const dto = {
+      user: 1, // Assuming a fixed user ID
+      department: formData.departmentId,
+      department_types: formData.departmentTypeId || undefined,
+      name: formData.firstName,
+      last_name: formData.lastName,
+      middle_name: "",
       gender: formData.gender,
-      birthDate: formData.birthDate,
-      phone: formData.phone,
+      birth_date: formData.birthDate,
+      phone_number: formData.phone,
       address: formData.address,
-      diseaseType: formData.diseaseType,
-      department: formData.department,
-      doctorId: formData.doctorId,
-      doctorName: doctor?.fullName,
-      labTestId: formData.department === 'Laboratoriya' ? formData.labTestId : undefined,
-      labTestName: formData.department === 'Laboratoriya' ? labTest?.name : undefined,
-      queueNumber,
-      registrationDate: new Date().toISOString(),
-      paymentStatus: 'pending',
-      paymentAmount: paymentAmount,
-      status: formData.department === 'Laboratoriya' ? 'in-lab' : 'registered',
-      history: selectedPatient?.history || [],
+      disease: formData.diseaseType,
+      disease_uz: formData.diseaseType,
+      disease_ru: formData.diseaseType,
     };
 
-    addPatient(newPatient);
+    try {
+      const newPatientData = await patientService.create(dto);
+      const newPatient = toPatient(newPatientData);
 
-    // Add to patient history
-    const historyEntry = {
-      id: `h${Date.now()}`,
-      date: new Date().toISOString(),
-      type: 'registration' as const,
-      description: formData.department === 'Laboratoriya' 
-        ? `Laboratoriya tahlili uchun ro'yxatga olindi: ${labTest?.name}`
-        : `Ro'yxatga olindi - ${formData.department} bo'limi`,
-      department: formData.department,
-      doctorName: doctor?.fullName,
-      amount: paymentAmount,
-    };
-    
-    addPatientHistory(newPatient.id, historyEntry);
+      setPatients((prev) => [...prev, newPatient]);
+      setReceiptData(newPatient);
+      setShowReceipt(true);
+      toast.success("Bemor muvaffaqiyatli ro'yxatga olindi!");
 
-    setReceiptData(newPatient);
-    setShowReceipt(true);
-    toast.success('Bemor muvaffaqiyatli ro\'yxatga olindi!');
-
-    // Reset form
-    setFormData({
-      firstName: '',
-      lastName: '',
-      gender: 'male',
-      birthDate: '',
-      phone: '',
-      address: '',
-      diseaseType: '',
-      department: '',
-      doctorId: '',
-      labTestId: '',
-    });
-    setSelectedPatient(null);
-    setSearchQuery('');
+      // Reset form
+      setFormData({
+        firstName: "",
+        lastName: "",
+        middleName: "",
+        gender: "e",
+        birthDate: "",
+        phone: "",
+        address: "",
+        diseaseType: "",
+        departmentId: 0,
+        departmentTypeId: 0,
+        doctorId: 0,
+      });
+      setSelectedPatient(null);
+      setSearchQuery("");
+    } catch (error) {
+      toast.error("Bemor ro'yxatga olishda xatolik");
+    }
   };
 
   const handlePrintReceipt = () => {
     window.print();
   };
+
+  const filteredDepartmentTypes = departmentTypes.filter(
+    (type) => type.department === formData.departmentId
+  );
 
   return (
     <div className="space-y-6">
@@ -309,9 +323,13 @@ export function PatientRegistration() {
           </div>
           {selectedPatient && (
             <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-              <p>✓ Bemor topildi: {selectedPatient.firstName} {selectedPatient.lastName}</p>
+              <p>
+                ✓ Bemor topildi: {selectedPatient.firstName}{" "}
+                {selectedPatient.lastName}
+              </p>
               <p className="text-sm text-muted-foreground">
-                Kasallik tarixi: {selectedPatient.history?.length || 0} ta tashriflar
+                Kasallik tarixi: {selectedPatient.history?.length || 0} ta
+                tashriflar
               </p>
             </div>
           )}
@@ -323,7 +341,9 @@ export function PatientRegistration() {
         <CardHeader>
           <CardTitle>
             <UserPlus className="w-5 h-5 inline mr-2" />
-            {selectedPatient ? 'Yangi tashrifni ro\'yxatga olish' : 'Yangi bemor ro\'yxatga olish'}
+            {selectedPatient
+              ? "Yangi tashrifni ro'yxatga olish"
+              : "Yangi bemor ro'yxatga olish"}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -335,7 +355,9 @@ export function PatientRegistration() {
                 <Input
                   id="firstName"
                   value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, firstName: e.target.value })
+                  }
                   required
                   disabled={!!selectedPatient}
                 />
@@ -345,7 +367,9 @@ export function PatientRegistration() {
                 <Input
                   id="lastName"
                   value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, lastName: e.target.value })
+                  }
                   required
                   disabled={!!selectedPatient}
                 />
@@ -356,16 +380,18 @@ export function PatientRegistration() {
               <Label>Jinsi *</Label>
               <RadioGroup
                 value={formData.gender}
-                onValueChange={(value: 'male' | 'female') => setFormData({ ...formData, gender: value })}
+                onValueChange={(value: "e" | "a") =>
+                  setFormData({ ...formData, gender: value })
+                }
                 disabled={!!selectedPatient}
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="male" id="male" />
-                  <Label htmlFor="male">Erkak</Label>
+                  <RadioGroupItem value="e" id="e" />
+                  <Label htmlFor="e">Erkak</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="female" id="female" />
-                  <Label htmlFor="female">Ayol</Label>
+                  <RadioGroupItem value="a" id="a" />
+                  <Label htmlFor="a">Ayol</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -377,7 +403,9 @@ export function PatientRegistration() {
                   id="birthDate"
                   type="date"
                   value={formData.birthDate}
-                  onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, birthDate: e.target.value })
+                  }
                   required
                   disabled={!!selectedPatient}
                 />
@@ -389,7 +417,9 @@ export function PatientRegistration() {
                   type="tel"
                   placeholder="+998 90 123 45 67"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
                   required
                   disabled={!!selectedPatient}
                 />
@@ -401,7 +431,9 @@ export function PatientRegistration() {
               <Textarea
                 id="address"
                 value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
                 required
                 disabled={!!selectedPatient}
               />
@@ -410,14 +442,18 @@ export function PatientRegistration() {
             {/* Medical Information */}
             <div className="border-t pt-6">
               <h3 className="mb-4">Tibbiy ma'lumotlar</h3>
-              
+
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="diseaseType">Kasallik turi / Shikoyat *</Label>
+                  <Label htmlFor="diseaseType">
+                    Kasallik turi / Shikoyat *
+                  </Label>
                   <Textarea
                     id="diseaseType"
                     value={formData.diseaseType}
-                    onChange={(e) => setFormData({ ...formData, diseaseType: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, diseaseType: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -426,7 +462,11 @@ export function PatientRegistration() {
                   <div className="space-y-2">
                     <Label htmlFor="department">Bo'lim *</Label>
                     <Select
-                      value={formData.department}
+                      value={
+                        formData.departmentId === 0
+                          ? ""
+                          : formData.departmentId.toString()
+                      }
                       onValueChange={handleDepartmentChange}
                       required
                     >
@@ -435,55 +475,78 @@ export function PatientRegistration() {
                       </SelectTrigger>
                       <SelectContent>
                         {departments.map((dept) => (
-                          <SelectItem key={dept} value={dept}>
-                            {dept}
+                          <SelectItem key={dept.id} value={dept.id.toString()}>
+                            {dept.title_uz}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {formData.department === 'Laboratoriya' ? (
+                  {mode === "types" && (
                     <div className="space-y-2">
-                      <Label htmlFor="labTest">Tahlil turini tanlang *</Label>
+                      <Label htmlFor="departmentType">Bo'lim turi *</Label>
                       <Select
-                        value={formData.labTestId}
-                        onValueChange={handleLabTestChange}
+                        value={
+                          formData.departmentTypeId === 0
+                            ? ""
+                            : formData.departmentTypeId.toString()
+                        }
+                        onValueChange={handleDepartmentTypeChange}
                         required
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Tahlil tanlang" />
+                          <SelectValue placeholder="Bo'lim turini tanlang" />
                         </SelectTrigger>
                         <SelectContent>
-                          {labTests.map((test) => (
-                            <SelectItem key={test.id} value={test.id}>
-                              {test.name} - {test.price.toLocaleString()} so'm
+                          {filteredDepartmentTypes.map((type) => (
+                            <SelectItem
+                              key={type.id}
+                              value={type.id.toString()}
+                            >
+                              {type.title_uz} -{" "}
+                              {Number(type.price).toLocaleString()} so'm
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      {formData.labTestId && (
+                      {formData.departmentTypeId && (
                         <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
                           <p className="text-sm">
-                            <span className="text-muted-foreground">Tanlangan tahlil:</span>{' '}
+                            <span className="text-muted-foreground">
+                              Tanlangan bo'lim turi:
+                            </span>{" "}
                             <span className="font-medium">
-                              {labTests.find(t => t.id === formData.labTestId)?.name}
+                              {
+                                filteredDepartmentTypes.find(
+                                  (t) => t.id === formData.departmentTypeId
+                                )?.title_uz
+                              }
                             </span>
                           </p>
                           <p className="text-sm">
-                            <span className="text-muted-foreground">Narx:</span>{' '}
+                            <span className="text-muted-foreground">Narx:</span>{" "}
                             <span className="font-medium">
-                              {labTests.find(t => t.id === formData.labTestId)?.price.toLocaleString()} so'm
+                              {filteredDepartmentTypes
+                                .find((t) => t.id === formData.departmentTypeId)
+                                ?.price.toLocaleString()}{" "}
+                              so'm
                             </span>
                           </p>
                         </div>
                       )}
                     </div>
-                  ) : formData.department ? (
+                  )}
+
+                  {mode === "doctors" && (
                     <div className="space-y-2">
                       <Label htmlFor="doctor">Shifokor *</Label>
                       <Select
-                        value={formData.doctorId}
+                        value={
+                          formData.doctorId === 0
+                            ? ""
+                            : formData.doctorId.toString()
+                        }
                         onValueChange={handleDoctorChange}
                         required
                       >
@@ -492,8 +555,11 @@ export function PatientRegistration() {
                         </SelectTrigger>
                         <SelectContent>
                           {doctors.map((doctor) => (
-                            <SelectItem key={doctor.id} value={doctor.id}>
-                              {doctor.fullName} - {doctorPrices[doctor.id]?.toLocaleString() || '150,000'} so'm
+                            <SelectItem
+                              key={doctor.id}
+                              value={doctor.id.toString()}
+                            >
+                              {doctor.full_name} - {doctor.price} so'm
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -501,21 +567,32 @@ export function PatientRegistration() {
                       {formData.doctorId && (
                         <div className="mt-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
                           <p className="text-sm">
-                            <span className="text-muted-foreground">Tanlangan shifokor:</span>{' '}
+                            <span className="text-muted-foreground">
+                              Tanlangan shifokor:
+                            </span>{" "}
                             <span className="font-medium">
-                              {doctors.find(d => d.id === formData.doctorId)?.fullName}
+                              {
+                                doctors.find((d) => d.id === formData.doctorId)
+                                  ?.full_name
+                              }
                             </span>
                           </p>
                           <p className="text-sm">
-                            <span className="text-muted-foreground">Ko'rik narxi:</span>{' '}
+                            <span className="text-muted-foreground">
+                              Ko'rik narxi:
+                            </span>{" "}
                             <span className="font-medium">
-                              {doctorPrices[formData.doctorId]?.toLocaleString() || '150,000'} so'm
+                              {
+                                doctors.find((d) => d.id === formData.doctorId)
+                                  ?.price
+                              }{" "}
+                              so'm
                             </span>
                           </p>
                         </div>
                       )}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </div>
@@ -551,7 +628,9 @@ export function PatientRegistration() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Bemor:</span>
-                  <span>{receiptData.firstName} {receiptData.lastName}</span>
+                  <span>
+                    {receiptData.firstName} {receiptData.lastName}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Bo'lim:</span>
@@ -563,19 +642,19 @@ export function PatientRegistration() {
                     <span>{receiptData.doctorName}</span>
                   </div>
                 )}
-                {receiptData.labTestName && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tahlil:</span>
-                    <span>{receiptData.labTestName}</span>
-                  </div>
-                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Sana:</span>
-                  <span>{new Date(receiptData.registrationDate).toLocaleString('uz-UZ')}</span>
+                  <span>
+                    {new Date(receiptData.registrationDate).toLocaleString(
+                      "uz-UZ"
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-muted-foreground">To'lov miqdori:</span>
-                  <span>{receiptData.paymentAmount?.toLocaleString()} so'm</span>
+                  <span>
+                    {receiptData.paymentAmount?.toLocaleString()} so'm
+                  </span>
                 </div>
                 <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg">
                   <p className="text-sm text-center">
@@ -589,7 +668,11 @@ export function PatientRegistration() {
                   <Printer className="w-4 h-4 mr-2" />
                   Chop etish
                 </Button>
-                <Button variant="outline" onClick={() => setShowReceipt(false)} className="flex-1">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReceipt(false)}
+                  className="flex-1"
+                >
                   Yopish
                 </Button>
               </div>

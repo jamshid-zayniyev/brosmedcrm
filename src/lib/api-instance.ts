@@ -32,7 +32,13 @@ apiInstance.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const res = await apiInstance.post(API_ENDPOINTS.USER.refreshToken);
+        const res = await apiInstance.post(
+          API_ENDPOINTS.USER.refreshToken,
+          {},
+          {
+            headers: {},
+          }
+        );
         const access_token = res.data;
         handleStorage({ key: "access_token", value: access_token });
         originalRequest.headers = originalRequest.headers || {};

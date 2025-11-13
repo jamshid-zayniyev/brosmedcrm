@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AppContextType, Patient } from '../../App';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -10,12 +9,42 @@ import { toast } from 'sonner@2.0.3';
 import { Search, DollarSign, Printer, Check, Clock, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 
-interface PaymentProcessingProps {
-  context: AppContextType;
+// Mock data for patients
+const mockPatients = [
+  { id: '1', firstName: 'John', lastName: 'Doe', department: 'Cardiology', registrationDate: new Date().toISOString(), paymentStatus: 'paid', paymentAmount: 150000, phone: '123456789', doctorName: 'Dr. Smith' },
+  { id: '2', firstName: 'Jane', lastName: 'Smith', department: 'Neurology', registrationDate: new Date().toISOString(), paymentStatus: 'pending', paymentAmount: 200000, phone: '987654321', doctorName: 'Dr. Jones' },
+  { id: '3', firstName: 'Alice', lastName: 'Johnson', department: 'Pediatrics', registrationDate: new Date(Date.now() - 86400000).toISOString(), paymentStatus: 'partial', paymentAmount: 100000, partialPaymentAmount: 50000, phone: '555555555', doctorName: 'Dr. Brown' },
+  { id: '4', firstName: 'Bob', lastName: 'Williams', department: 'Orthopedics', registrationDate: new Date(Date.now() - 172800000).toISOString(), paymentStatus: 'paid', paymentAmount: 300000, phone: '111222333', doctorName: 'Dr. White' },
+  { id: '5', firstName: 'Charlie', lastName: 'Brown', department: 'Cardiology', registrationDate: new Date().toISOString(), paymentStatus: 'paid', paymentAmount: 120000, phone: '444555666', labTestName: 'Blood Test' },
+];
+
+// Mock Patient type
+interface Patient {
+    id: string;
+    firstName: string;
+    lastName: string;
+    department: string;
+    registrationDate: string;
+    paymentStatus: 'pending' | 'paid' | 'partial';
+    paymentAmount?: number;
+    partialPaymentAmount?: number;
+    phone: string;
+    labTestName?: string;
+    doctorName?: string;
 }
 
-export function PaymentProcessing({ context }: PaymentProcessingProps) {
-  const { patients, updatePatient, addPatientHistory } = context;
+
+export function PaymentProcessing() {
+  const [patients, setPatients] = useState<Patient[]>(mockPatients);
+  const updatePatient = (id: string, updates: Partial<Patient>) => {
+    setPatients(prevPatients =>
+      prevPatients.map(p => (p.id === id ? { ...p, ...updates } : p))
+    );
+  };
+  const addPatientHistory = (id: string, record: any) => {
+    console.log(`Adding history for patient ${id}:`, record);
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid' | 'partial'>('pending');

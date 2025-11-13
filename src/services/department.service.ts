@@ -51,6 +51,16 @@ class DepartmentService {
       throw error;
     }
   }
+
+  async findDoctorsByDepartment(id: number) {
+    try {
+      const res = await apiInstance.get(`${API_ENDPOINTS.DOCTOR.base}${id}/`);
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
 }
 
 export const departmentService = new DepartmentService();

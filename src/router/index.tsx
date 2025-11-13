@@ -1,5 +1,9 @@
+import { CashierDashboard } from "../components/cashier/CashierDashboard";
+import { PaymentProcessing } from "../components/cashier/PaymentProcessing";
 import { DoctorDashboard } from "../components/doctor/DoctorDashboard";
+import { PatientConsultation } from "../components/doctor/PatientConsultation";
 import { LabDashboard } from "../components/laboratory/LabDashboard";
+import { TestResults } from "../components/laboratory/TestResults";
 import { LoginPage } from "../components/LoginPage";
 import { ReportsPage } from "../components/ReportsPage";
 import { PatientQueue } from "../components/reception/PatientQueue";
@@ -71,9 +75,29 @@ export const privateRoutes: (RouteType & { allowedRoles: string[] })[] = [
     allowedRoles: ["l"],
   },
   {
+    path: "/lab/test-results",
+    element: <TestResults />,
+    allowedRoles: ["l"],
+  },
+  {
     path: "/doctor",
     element: <DoctorDashboard />,
     allowedRoles: ["d"],
+  },
+  {
+    path: "/doctor/consultation",
+    element: <PatientConsultation />,
+    allowedRoles: ["d"],
+  },
+  {
+    path: "/cashier",
+    element: <CashierDashboard />,
+    allowedRoles: ["c"],
+  },
+  {
+    path: "/cashier/payment-processing",
+    element: <PaymentProcessing />,
+    allowedRoles: ["c"],
   },
 ];
 

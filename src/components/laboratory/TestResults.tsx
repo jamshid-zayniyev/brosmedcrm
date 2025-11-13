@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AppContextType, LabResult } from '../../App';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -7,18 +6,67 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { TestTube, Upload, BarChart3, TrendingUp, Edit } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Separator } from '../ui/separator';
 
-interface TestResultsProps {
-  context: AppContextType;
-}
+// Define the types locally as they are no longer coming from AppContext
+type Patient = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  department: string;
+  status: string;
+  labTestName?: string;
+  queueNumber?: number;
+};
 
-export function TestResults({ context }: TestResultsProps) {
-  const { patients, labResults, addLabResult, updateLabResult, user, addPatientHistory } = context;
+type LabResult = {
+  id: string;
+  patientId: string;
+  testType: string;
+  result: string;
+  date: string;
+  technicianName: string;
+  status: 'new' | 'in-progress' | 'completed';
+};
+
+// Mock Data
+const mockPatientsData: Patient[] = [
+  { id: 'p1', firstName: 'Alisher', lastName: 'Valiyev', department: 'Kardiologiya', status: 'in-lab', labTestName: 'Umumiy qon tahlili', queueNumber: 1 },
+  { id: 'p2', firstName: 'Fotima', lastName: 'Zokirova', department: 'Nevrologiya', status: 'registered', labTestName: 'Siydik tahlili', queueNumber: 2 },
+  { id: 'p3', firstName: 'Hasan', lastName: 'Husanov', department: 'Travmatologiya', status: 'in-lab', labTestName: 'Rentgen', queueNumber: 3 },
+];
+
+const mockLabResultsData: LabResult[] = [
+  { id: 'lr1', patientId: 'p1', testType: 'Umumiy qon tahlili', result: 'Gemoglobin - 120 g/l (normal)', date: new Date().toISOString(), technicianName: 'Laborant A', status: 'completed' },
+  { id: 'lr2', patientId: 'p2', testType: 'Siydik tahlili', result: 'Leykositoz aniqlandi (yuqori)', date: new Date().toISOString(), technicianName: 'Laborant B', status: 'new' },
+];
+
+const mockUser = {
+  fullName: 'Dr. Laborant',
+};
+
+
+export function TestResults() {
+  const [patients, setPatients] = useState<Patient[]>(mockPatientsData);
+  const [labResults, setLabResults] = useState<LabResult[]>(mockLabResultsData);
+  const user = mockUser;
+
+  const addLabResult = (newResult: LabResult) => {
+    setLabResults(prev => [...prev, newResult]);
+  };
+
+  const updateLabResult = (resultId: string, updates: Partial<LabResult>) => {
+    setLabResults(prev => prev.map(r => r.id === resultId ? { ...r, ...updates } : r));
+  };
+
+  const addPatientHistory = (patientId: string, historyEntry: any) => {
+    console.log(`History added for patient ${patientId}:`, historyEntry);
+  };
+
   const [selectedPatient, setSelectedPatient] = useState('');
   const [selectedResult, setSelectedResult] = useState<LabResult | null>(null);
   const [editingResult, setEditingResult] = useState<LabResult | null>(null);
@@ -66,7 +114,6 @@ export function TestResults({ context }: TestResultsProps) {
 
     addLabResult(newResult);
 
-    // Add to patient history
     addPatientHistory(selectedPatient, {
       id: `h${Date.now()}`,
       date: new Date().toISOString(),
@@ -78,7 +125,6 @@ export function TestResults({ context }: TestResultsProps) {
 
     toast.success('Tahlil natijasi saqlandi');
 
-    // Reset form
     setFormData({
       testType: '',
       result: '',
@@ -140,7 +186,6 @@ export function TestResults({ context }: TestResultsProps) {
 
     const resultText = result.result.toLowerCase();
 
-    // Simple analysis based on keywords
     if (resultText.includes('yuqori') || resultText.includes('oshgan')) {
       analysis.concerns.push('Ko\'rsatkichlar me\'yordan yuqori');
       analysis.recommendations.push('Shifokor konsultatsiyasi tavsiya etiladi');
@@ -169,14 +214,13 @@ export function TestResults({ context }: TestResultsProps) {
         </p>
       </div>
 
-      <Tabs defaultValue="new">
+      <Tabs defaultValue="list">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="new">Yangi tahlil</TabsTrigger>
           <TabsTrigger value="list">Barcha tahlillar</TabsTrigger>
+          <TabsTrigger value="new">Yangi tahlil</TabsTrigger>
         </TabsList>
 
         <TabsContent value="new" className="space-y-6">
-          {/* New Test Form */}
           <Card>
             <CardHeader>
               <CardTitle>
@@ -302,7 +346,6 @@ export function TestResults({ context }: TestResultsProps) {
         </TabsContent>
 
         <TabsContent value="list" className="space-y-6">
-          {/* Results List */}
           <div className="grid gap-4">
             {labResults.length === 0 ? (
               <Card>
@@ -314,7 +357,6 @@ export function TestResults({ context }: TestResultsProps) {
             ) : (
               [...labResults].reverse().map((result) => {
                 const patient = patients.find(p => p.id === result.patientId);
-                const analysis = analyzeTestResult(result);
                 
                 return (
                   <Card key={result.id} className="hover:shadow-md transition-shadow">
@@ -352,7 +394,6 @@ export function TestResults({ context }: TestResultsProps) {
                         </div>
 
                         <div className="flex flex-col gap-2">
-                          {/* Edit Dialog */}
                           <Dialog open={editingResult?.id === result.id} onOpenChange={(open) => !open && setEditingResult(null)}>
                             <DialogTrigger asChild>
                               <Button
@@ -443,7 +484,6 @@ export function TestResults({ context }: TestResultsProps) {
                             </DialogContent>
                           </Dialog>
 
-                          {/* View & Analyze Dialog */}
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
@@ -464,7 +504,6 @@ export function TestResults({ context }: TestResultsProps) {
                               </DialogHeader>
                               {selectedResult && (
                                 <div className="space-y-6">
-                                  {/* Patient & Test Info */}
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>
                                       <p className="text-sm text-muted-foreground">Bemor</p>
@@ -488,7 +527,6 @@ export function TestResults({ context }: TestResultsProps) {
                                   
                                   <Separator />
 
-                                  {/* Test Result */}
                                   <div>
                                     <p className="text-sm text-muted-foreground mb-2">Natija</p>
                                     <div className="p-4 bg-muted rounded-lg">
@@ -498,7 +536,6 @@ export function TestResults({ context }: TestResultsProps) {
 
                                   <Separator />
 
-                                  {/* AI Analysis */}
                                   {analyzeTestResult(selectedResult).concerns.length > 0 || analyzeTestResult(selectedResult).recommendations.length > 0 ? (
                                     <div className="space-y-4">
                                       <div className="flex items-center gap-2">
@@ -542,7 +579,6 @@ export function TestResults({ context }: TestResultsProps) {
 
                                   <Separator />
 
-                                  {/* Status Update */}
                                   <div>
                                     <p className="text-sm text-muted-foreground mb-2">Status</p>
                                     <Select
@@ -567,7 +603,6 @@ export function TestResults({ context }: TestResultsProps) {
                             </DialogContent>
                           </Dialog>
 
-                          {/* Quick Status Update */}
                           <Select
                             value={result.status}
                             onValueChange={(value: 'new' | 'in-progress' | 'completed') =>

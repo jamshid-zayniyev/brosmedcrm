@@ -15,6 +15,16 @@ export const API_ENDPOINTS = {
   CLINIC_ABOUT: {
     base: "/utils/clinicabout/",
   },
+  PATIENT: {
+    base: "/reception/patient/",
+  },
+  LAB: {
+    base: "/laboratory/analysis/",
+  },
+  DOCTOR: {
+    base: "/doctor/doctor/"
+  }
 };
 
-export const serverUrl = import.meta.env.VITE_API_URL || 'https://brosmed.pythonanywhere.com';
+export const serverUrl =
+  import.meta.env.VITE_API_URL || "https://brosmed.pythonanywhere.com";

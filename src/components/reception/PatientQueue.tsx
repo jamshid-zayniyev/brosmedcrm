@@ -1,22 +1,70 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Badge } from '../ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { Users, Search, Edit, History, PlusCircle, Printer } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../ui/dialog';
-import { toast } from 'sonner';
-import { Separator } from '../ui/separator';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import { Badge } from "../ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import {
+  Users,
+  Search,
+  Edit,
+  History,
+  Printer,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "../ui/dialog";
+import { toast } from "sonner";
+import { Separator } from "../ui/separator";
+import { patientService } from "../../services/patient.service";
+import { departmentService } from "../../services/department.service";
+import { departmentTypeService } from "../../services/department-type.service";
 
-// Define types locally as AppContextType is removed
+// Yangi interfeyslar
+interface DepartmentType {
+  id: number;
+  title: string;
+  title_ru: string;
+  title_uz: string;
+  department: number;
+  price: number;
+}
+
+// Yangilangan Doctor interfeysi
+interface Doctor {
+  id: number;
+  full_name: string;
+  price: string;
+}
+
+// Yangilangan Department interfeysi
+interface Department {
+  id: number;
+  title: string;
+  title_ru: string;
+  title_uz: string;
+  department_types: DepartmentType[];
+}
+
+// Yangilangan Patient interfeysi
 interface PatientHistory {
   id: string;
   date: string;
-  type: 'registration' | 'lab-test' | 'consultation' | 'payment' | 'other';
+  type: "registration" | "lab-test" | "consultation" | "payment" | "other";
   description: string;
   doctorName?: string;
   department?: string;
@@ -32,194 +80,199 @@ interface Patient {
   id: string;
   firstName: string;
   lastName: string;
-  gender: 'male' | 'female';
+  gender: "e" | "a";
   birthDate: string;
   phone: string;
   address: string;
   diseaseType: string;
   department: string;
-  doctorId?: string;
+  departmentId: number;
+  departmentTypeId?: number;
+  doctorId?: number;
   doctorName?: string;
   paymentAmount?: number;
-  paymentStatus: 'pending' | 'paid' | 'partial';
-  status: 'registered' | 'in-lab' | 'with-doctor' | 'completed' | 'under-treatment' | 'cured' | 'discharged' | 'cancelled';
+  paymentStatus: "pending" | "paid" | "partial";
+  status:
+    | "registered"
+    | "in-lab"
+    | "with-doctor"
+    | "completed"
+    | "under-treatment"
+    | "cured"
+    | "discharged"
+    | "cancelled";
   queueNumber?: number;
   registrationDate: string;
   history: PatientHistory[];
 }
 
-interface Doctor {
-  id: string;
-  fullName: string;
-  department: string;
-}
+const toPatient = (data: any): Patient => ({
+  id: data.id.toString(),
+  firstName: data.name,
+  lastName: data.last_name,
+  gender: data.gender,
+  birthDate: data.birth_date,
+  phone: data.phone_number,
+  address: data.address,
+  diseaseType: data.disease,
+  department: data.department.title_uz,
+  departmentId: data.department.id,
+  departmentTypeId: data.department_types?.[0]?.id,
+  doctorId: data.user?.id,
+  paymentAmount: data.payment_amount || 0,
+  paymentStatus: data.payment_status,
+  status: data.patient_status,
+  registrationDate: data.created_at || new Date().toISOString(),
+  history: data.history || [],
+});
+
+const toPatientDto = (patient: Partial<Patient>) => {
+  const dto: any = {};
+  if (patient.id) dto.id = parseInt(patient.id, 10);
+  if (patient.firstName) dto.name = patient.firstName;
+  if (patient.lastName) dto.last_name = patient.lastName;
+  if (patient.gender) dto.gender = patient.gender;
+  if (patient.birthDate) dto.birth_date = patient.birthDate;
+  if (patient.phone) dto.phone_number = patient.phone;
+  if (patient.address) dto.address = patient.address;
+  if (patient.diseaseType) dto.disease = patient.diseaseType;
+  if (patient.departmentId) dto.department = patient.departmentId;
+  if (patient.departmentTypeId) dto.department_types = [patient.departmentTypeId];
+  if (patient.doctorId) dto.user = patient.doctorId;
+  if (patient.paymentStatus) dto.payment_status = patient.paymentStatus;
+  if (patient.status) dto.patient_status = patient.status;
+  return dto;
+};
 
 export function PatientQueue() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  
-  useEffect(() => {
-    // Mock data initialization
-    const mockDoctors: Doctor[] = [
-      { id: 'd1', fullName: 'Dr. Alisher Aliyev', department: 'Kardiologiya' },
-      { id: 'd2', fullName: 'Dr. Nodira Karimova', department: 'Nevrologiya' },
-      { id: 'd3', fullName: 'Dr. Jamshid Rahimov', department: 'Ortopediya' },
-      { id: 'd4', fullName: 'Dr. Dilnoza Yusupova', department: 'Terapiya' },
-    ];
-    setDoctors(mockDoctors);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
 
-    const mockPatients: Patient[] = [
-      {
-        id: 'p1',
-        firstName: 'Ali',
-        lastName: 'Valiyev',
-        gender: 'male',
-        birthDate: '1990-05-10',
-        phone: '+998901234567',
-        address: 'Toshkent, Yunusobod',
-        diseaseType: 'Yurak sanchishi',
-        department: 'Kardiologiya',
-        doctorId: 'd1',
-        doctorName: 'Dr. Alisher Aliyev',
-        paymentAmount: 150000,
-        paymentStatus: 'paid',
-        status: 'with-doctor',
-        queueNumber: 1,
-        registrationDate: new Date().toISOString(),
-        history: [],
-      },
-      {
-        id: 'p2',
-        firstName: 'Zarina',
-        lastName: 'Saidova',
-        gender: 'female',
-        birthDate: '1985-11-20',
-        phone: '+998937654321',
-        address: 'Samarqand, Registon',
-        diseaseType: 'Umumiy qon tahlili',
-        department: 'Laboratoriya',
-        paymentAmount: 50000,
-        paymentStatus: 'pending',
-        status: 'in-lab',
-        queueNumber: 2,
-        registrationDate: new Date().toISOString(),
-        history: [],
-      },
-    ];
-    setPatients(mockPatients);
-  }, []);
-
-  const updatePatient = (patientId: string, updates: Partial<Patient>) => {
-    setPatients(prevPatients => 
-      prevPatients.map(p => p.id === patientId ? { ...p, ...updates } : p)
-    );
-  };
-
-  const addPatientHistory = (patientId: string, historyEntry: PatientHistory) => {
-    setPatients(prevPatients =>
-      prevPatients.map(p => 
-        p.id === patientId 
-          ? { ...p, history: [...p.history, historyEntry] } 
-          : p
-      )
-    );
-  };
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterDepartment, setFilterDepartment] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  // Tahrirlash oynasi uchun yangi state'lar
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Patient>>({});
-  const [editDepartment, setEditDepartment] = useState('');
-  const [editDoctorId, setEditDoctorId] = useState('');
-  const [editLabTestId, setEditLabTestId] = useState('');
-  const [reRegisteringPatient, setReRegisteringPatient] = useState<Patient | null>(null);
-  const [reRegisterDepartment, setReRegisterDepartment] = useState('');
-  const [reRegisterDoctorId, setReRegisterDoctorId] = useState('');
-  const [reRegisterLabTestId, setReRegisterLabTestId] = useState('');
+  const [editMode, setEditMode] = useState<"types" | "doctors" | null>(null);
+  const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
 
-  const departments = [
-    'Kardiologiya',
-    'Nevrologiya',
-    'Ortopediya',
-    'Fizioterapiya',
-    'Terapiya',
-    'Pediatriya',
-    'Ginekologiya',
-    'Oftalmologiya',
-    'Lor',
-    'Dermatologiya',
-    'Laboratoriya',
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [patientData, departmentData, departmentTypeData] = await Promise.all([
+          patientService.findAll(),
+          departmentService.findAll(),
+          departmentTypeService.findAll(),
+        ]);
+        setPatients((patientData.results || patientData).map(toPatient));
+        setDepartments(departmentData.results || departmentData);
+        setDepartmentTypes(departmentTypeData.results || departmentTypeData);
+      } catch (error) {
+        toast.error("Ma'lumotlarni yuklashda xatolik");
+      }
+    };
 
-  const labTests = [
-    { id: 'lt1', name: 'Umumiy qon tahlili', price: 50000 },
-    { id: 'lt2', name: 'Biokimyoviy qon tahlili', price: 120000 },
-    { id: 'lt3', name: 'Qand tahlili', price: 30000 },
-    { id: 'lt4', name: 'Siydik tahlili', price: 40000 },
-    { id: 'lt5', name: 'Rentgen', price: 150000 },
-    { id: 'lt6', name: 'Ultrasonografiya (USG)', price: 180000 },
-    { id: 'lt7', name: 'MRI', price: 800000 },
-    { id: 'lt8', name: 'KT (Kompyuter tomografiya)', price: 650000 },
-    { id: 'lt9', name: 'EKG', price: 60000 },
-    { id: 'lt10', name: 'Gormon tahlillari', price: 200000 },
-  ];
+    fetchData();
+  }, []);
 
-  const doctorPrices: Record<string, number> = {
-    'd1': 150000, // Dr. Alisher Aliyev
-    'd2': 180000, // Dr. Nodira Karimova
-    'd3': 160000, // Dr. Jamshid Rahimov
-    'd4': 170000, // Dr. Dilnoza Yusupova
+  const updatePatientState = (patientId: string, updates: Partial<Patient>) => {
+    setPatients((prevPatients) =>
+      prevPatients.map((p) => (p.id === patientId ? { ...p, ...updates } : p))
+    );
   };
 
-  const filteredPatients = patients.filter(patient => {
-    const matchesSearch = 
-      `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  const filteredPatients = patients.filter((patient) => {
+    const matchesSearch =
+      `${patient.firstName} ${patient.lastName}`
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
       patient.phone.includes(searchQuery) ||
       patient.queueNumber?.toString().includes(searchQuery);
-    
-    const matchesDepartment = filterDepartment === 'all' || patient.department === filterDepartment;
-    const matchesStatus = filterStatus === 'all' || patient.status === filterStatus;
+
+    const matchesDepartment =
+      filterDepartment === "all" || patient.department === filterDepartment;
+    const matchesStatus =
+      filterStatus === "all" || patient.status === filterStatus;
 
     return matchesSearch && matchesDepartment && matchesStatus;
   });
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; className: string }> = {
-      'registered': { label: 'Ro\'yxatda', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
-      'in-lab': { label: 'Laboratoriyada', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
-      'with-doctor': { label: 'Shifokor oldida', className: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
-      'completed': { label: 'Yakunlangan', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
-      'under-treatment': { label: 'Davolanmoqda', className: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' },
-      'cured': { label: 'Sog\'aygan', className: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200' },
-      'discharged': { label: 'Chiqarilgan', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' },
-      'cancelled': { label: 'Bekor qilingan', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+      registered: {
+        label: "Ro'yxatda",
+        className:
+          "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+      },
+      "in-lab": {
+        label: "Laboratoriyada",
+        className:
+          "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+      },
+      "with-doctor": {
+        label: "Shifokor oldida",
+        className:
+          "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+      },
+      completed: {
+        label: "Yakunlangan",
+        className:
+          "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      },
+      "under-treatment": {
+        label: "Davolanmoqda",
+        className:
+          "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
+      },
+      cured: {
+        label: "Sog'aygan",
+        className:
+          "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+      },
+      discharged: {
+        label: "Chiqarilgan",
+        className:
+          "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+      },
+      cancelled: {
+        label: "Bekor qilingan",
+        className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+      },
     };
-    return statusConfig[status] || statusConfig['registered'];
+    return statusConfig[status] || statusConfig["registered"];
   };
 
   const getPaymentBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; className: string }> = {
-      'pending': { label: 'Kutilmoqda', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
-      'partial': { label: 'Qisman', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
-      'paid': { label: 'To\'langan', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+      pending: {
+        label: "Kutilmoqda",
+        className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+      },
+      partial: {
+        label: "Qisman",
+        className:
+          "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+      },
+      paid: {
+        label: "To'langan",
+        className:
+          "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      },
     };
-    return statusConfig[status] || statusConfig['pending'];
-  };
-
-  const handleUpdatePayment = (patientId: string, status: 'pending' | 'paid' | 'partial') => {
-    updatePatient(patientId, { paymentStatus: status });
+    return statusConfig[status] || statusConfig["pending"];
   };
 
   const handleEditPatient = (patient: Patient) => {
     setEditingPatient(patient);
-    setEditDepartment(patient.department);
-    setEditDoctorId(patient.doctorId || '');
-    setEditLabTestId('');
     setEditFormData({
+      id: patient.id,
       firstName: patient.firstName,
       lastName: patient.lastName,
       gender: patient.gender,
@@ -227,166 +280,112 @@ export function PatientQueue() {
       phone: patient.phone,
       address: patient.address,
       diseaseType: patient.diseaseType,
-      department: patient.department,
+      departmentId: patient.departmentId,
+      departmentTypeId: patient.departmentTypeId,
       doctorId: patient.doctorId,
       paymentAmount: patient.paymentAmount,
       paymentStatus: patient.paymentStatus,
       status: patient.status,
     });
+
+    // Bo'lim turi yoki shifokorlar rejimini avtomatik o'rnatish
+    const department = departments.find(d => d.id === patient.departmentId);
+    if (department) {
+      if (department.department_types && department.department_types.length > 0) {
+        setEditMode("types");
+      } else {
+        setEditMode("doctors");
+        // Agar bo'limda shifokorlar bo'lsa, ularni yuklash
+        if (patient.doctorId) {
+          handleEditDepartmentChange(patient.departmentId.toString());
+        }
+      }
+    }
   };
 
-  const handleEditDepartmentChange = (value: string) => {
-    setEditDepartment(value);
-    setEditDoctorId('');
-    setEditLabTestId('');
+  const handleEditDepartmentChange = async (value: string) => {
+    const departmentId = parseInt(value, 10);
+    const department = departments.find((d) => d.id === departmentId);
+
     setEditFormData({
       ...editFormData,
-      department: value,
-      doctorId: '',
-      paymentAmount: undefined,
+      departmentId: departmentId,
+      departmentTypeId: undefined,
+      doctorId: undefined,
+      paymentAmount: 0,
+    });
+    setDoctors([]);
+    setEditMode(null);
+
+    if (!department) return;
+
+    if (department.department_types && department.department_types.length > 0) {
+      setEditMode("types");
+    } else {
+      setEditMode("doctors");
+      setIsLoadingDoctors(true);
+      try {
+        const doctorsData = await departmentService.findDoctorsByDepartment(departmentId);
+        setDoctors(doctorsData.results || doctorsData || []);
+      } catch (error) {
+        toast.error("Shifokorlarni yuklashda xatolik");
+      } finally {
+        setIsLoadingDoctors(false);
+      }
+    }
+  };
+
+  const handleEditDepartmentTypeChange = (value: string) => {
+    const typeId = parseInt(value, 10);
+    const depType = departmentTypes.find((t) => t.id === typeId);
+    setEditFormData({
+      ...editFormData,
+      departmentTypeId: typeId,
+      doctorId: undefined,
+      paymentAmount: depType?.price || 0,
     });
   };
 
   const handleEditDoctorChange = (value: string) => {
-    setEditDoctorId(value);
-    const doctorPrice = doctorPrices[value] || 150000;
+    const doctorId = parseInt(value, 10);
+    const doctor = doctors.find((d) => d.id === doctorId);
     setEditFormData({
       ...editFormData,
-      doctorId: value,
-      paymentAmount: doctorPrice,
+      departmentTypeId: undefined,
+      doctorId: doctorId,
+      paymentAmount: doctor ? parseInt(doctor.price, 10) : 0,
     });
   };
 
-  const handleEditLabTestChange = (value: string) => {
-    setEditLabTestId(value);
-    const labTest = labTests.find(lt => lt.id === value);
-    setEditFormData({
-      ...editFormData,
-      paymentAmount: labTest?.price,
-    });
-  };
-
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingPatient) return;
 
-    const doctor = doctors.find(d => d.id === editDoctorId);
-    updatePatient(editingPatient.id, {
-      ...editFormData,
-      department: editDepartment,
-      doctorId: editDepartment === 'Laboratoriya' ? undefined : editDoctorId,
-      doctorName: editDepartment === 'Laboratoriya' ? undefined : doctor?.fullName,
-    });
+    try {
+      await patientService.update(toPatientDto(editFormData));
 
-    toast.success('Bemor ma\'lumotlari yangilandi');
-    setEditingPatient(null);
-    setEditFormData({});
-    setEditDepartment('');
-    setEditDoctorId('');
-    setEditLabTestId('');
-  };
-
-
-
-  const handleReRegisterPatient = () => {
-    if (!reRegisteringPatient) return;
-
-    if (reRegisterDepartment === 'Laboratoriya') {
-      if (!reRegisterLabTestId) {
-        toast.error('Tahlil turini tanlang');
-        return;
-      }
-
-      const labTest = labTests.find(lt => lt.id === reRegisterLabTestId);
-      if (!labTest) return;
-
-      const newPaymentAmount = (reRegisteringPatient.paymentAmount || 0) + labTest.price;
+      // Lokal state'ni yangilash
+      const department = departments.find(d => d.id === editFormData.departmentId);
+      const doctor = doctors.find(d => d.id === editFormData.doctorId);
+      const departmentType = departmentTypes.find(t => t.id === editFormData.departmentTypeId);
       
-      updatePatient(reRegisteringPatient.id, {
-        department: reRegisterDepartment,
-        labTestId: reRegisterLabTestId,
-        labTestName: labTest.name,
-        status: 'in-lab',
-        paymentAmount: newPaymentAmount,
-        paymentStatus: 'pending',
-      });
-
-      // Add to patient history
-      addPatientHistory(reRegisteringPatient.id, {
-        id: `h${Date.now()}`,
-        date: new Date().toISOString(),
-        type: 'registration',
-        description: `Qayta ro'yxatga olindi - Laboratoriya: ${labTest.name}`,
-        department: reRegisterDepartment,
-        amount: labTest.price,
-      });
-
-      // Prepare receipt data
-      const receipt = {
-        patientName: `${reRegisteringPatient.firstName} ${reRegisteringPatient.lastName}`,
-        department: reRegisterDepartment,
-        service: labTest.name,
-        amount: labTest.price,
-        date: new Date().toISOString(),
+      const updatedPatientData = {
+        ...editingPatient,
+        ...editFormData,
+        department: department?.title_uz || editingPatient.department,
+        doctorName: doctor?.full_name || undefined,
+        paymentAmount: editFormData.paymentAmount || editingPatient.paymentAmount,
       };
 
-      setReceiptData(receipt);
-      setShowReceipt(true);
-      toast.success('Bemor qayta ro\'yxatga olindi');
-    } else {
-      if (!reRegisterDoctorId) {
-        toast.error('Shifokorni tanlang');
-        return;
-      }
+      updatePatientState(editingPatient.id, updatedPatientData);
 
-      const doctor = doctors.find(d => d.id === reRegisterDoctorId);
-      const doctorPrice = doctorPrices[reRegisterDoctorId] || 150000;
-      const newPaymentAmount = (reRegisteringPatient.paymentAmount || 0) + doctorPrice;
-
-      updatePatient(reRegisteringPatient.id, {
-        department: reRegisterDepartment,
-        doctorId: reRegisterDoctorId,
-        doctorName: doctor?.fullName,
-        status: 'registered',
-        paymentAmount: newPaymentAmount,
-        paymentStatus: 'pending',
-      });
-
-      // Add to patient history
-      addPatientHistory(reRegisteringPatient.id, {
-        id: `h${Date.now()}`,
-        date: new Date().toISOString(),
-        type: 'registration',
-        description: `Qayta ro'yxatga olindi - ${reRegisterDepartment} bo'limi`,
-        department: reRegisterDepartment,
-        doctorName: doctor?.fullName,
-        amount: doctorPrice,
-      });
-
-      // Prepare receipt data
-      const receipt = {
-        patientName: `${reRegisteringPatient.firstName} ${reRegisteringPatient.lastName}`,
-        department: reRegisterDepartment,
-        service: `${doctor?.fullName} ko'rigi`,
-        amount: doctorPrice,
-        date: new Date().toISOString(),
-      };
-
-      setReceiptData(receipt);
-      setShowReceipt(true);
-      toast.success('Bemor qayta ro\'yxatga olindi');
+      toast.success("Bemor ma'lumotlari yangilandi");
+      setEditingPatient(null);
+      setEditFormData({});
+      setEditMode(null);
+      setDoctors([]);
+    } catch (error) {
+      toast.error("Bemor ma'lumotlarini yangilashda xatolik");
     }
-
-    // Reset
-    setReRegisteringPatient(null);
-    setReRegisterDepartment('');
-    setReRegisterDoctorId('');
-    setReRegisterLabTestId('');
-  };
-
-  const handleReRegisterDepartmentChange = (value: string) => {
-    setReRegisterDepartment(value);
-    setReRegisterDoctorId('');
-    setReRegisterLabTestId('');
   };
 
   const handlePrintReceipt = () => {
@@ -415,16 +414,19 @@ export function PatientQueue() {
                 className="pl-10"
               />
             </div>
-            
-            <Select value={filterDepartment} onValueChange={setFilterDepartment}>
+
+            <Select
+              value={filterDepartment}
+              onValueChange={setFilterDepartment}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Bo'lim bo'yicha filtr" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Barcha bo'limlar</SelectItem>
                 {departments.map((dept) => (
-                  <SelectItem key={dept} value={dept}>
-                    {dept}
+                  <SelectItem key={dept.id} value={dept.title_uz}>
+                    {dept.title_uz}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -461,7 +463,10 @@ export function PatientQueue() {
           </Card>
         ) : (
           filteredPatients.map((patient) => (
-            <Card key={patient.id} className="hover:shadow-md transition-shadow">
+            <Card
+              key={patient.id}
+              className="hover:shadow-md transition-shadow"
+            >
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
@@ -470,25 +475,38 @@ export function PatientQueue() {
                         №{patient.queueNumber}
                       </span>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <div>
-                        <h3>{patient.firstName} {patient.lastName}</h3>
+                        <h3>
+                          {patient.firstName} {patient.lastName}
+                        </h3>
                         <p className="text-sm text-muted-foreground">
-                          {patient.gender === 'male' ? 'Erkak' : 'Ayol'} • {new Date().getFullYear() - new Date(patient.birthDate).getFullYear()} yosh
+                          {patient.gender === "e" ? "Erkak" : "Ayol"} •{" "}
+                          {new Date().getFullYear() -
+                            new Date(patient.birthDate).getFullYear()}{" "}
+                          yosh
                         </p>
                       </div>
-                      
+
                       <div className="flex flex-wrap gap-2">
                         <Badge variant="outline">{patient.department}</Badge>
-                        <Badge variant="outline">{patient.doctorName}</Badge>
+                        {patient.doctorName && (
+                          <Badge variant="outline">{patient.doctorName}</Badge>
+                        )}
                       </div>
-                      
+
                       <div className="flex flex-wrap gap-2">
-                        <Badge className={getStatusBadge(patient.status).className}>
+                        <Badge
+                          className={getStatusBadge(patient.status).className}
+                        >
                           {getStatusBadge(patient.status).label}
                         </Badge>
-                        <Badge className={getPaymentBadge(patient.paymentStatus).className}>
+                        <Badge
+                          className={
+                            getPaymentBadge(patient.paymentStatus).className
+                          }
+                        >
                           {getPaymentBadge(patient.paymentStatus).label}
                         </Badge>
                       </div>
@@ -509,7 +527,9 @@ export function PatientQueue() {
                       </DialogTrigger>
                       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle>Bemor ma'lumotlari va tarixi</DialogTitle>
+                          <DialogTitle>
+                            Bemor ma'lumotlari va tarixi
+                          </DialogTitle>
                           <DialogDescription>
                             Bemor haqida to'liq ma'lumot va tibbiy tarix
                           </DialogDescription>
@@ -518,116 +538,210 @@ export function PatientQueue() {
                           <div className="space-y-6">
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <p className="text-sm text-muted-foreground">Ism</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Ism
+                                </p>
                                 <p>{selectedPatient.firstName}</p>
                               </div>
                               <div>
-                                <p className="text-sm text-muted-foreground">Familiya</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Familiya
+                                </p>
                                 <p>{selectedPatient.lastName}</p>
                               </div>
                               <div>
-                                <p className="text-sm text-muted-foreground">Tug'ilgan sana</p>
-                                <p>{new Date(selectedPatient.birthDate).toLocaleDateString('uz-UZ')}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Tug'ilgan sana
+                                </p>
+                                <p>
+                                  {new Date(
+                                    selectedPatient.birthDate
+                                  ).toLocaleDateString("uz-UZ")}
+                                </p>
                               </div>
                               <div>
-                                <p className="text-sm text-muted-foreground">Telefon</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Telefon
+                                </p>
                                 <p>{selectedPatient.phone}</p>
                               </div>
                               <div className="col-span-2">
-                                <p className="text-sm text-muted-foreground">Manzil</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Manzil
+                                </p>
                                 <p>{selectedPatient.address}</p>
                               </div>
                               <div className="col-span-2">
-                                <p className="text-sm text-muted-foreground">Kasallik</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Kasallik
+                                </p>
                                 <p>{selectedPatient.diseaseType}</p>
                               </div>
                               <div>
-                                <p className="text-sm text-muted-foreground">To'lov miqdori</p>
-                                <p>{selectedPatient.paymentAmount?.toLocaleString()} so'm</p>
+                                <p className="text-sm text-muted-foreground">
+                                  To'lov miqdori
+                                </p>
+                                <p>
+                                  {selectedPatient.paymentAmount?.toLocaleString()}{" "}
+                                  so'm
+                                </p>
                               </div>
                               <div>
-                                <p className="text-sm text-muted-foreground">To'lov holati</p>
-                                <Select
-                                  value={selectedPatient.paymentStatus}
-                                  onValueChange={(value: 'pending' | 'paid' | 'partial') => {
-                                    handleUpdatePayment(selectedPatient.id, value);
-                                    setSelectedPatient({ ...selectedPatient, paymentStatus: value });
-                                  }}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pending">Kutilmoqda</SelectItem>
-                                    <SelectItem value="paid">To'langan</SelectItem>
-                                    <SelectItem value="partial">Qisman</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                <p className="text-sm text-muted-foreground">
+                                  To'lov holati
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge
+                                    className={
+                                      getPaymentBadge(selectedPatient.paymentStatus)
+                                        .className
+                                    }
+                                  >
+                                    {
+                                      getPaymentBadge(selectedPatient.paymentStatus)
+                                        .label
+                                    }
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground">
+                                  Bemor holati
+                                </p>
+                                <div className="mt-1">
+                                  <Badge
+                                    className={
+                                      getStatusBadge(selectedPatient.status).className
+                                    }
+                                  >
+                                    {getStatusBadge(selectedPatient.status).label}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground">
+                                  Bo'lim
+                                </p>
+                                <p>{selectedPatient.department}</p>
+                              </div>
+                              {selectedPatient.doctorName && (
+                                <div>
+                                  <p className="text-sm text-muted-foreground">
+                                    Shifokor
+                                  </p>
+                                  <p>{selectedPatient.doctorName}</p>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-sm text-muted-foreground">
+                                  Ro'yxatga olingan sana
+                                </p>
+                                <p>
+                                  {new Date(
+                                    selectedPatient.registrationDate
+                                  ).toLocaleString("uz-UZ")}
+                                </p>
                               </div>
                             </div>
 
                             {/* Patient History */}
-                            {selectedPatient.history && selectedPatient.history.length > 0 && (
-                              <>
-                                <Separator />
-                                <div className="space-y-3">
-                                  <h4 className="flex items-center gap-2">
-                                    <History className="w-4 h-4" />
-                                    Bemor tarixi
-                                  </h4>
-                                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                                    {[...selectedPatient.history].reverse().map((entry) => (
-                                      <Card key={entry.id} className="p-3">
-                                        <div className="flex justify-between items-start mb-2">
-                                          <Badge variant="outline">
-                                            {entry.type === 'registration' ? 'Ro\'yxat' :
-                                             entry.type === 'lab-test' ? 'Tahlil' :
-                                             entry.type === 'consultation' ? 'Konsultatsiya' :
-                                             entry.type === 'payment' ? 'To\'lov' : 'O\'zgarish'}
-                                          </Badge>
-                                          <span className="text-xs text-muted-foreground">
-                                            {new Date(entry.date).toLocaleString('uz-UZ')}
-                                          </span>
-                                        </div>
-                                        <p className="text-sm mb-1">{entry.description}</p>
-                                        {entry.doctorName && (
-                                          <p className="text-xs text-muted-foreground">Shifokor: {entry.doctorName}</p>
-                                        )}
-                                        {entry.diagnosis && (
-                                          <div className="mt-2 space-y-1">
-                                            <p className="text-xs"><strong>Tashxis:</strong> {entry.diagnosis}</p>
-                                            {entry.recommendations && (
-                                              <p className="text-xs"><strong>Tavsiyalar:</strong> {entry.recommendations}</p>
+                            {selectedPatient.history &&
+                              selectedPatient.history.length > 0 && (
+                                <>
+                                  <Separator />
+                                  <div className="space-y-3">
+                                    <h4 className="flex items-center gap-2">
+                                      <History className="w-4 h-4" />
+                                      Bemor tarixi
+                                    </h4>
+                                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                                      {[...selectedPatient.history]
+                                        .reverse()
+                                        .map((entry) => (
+                                          <Card key={entry.id} className="p-3">
+                                            <div className="flex justify-between items-start mb-2">
+                                              <Badge variant="outline">
+                                                {entry.type === "registration"
+                                                  ? "Ro'yxat"
+                                                  : entry.type === "lab-test"
+                                                  ? "Tahlil"
+                                                  : entry.type ===
+                                                    "consultation"
+                                                  ? "Konsultatsiya"
+                                                  : entry.type === "payment"
+                                                  ? "To'lov"
+                                                  : "O'zgarish"}
+                                              </Badge>
+                                              <span className="text-xs text-muted-foreground">
+                                                {new Date(
+                                                  entry.date
+                                                ).toLocaleString("uz-UZ")}
+                                              </span>
+                                            </div>
+                                            <p className="text-sm mb-1">
+                                              {entry.description}
+                                            </p>
+                                            {entry.doctorName && (
+                                              <p className="text-xs text-muted-foreground">
+                                                Shifokor: {entry.doctorName}
+                                              </p>
                                             )}
-                                            {entry.prescription && (
-                                              <p className="text-xs"><strong>Retsept:</strong> {entry.prescription}</p>
+                                            {entry.diagnosis && (
+                                              <div className="mt-2 space-y-1">
+                                                <p className="text-xs">
+                                                  <strong>Tashxis:</strong>{" "}
+                                                  {entry.diagnosis}
+                                                </p>
+                                                {entry.recommendations && (
+                                                  <p className="text-xs">
+                                                    <strong>Tavsiyalar:</strong>{" "}
+                                                    {entry.recommendations}
+                                                  </p>
+                                                )}
+                                                {entry.prescription && (
+                                                  <p className="text-xs">
+                                                    <strong>Retsept:</strong>{" "}
+                                                    {entry.prescription}
+                                                  </p>
+                                                )}
+                                              </div>
                                             )}
-                                          </div>
-                                        )}
-                                        {entry.labTest && (
-                                          <div className="mt-2">
-                                            <p className="text-xs"><strong>Tahlil:</strong> {entry.labTest}</p>
-                                            {entry.labResult && (
-                                              <p className="text-xs text-muted-foreground mt-1">{entry.labResult}</p>
+                                            {entry.labTest && (
+                                              <div className="mt-2">
+                                                <p className="text-xs">
+                                                  <strong>Tahlil:</strong>{" "}
+                                                  {entry.labTest}
+                                                </p>
+                                                {entry.labResult && (
+                                                  <p className="text-xs text-muted-foreground mt-1">
+                                                    {entry.labResult}
+                                                  </p>
+                                                )}
+                                              </div>
                                             )}
-                                          </div>
-                                        )}
-                                        {entry.amount && (
-                                          <p className="text-xs text-muted-foreground">To'lov: {entry.amount.toLocaleString()} so'm</p>
-                                        )}
-                                      </Card>
-                                    ))}
+                                            {entry.amount && (
+                                              <p className="text-xs text-muted-foreground">
+                                                To'lov:{" "}
+                                                {entry.amount.toLocaleString()}{" "}
+                                                so'm
+                                              </p>
+                                            )}
+                                          </Card>
+                                        ))}
+                                    </div>
                                   </div>
-                                </div>
-                              </>
-                            )}
+                                </>
+                              )}
                           </div>
                         )}
                       </DialogContent>
                     </Dialog>
 
                     {/* Edit Patient Dialog */}
-                    <Dialog open={editingPatient?.id === patient.id} onOpenChange={(open) => !open && setEditingPatient(null)}>
+                    <Dialog
+                      open={editingPatient?.id === patient.id}
+                      onOpenChange={(open) => !open && setEditingPatient(null)}
+                    >
                       <DialogTrigger asChild>
                         <Button
                           variant="outline"
@@ -640,7 +754,9 @@ export function PatientQueue() {
                       </DialogTrigger>
                       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle>Bemor ma'lumotlarini tahrirlash</DialogTitle>
+                          <DialogTitle>
+                            Bemor ma'lumotlarini tahrirlash
+                          </DialogTitle>
                           <DialogDescription>
                             Bemor shaxsiy va tibbiy ma'lumotlarini yangilash
                           </DialogDescription>
@@ -652,16 +768,26 @@ export function PatientQueue() {
                                 <Label htmlFor="edit-firstName">Ism</Label>
                                 <Input
                                   id="edit-firstName"
-                                  value={editFormData.firstName || ''}
-                                  onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                                  value={editFormData.firstName || ""}
+                                  onChange={(e) =>
+                                    setEditFormData({
+                                      ...editFormData,
+                                      firstName: e.target.value,
+                                    })
+                                  }
                                 />
                               </div>
                               <div className="space-y-2">
                                 <Label htmlFor="edit-lastName">Familiya</Label>
                                 <Input
                                   id="edit-lastName"
-                                  value={editFormData.lastName || ''}
-                                  onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                                  value={editFormData.lastName || ""}
+                                  onChange={(e) =>
+                                    setEditFormData({
+                                      ...editFormData,
+                                      lastName: e.target.value,
+                                    })
+                                  }
                                 />
                               </div>
                             </div>
@@ -670,14 +796,19 @@ export function PatientQueue() {
                               <Label>Jinsi</Label>
                               <RadioGroup
                                 value={editFormData.gender}
-                                onValueChange={(value: 'male' | 'female') => setEditFormData({ ...editFormData, gender: value })}
+                                onValueChange={(value: "e" | "a") =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    gender: value,
+                                  })
+                                }
                               >
                                 <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="male" id="edit-male" />
+                                  <RadioGroupItem value="e" id="edit-male" />
                                   <Label htmlFor="edit-male">Erkak</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="female" id="edit-female" />
+                                  <RadioGroupItem value="a" id="edit-female" />
                                   <Label htmlFor="edit-female">Ayol</Label>
                                 </div>
                               </RadioGroup>
@@ -685,20 +816,32 @@ export function PatientQueue() {
 
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <Label htmlFor="edit-birthDate">Tug'ilgan sana</Label>
+                                <Label htmlFor="edit-birthDate">
+                                  Tug'ilgan sana
+                                </Label>
                                 <Input
                                   id="edit-birthDate"
                                   type="date"
-                                  value={editFormData.birthDate || ''}
-                                  onChange={(e) => setEditFormData({ ...editFormData, birthDate: e.target.value })}
+                                  value={editFormData.birthDate || ""}
+                                  onChange={(e) =>
+                                    setEditFormData({
+                                      ...editFormData,
+                                      birthDate: e.target.value,
+                                    })
+                                  }
                                 />
                               </div>
                               <div className="space-y-2">
                                 <Label htmlFor="edit-phone">Telefon</Label>
                                 <Input
                                   id="edit-phone"
-                                  value={editFormData.phone || ''}
-                                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                  value={editFormData.phone || ""}
+                                  onChange={(e) =>
+                                    setEditFormData({
+                                      ...editFormData,
+                                      phone: e.target.value,
+                                    })
+                                  }
                                 />
                               </div>
                             </div>
@@ -707,297 +850,179 @@ export function PatientQueue() {
                               <Label htmlFor="edit-address">Manzil</Label>
                               <Textarea
                                 id="edit-address"
-                                value={editFormData.address || ''}
-                                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                                value={editFormData.address || ""}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    address: e.target.value,
+                                  })
+                                }
                               />
                             </div>
 
                             <div className="space-y-2">
-                              <Label htmlFor="edit-diseaseType">Kasallik / Shikoyat</Label>
+                              <Label htmlFor="edit-diseaseType">
+                                Kasallik / Shikoyat
+                              </Label>
                               <Textarea
                                 id="edit-diseaseType"
-                                value={editFormData.diseaseType || ''}
-                                onChange={(e) => setEditFormData({ ...editFormData, diseaseType: e.target.value })}
+                                value={editFormData.diseaseType || ""}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    diseaseType: e.target.value,
+                                  })
+                                }
                               />
                             </div>
 
+                            {/* Yangi Bo'lim va Xizmat tanlash qismi */}
                             <div className="space-y-4">
                               <div className="space-y-2">
                                 <Label htmlFor="edit-department">Bo'lim</Label>
                                 <Select
-                                  value={editDepartment}
+                                  value={editFormData.departmentId?.toString() || ""}
                                   onValueChange={handleEditDepartmentChange}
                                 >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {departments.map((dept) => (
-                                      <SelectItem key={dept} value={dept}>
-                                        {dept}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              {editDepartment === 'Laboratoriya' ? (
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-labTest">Tahlil turini tanlang</Label>
-                                  <Select
-                                    value={editLabTestId}
-                                    onValueChange={handleEditLabTestChange}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Tahlil tanlang" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {labTests.map((test) => (
-                                        <SelectItem key={test.id} value={test.id}>
-                                          {test.name} - {test.price.toLocaleString()} so'm
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  {editLabTestId && (
-                                    <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                      <p className="text-sm">
-                                        <span className="text-muted-foreground">Tanlangan tahlil:</span>{' '}
-                                        <span className="font-medium">
-                                          {labTests.find(t => t.id === editLabTestId)?.name}
-                                        </span>
-                                      </p>
-                                      <p className="text-sm">
-                                        <span className="text-muted-foreground">Narx:</span>{' '}
-                                        <span className="font-medium">
-                                          {labTests.find(t => t.id === editLabTestId)?.price.toLocaleString()} so'm
-                                        </span>
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : editDepartment ? (
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-doctor">Shifokor</Label>
-                                  <Select
-                                    value={editDoctorId}
-                                    onValueChange={handleEditDoctorChange}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Shifokor tanlang" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {doctors.map((doctor) => (
-                                        <SelectItem key={doctor.id} value={doctor.id}>
-                                          {doctor.fullName} - {doctorPrices[doctor.id]?.toLocaleString() || '150,000'} so'm
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  {editDoctorId && (
-                                    <div className="mt-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                                      <p className="text-sm">
-                                        <span className="text-muted-foreground">Tanlangan shifokor:</span>{' '}
-                                        <span className="font-medium">
-                                          {doctors.find(d => d.id === editDoctorId)?.fullName}
-                                        </span>
-                                      </p>
-                                      <p className="text-sm">
-                                        <span className="text-muted-foreground">Ko'rik narxi:</span>{' '}
-                                        <span className="font-medium">
-                                          {doctorPrices[editDoctorId]?.toLocaleString() || '150,000'} so'm
-                                        </span>
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : null}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="edit-status">Bemor holati</Label>
-                                <Select
-                                  value={editFormData.status}
-                                  onValueChange={(value: any) => setEditFormData({ ...editFormData, status: value })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="registered">Ro'yxatda</SelectItem>
-                                    <SelectItem value="in-lab">Laboratoriyada</SelectItem>
-                                    <SelectItem value="with-doctor">Shifokor oldida</SelectItem>
-                                    <SelectItem value="under-treatment">Davolanmoqda</SelectItem>
-                                    <SelectItem value="completed">Yakunlangan</SelectItem>
-                                    <SelectItem value="cured">Sog'aygan</SelectItem>
-                                    <SelectItem value="discharged">Chiqarilgan</SelectItem>
-                                    <SelectItem value="cancelled">Bekor qilingan</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="edit-paymentAmount">To'lov miqdori</Label>
-                                <Input
-                                  id="edit-paymentAmount"
-                                  type="text"
-                                  value={editFormData.paymentAmount ? editFormData.paymentAmount.toLocaleString() + ' so\'m' : ''}
-                                  readOnly
-                                  className="bg-muted"
-                                  placeholder="Bo'lim va xizmatni tanlang"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                  Narx avtomatik hisoblanadi
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex gap-2 pt-4">
-                              <Button onClick={handleSaveEdit} className="flex-1">
-                                Saqlash
-                              </Button>
-                              <Button variant="outline" onClick={() => setEditingPatient(null)} className="flex-1">
-                                Bekor qilish
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </DialogContent>
-                    </Dialog>
-
-                    {/* Re-Register Patient Dialog */}
-                    <Dialog open={reRegisteringPatient?.id === patient.id} onOpenChange={(open) => !open && setReRegisteringPatient(null)}>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => setReRegisteringPatient(patient)}
-                        >
-                          <PlusCircle className="w-4 h-4 mr-2" />
-                          Qayta ro'yxat
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Bemorni qayta ro'yxatga olish</DialogTitle>
-                          <DialogDescription>
-                            Yangi xizmat uchun bemor ro'yxatga olish va check chiqarish
-                          </DialogDescription>
-                        </DialogHeader>
-                        {reRegisteringPatient && (
-                          <div className="space-y-4">
-                            <div className="p-4 bg-muted rounded-lg">
-                              <p><strong>Bemor:</strong> {reRegisteringPatient.firstName} {reRegisteringPatient.lastName}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Joriy to'lov: {reRegisteringPatient.paymentAmount?.toLocaleString()} so'm
-                              </p>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label>Bo'limni tanlang *</Label>
-                                <Select value={reRegisterDepartment} onValueChange={handleReRegisterDepartmentChange}>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Bo'limni tanlang" />
                                   </SelectTrigger>
                                   <SelectContent>
                                     {departments.map((dept) => (
-                                      <SelectItem key={dept} value={dept}>
-                                        {dept}
+                                      <SelectItem key={dept.id} value={dept.id.toString()}>
+                                        {dept.title_uz}
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
                               </div>
 
-                              {reRegisterDepartment === 'Laboratoriya' ? (
+                              {isLoadingDoctors && (
+                                <p className="text-sm text-muted-foreground">
+                                  Shifokorlar yuklanmoqda...
+                                </p>
+                              )}
+
+                              {editMode === "types" && (
                                 <div className="space-y-2">
-                                  <Label>Tahlil turini tanlang *</Label>
-                                  <Select value={reRegisterLabTestId} onValueChange={setReRegisterLabTestId}>
+                                  <Label htmlFor="edit-departmentType">Bo'lim turi</Label>
+                                  <Select
+                                    value={editFormData.departmentTypeId?.toString() || ""}
+                                    onValueChange={handleEditDepartmentTypeChange}
+                                  >
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Tahlil tanlang" />
+                                      <SelectValue placeholder="Bo'lim turini tanlang" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {labTests.map((test) => (
-                                        <SelectItem key={test.id} value={test.id}>
-                                          {test.name} - {test.price.toLocaleString()} so'm
-                                        </SelectItem>
-                                      ))}
+                                      {departmentTypes
+                                        .filter(t => t.department === editFormData.departmentId)
+                                        .map((type) => (
+                                          <SelectItem key={type.id} value={type.id.toString()}>
+                                            {type.title_uz} - {Number(type.price).toLocaleString()} so'm
+                                          </SelectItem>
+                                        ))}
                                     </SelectContent>
                                   </Select>
-                                  {reRegisterLabTestId && (
-                                    <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                      <p className="text-sm">
-                                        <span className="text-muted-foreground">Tahlil:</span>{' '}
-                                        <span className="font-medium">
-                                          {labTests.find(t => t.id === reRegisterLabTestId)?.name}
-                                        </span>
-                                      </p>
-                                      <p className="text-sm">
-                                        <span className="text-muted-foreground">Narx:</span>{' '}
-                                        <span className="font-medium">
-                                          {labTests.find(t => t.id === reRegisterLabTestId)?.price.toLocaleString()} so'm
-                                        </span>
-                                      </p>
-                                      <p className="text-sm mt-2">
-                                        <span className="text-muted-foreground">Yangi umumiy to'lov:</span>{' '}
-                                        <span className="font-medium">
-                                          {((reRegisteringPatient.paymentAmount || 0) + (labTests.find(t => t.id === reRegisterLabTestId)?.price || 0)).toLocaleString()} so'm
-                                        </span>
-                                      </p>
-                                    </div>
-                                  )}
                                 </div>
-                              ) : reRegisterDepartment ? (
+                              )}
+
+                              {editMode === "doctors" && doctors.length > 0 && (
                                 <div className="space-y-2">
-                                  <Label>Shifokorni tanlang *</Label>
-                                  <Select value={reRegisterDoctorId} onValueChange={setReRegisterDoctorId}>
+                                  <Label htmlFor="edit-doctor">Shifokor</Label>
+                                  <Select
+                                    value={editFormData.doctorId?.toString() || ""}
+                                    onValueChange={handleEditDoctorChange}
+                                  >
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Shifokor tanlang" />
+                                      <SelectValue placeholder="Shifokorni tanlang" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {doctors.map((doctor) => (
-                                        <SelectItem key={doctor.id} value={doctor.id}>
-                                          {doctor.fullName} - {doctorPrices[doctor.id]?.toLocaleString() || '150,000'} so'm
+                                        <SelectItem key={doctor.id} value={doctor.id.toString()}>
+                                          {doctor.full_name} - {Number(doctor.price).toLocaleString()} so'm
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
-                                  {reRegisterDoctorId && (
-                                    <div className="mt-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                                      <p className="text-sm">
-                                        <span className="text-muted-foreground">Shifokor:</span>{' '}
-                                        <span className="font-medium">
-                                          {doctors.find(d => d.id === reRegisterDoctorId)?.fullName}
-                                        </span>
-                                      </p>
-                                      <p className="text-sm">
-                                        <span className="text-muted-foreground">Ko'rik narxi:</span>{' '}
-                                        <span className="font-medium">
-                                          {doctorPrices[reRegisterDoctorId]?.toLocaleString() || '150,000'} so'm
-                                        </span>
-                                      </p>
-                                      <p className="text-sm mt-2">
-                                        <span className="text-muted-foreground">Yangi umumiy to'lov:</span>{' '}
-                                        <span className="font-medium">
-                                          {((reRegisteringPatient.paymentAmount || 0) + (doctorPrices[reRegisterDoctorId] || 150000)).toLocaleString()} so'm
-                                        </span>
-                                      </p>
-                                    </div>
-                                  )}
                                 </div>
-                              ) : null}
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-paymentAmount">
+                                  To'lov miqdori
+                                </Label>
+                                <Input
+                                  id="edit-paymentAmount"
+                                  type="text"
+                                  value={
+                                    editFormData.paymentAmount
+                                      ? editFormData.paymentAmount.toLocaleString() + " so'm"
+                                      : "0 so'm"
+                                  }
+                                  readOnly
+                                  className="bg-muted"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                  Narx avtomatik hisoblanadi
+                                </p>
+                              </div>
+                              <div className="space-y-2">
+                                <p className="text-sm text-muted-foreground">
+                                  To'lov holati
+                                </p>
+                                <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                                  <Badge
+                                    className={
+                                      getPaymentBadge(editingPatient.paymentStatus)
+                                        .className
+                                    }
+                                  >
+                                    {
+                                      getPaymentBadge(editingPatient.paymentStatus)
+                                        .label
+                                    }
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    (faqat ko'rish)
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <p className="text-sm text-muted-foreground">
+                                  Bemor holati
+                                </p>
+                                <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                                  <Badge
+                                    className={
+                                      getStatusBadge(editingPatient.status).className
+                                    }
+                                  >
+                                    {getStatusBadge(editingPatient.status).label}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    (faqat ko'rish)
+                                  </span>
+                                </div>
+                              </div>
                             </div>
 
                             <div className="flex gap-2 pt-4">
-                              <Button 
-                                onClick={handleReRegisterPatient} 
+                              <Button
+                                onClick={handleSaveEdit}
                                 className="flex-1"
-                                disabled={!reRegisterDepartment || (reRegisterDepartment === 'Laboratoriya' ? !reRegisterLabTestId : !reRegisterDoctorId)}
                               >
-                                Ro'yxatga olish va check chiqarish
+                                Saqlash
                               </Button>
-                              <Button variant="outline" onClick={() => setReRegisteringPatient(null)} className="flex-1">
+                              <Button
+                                variant="outline"
+                                onClick={() => setEditingPatient(null)}
+                                className="flex-1"
+                              >
                                 Bekor qilish
                               </Button>
                             </div>
@@ -1007,7 +1032,9 @@ export function PatientQueue() {
                     </Dialog>
 
                     <span className="text-sm text-muted-foreground text-right">
-                      {new Date(patient.registrationDate).toLocaleString('uz-UZ')}
+                      {new Date(patient.registrationDate).toLocaleString(
+                        "uz-UZ"
+                      )}
                     </span>
                   </div>
                 </div>
@@ -1022,9 +1049,7 @@ export function PatientQueue() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Qabul check</DialogTitle>
-            <DialogDescription>
-              Bemorning qabul cheki
-            </DialogDescription>
+            <DialogDescription>Bemorning qabul cheki</DialogDescription>
           </DialogHeader>
           {receiptData && (
             <div className="space-y-4 print:p-8">
@@ -1048,11 +1073,15 @@ export function PatientQueue() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Sana:</span>
-                  <span>{new Date(receiptData.date).toLocaleString('uz-UZ')}</span>
+                  <span>
+                    {new Date(receiptData.date).toLocaleString("uz-UZ")}
+                  </span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-muted-foreground">To'lov:</span>
-                  <span className="font-medium">{receiptData.amount?.toLocaleString()} so'm</span>
+                  <span className="font-medium">
+                    {receiptData.amount?.toLocaleString()} so'm
+                  </span>
                 </div>
               </div>
 
@@ -1061,7 +1090,11 @@ export function PatientQueue() {
                   <Printer className="w-4 h-4 mr-2" />
                   Chop etish
                 </Button>
-                <Button variant="outline" onClick={() => setShowReceipt(false)} className="flex-1">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReceipt(false)}
+                  className="flex-1"
+                >
                   Yopish
                 </Button>
               </div>
