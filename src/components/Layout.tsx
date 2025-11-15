@@ -4,14 +4,22 @@ import { LayoutDashboard, LogOut, Sun, Moon, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { handleStorage } from "../utils/handle-storage";
-import { defaultRoutes, privateRoutes } from "../router";
+import { privateRoutes } from "../router";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 interface MenuItem {
-  id: string;
+  id: number;
   label: string;
   icon: React.ReactNode;
   roles: string[];
@@ -46,8 +54,8 @@ export function Layout({ children }: LayoutProps) {
     return <Navigate to="/login" replace />;
   }
 
-  const menuItems: MenuItem[] = privateRoutes.map((route) => ({
-    id: route.path,
+  const menuItems: MenuItem[] = privateRoutes.map((route, index) => ({
+    id: index,
     label:
       route.path
         .split("/")
@@ -118,7 +126,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="h-16 flex items-center px-6 border-b border-border">
             <h2 className="text-primary">Klinika Tizimi</h2>
           </div>
-                    {/* Navigation */}
+          {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-4 px-3">
             <div className="space-y-1">
               {filteredMenuItems.map((item) => (
@@ -159,6 +167,15 @@ export function Layout({ children }: LayoutProps) {
             </div>
 
             <div className="flex gap-2">
+              <Select defaultValue="uz">
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Til" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="uz">🇺🇿</SelectItem>
+                  <SelectItem value="ru">🇷🇺</SelectItem>
+                </SelectContent>
+              </Select>
               <Button
                 variant="outline"
                 size="sm"
@@ -176,9 +193,9 @@ export function Layout({ children }: LayoutProps) {
                 size="sm"
                 onClick={onLogout}
                 className="flex-1"
+                title={'Logout'}
               >
                 <LogOut className="w-4 h-4 mr-2" />
-                Chiqish
               </Button>
             </div>
           </div>

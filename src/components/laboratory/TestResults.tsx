@@ -14,7 +14,7 @@ import { Separator } from '../ui/separator';
 
 // Define the types locally as they are no longer coming from AppContext
 type Patient = {
-  id: string;
+  id: number;
   firstName: string;
   lastName: string;
   department: string;
@@ -24,7 +24,7 @@ type Patient = {
 };
 
 type LabResult = {
-  id: string;
+  id: number;
   patientId: string;
   testType: string;
   result: string;

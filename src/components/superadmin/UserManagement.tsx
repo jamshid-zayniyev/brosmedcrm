@@ -27,7 +27,7 @@ import { Skeleton } from "../ui/skeleton";
 import { useUserStore } from "@/stores/user.store";
 
 interface SystemUser {
-  id: string;
+  id: number;
   username: string;
   full_name: string | null;
   role: "s" | "r" | "l" | "d" | "c";

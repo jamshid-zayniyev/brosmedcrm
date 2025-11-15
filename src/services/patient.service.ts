@@ -85,5 +85,30 @@ class PatientService {
       throw error;
     }
   }
+
+  async findAllForDoctor() {
+    try {
+      const res = await apiInstance.get(
+        API_ENDPOINTS.PATIENT.patientsForDoctor
+      );
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async updatePatientStatus(dto: { id: number; patient_status: string }) {
+    try {
+      const res = await apiInstance.put(
+        `${API_ENDPOINTS.PATIENT.base}/${dto.id}/`,
+        dto
+      );
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
 }
 export const patientService = new PatientService();

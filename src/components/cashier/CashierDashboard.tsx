@@ -1,35 +1,95 @@
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { DollarSign, Users, TrendingUp, Clock } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { DollarSign, Users, TrendingUp, Clock } from "lucide-react";
 
 // Mock data for patients
 const mockPatients = [
-  { id: '1', firstName: 'John', lastName: 'Doe', department: 'Cardiology', registrationDate: new Date().toISOString(), paymentStatus: 'paid', paymentAmount: 150000, phone: '123456789', doctorName: 'Dr. Smith' },
-  { id: '2', firstName: 'Jane', lastName: 'Smith', department: 'Neurology', registrationDate: new Date().toISOString(), paymentStatus: 'pending', paymentAmount: 200000, phone: '987654321', doctorName: 'Dr. Jones' },
-  { id: '3', firstName: 'Alice', lastName: 'Johnson', department: 'Pediatrics', registrationDate: new Date(Date.now() - 86400000).toISOString(), paymentStatus: 'partial', paymentAmount: 100000, partialPaymentAmount: 50000, phone: '555555555', doctorName: 'Dr. Brown' },
-  { id: '4', firstName: 'Bob', lastName: 'Williams', department: 'Orthopedics', registrationDate: new Date(Date.now() - 172800000).toISOString(), paymentStatus: 'paid', paymentAmount: 300000, phone: '111222333', doctorName: 'Dr. White' },
-  { id: '5', firstName: 'Charlie', lastName: 'Brown', department: 'Cardiology', registrationDate: new Date().toISOString(), paymentStatus: 'paid', paymentAmount: 120000, phone: '444555666', labTestName: 'Blood Test' },
+  {
+    id: "1",
+    firstName: "John",
+    lastName: "Doe",
+    department: "Cardiology",
+    registrationDate: new Date().toISOString(),
+    paymentStatus: "paid",
+    paymentAmount: 150000,
+    phone: "123456789",
+    doctorName: "Dr. Smith",
+  },
+  {
+    id: "2",
+    firstName: "Jane",
+    lastName: "Smith",
+    department: "Neurology",
+    registrationDate: new Date().toISOString(),
+    paymentStatus: "pending",
+    paymentAmount: 200000,
+    phone: "987654321",
+    doctorName: "Dr. Jones",
+  },
+  {
+    id: "3",
+    firstName: "Alice",
+    lastName: "Johnson",
+    department: "Pediatrics",
+    registrationDate: new Date(Date.now() - 86400000).toISOString(),
+    paymentStatus: "partial",
+    paymentAmount: 100000,
+    partialPaymentAmount: 50000,
+    phone: "555555555",
+    doctorName: "Dr. Brown",
+  },
+  {
+    id: "4",
+    firstName: "Bob",
+    lastName: "Williams",
+    department: "Orthopedics",
+    registrationDate: new Date(Date.now() - 172800000).toISOString(),
+    paymentStatus: "paid",
+    paymentAmount: 300000,
+    phone: "111222333",
+    doctorName: "Dr. White",
+  },
+  {
+    id: "5",
+    firstName: "Charlie",
+    lastName: "Brown",
+    department: "Cardiology",
+    registrationDate: new Date().toISOString(),
+    paymentStatus: "paid",
+    paymentAmount: 120000,
+    phone: "444555666",
+    labTestName: "Blood Test",
+  },
 ];
 
 export function CashierDashboard() {
   const patients = mockPatients;
 
   // Calculate statistics
-  const pendingPayments = patients.filter(p => p.paymentStatus === 'pending');
-  const paidPayments = patients.filter(p => p.paymentStatus === 'paid');
-  const partialPayments = patients.filter(p => p.paymentStatus === 'partial');
-  
-  const totalPending = pendingPayments.reduce((sum, p) => sum + (p.paymentAmount || 0), 0);
-  const totalPaid = paidPayments.reduce((sum, p) => sum + (p.paymentAmount || 0), 0);
-  const totalPartial = partialPayments.reduce((sum, p) => sum + (p.partialPaymentAmount || 0), 0);
-  
-  const todayPatients = patients.filter(p => {
+  const pendingPayments = patients.filter((p) => p.paymentStatus === "pending");
+  const paidPayments = patients.filter((p) => p.paymentStatus === "paid");
+  const partialPayments = patients.filter((p) => p.paymentStatus === "partial");
+
+  const totalPending = pendingPayments.reduce(
+    (sum, p) => sum + (p.paymentAmount || 0),
+    0
+  );
+  const totalPaid = paidPayments.reduce(
+    (sum, p) => sum + (p.paymentAmount || 0),
+    0
+  );
+  const totalPartial = partialPayments.reduce(
+    (sum, p) => sum + (p.partialPaymentAmount || 0),
+    0
+  );
+
+  const todayPatients = patients.filter((p) => {
     const registrationDate = new Date(p.registrationDate);
     const today = new Date();
     return registrationDate.toDateString() === today.toDateString();
   });
 
   const todayRevenue = todayPatients
-    .filter(p => p.paymentStatus === 'paid')
+    .filter((p) => p.paymentStatus === "paid")
     .reduce((sum, p) => sum + (p.paymentAmount || 0), 0);
 
   return (
@@ -104,19 +164,29 @@ export function CashierDashboard() {
         <CardContent>
           <div className="space-y-4">
             {patients
-              .filter(p => p.paymentStatus === 'paid')
+              .filter((p) => p.paymentStatus === "paid")
               .slice(-5)
               .reverse()
               .map((patient) => (
-                <div key={patient.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div
+                  key={patient.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
                   <div>
-                    <p>{patient.firstName} {patient.lastName}</p>
+                    <p>
+                      {patient.firstName} {patient.lastName}
+                    </p>
                     <p className="text-sm text-muted-foreground">
-                      {patient.department} • {new Date(patient.registrationDate).toLocaleString('uz-UZ')}
+                      {patient.department} •{" "}
+                      {new Date(patient.registrationDate).toLocaleString(
+                        "uz-UZ"
+                      )}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">{patient.paymentAmount?.toLocaleString()} so'm</p>
+                    <p className="font-medium">
+                      {patient.paymentAmount?.toLocaleString()} so'm
+                    </p>
                     <p className="text-xs text-green-600">To'langan</p>
                   </div>
                 </div>

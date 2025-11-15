@@ -63,7 +63,7 @@ interface Department {
 
 // Yangilangan Patient interfeysi
 interface PatientHistory {
-  id: string;
+  id: number;
   date: string;
   type: "registration" | "lab-test" | "consultation" | "payment" | "other";
   description: string;
@@ -78,7 +78,7 @@ interface PatientHistory {
 }
 
 interface Patient {
-  id: string;
+  id: number;
   firstName: string;
   lastName: string;
   gender: "e" | "a";

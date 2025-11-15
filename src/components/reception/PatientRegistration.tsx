@@ -27,7 +27,7 @@ import { departmentTypeService } from "../../services/department-type.service";
 
 // Define types locally
 interface PatientHistory {
-  id: string;
+  id: number;
   date: string;
   type: "registration" | "lab-test" | "consultation" | "payment" | "other";
   description: string;
@@ -37,7 +37,7 @@ interface PatientHistory {
 }
 
 interface Patient {
-  id: string;
+  id: number;
   firstName: string;
   lastName: string;
   gender: "e" | "a";
@@ -203,7 +203,7 @@ export function PatientRegistration() {
         const doctorsData = await departmentService.findDoctorsByDepartment(
           departmentId
         );
-        setDoctors(doctorsData.results || []);
+        setDoctors(doctorsData.results || doctorsData || []);
       } catch (error) {
         toast.error("Shifokorlarni yuklashda xatolik");
       } finally {

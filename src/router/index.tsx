@@ -14,7 +14,7 @@ import { DepartmentPage } from "../components/superadmin/DepartmentPage";
 import { DepartmentTypePage } from "../components/superadmin/DepartmentTypePage";
 import { SuperadminDashboard } from "../components/superadmin/SuperadminDashboard";
 import { UserManagement } from "../components/superadmin/UserManagement";
-import { RouteType } from "./types";
+import { RouteType } from "../interfaces/router.interface";
 
 export const publicRoutes: RouteType[] = [
   {

@@ -17,13 +17,15 @@ export const API_ENDPOINTS = {
   },
   PATIENT: {
     base: "/reception/patient/",
+    patientsForDoctor: "/reception/doctor/patients",
   },
   LAB: {
     base: "/laboratory/analysis/",
   },
   DOCTOR: {
     base: "/doctor/doctor/",
-    consultations: "/doctor/consultations",
+    consultations: "/doctor/consultations/",
+    stats: "/doctor/consultations/stats/"
   },
 };
 

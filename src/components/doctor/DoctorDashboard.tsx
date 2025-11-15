@@ -1,159 +1,104 @@
+import { useEffect, useState, useCallback } from "react";
+import { consultationService } from "../../services/consultation.service";
 import { useUserStore } from "../../stores/user.store";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Users, Clock, CheckCircle, Calendar } from "lucide-react";
+import { Users, Clock, CheckCircle, Calendar, Loader2 } from "lucide-react";
+import { Consultation } from "../../interfaces/consultation.interface";
+import { Patient, PatientStatus } from "../../interfaces/patient.interface";
+import { patientService } from "../../services/patient.service";
+
+interface DoctorStats {
+  jami_bemorlar: number;
+  bugungi_bemorlar: number;
+  kutayotgan: number;
+  davolanayotgan: number;
+  sogaygan: number;
+  oxirgi_konsultatsiyalar: Consultation[] | null;
+}
 
 export function DoctorDashboard() {
   const { user } = useUserStore();
-  // Mock data
-  const patients = [
-    {
-      id: 1,
-      doctorId: user?.id,
-      firstName: "Ali",
-      lastName: "Valiyev",
-      status: "registered",
-      registrationDate: new Date().toISOString(),
-      queueNumber: 1,
-      diseaseType: "Yurak xastaligi",
-    },
-    {
-      id: 2,
-      doctorId: user?.id,
-      firstName: "Vali",
-      lastName: "Aliyev",
-      status: "in-lab",
-      registrationDate: new Date().toISOString(),
-      queueNumber: 2,
-      diseaseType: "Gripp",
-    },
-    {
-      id: 3,
-      doctorId: 99,
-      firstName: "Omina",
-      lastName: "Qosimova",
-      status: "with-doctor",
-      registrationDate: new Date().toISOString(),
-      queueNumber: 3,
-      diseaseType: "LOR",
-    },
-    {
-      id: 4,
-      doctorId: user?.id,
-      firstName: "Sobir",
-      lastName: "Raximov",
-      status: "under-treatment",
-      registrationDate: new Date().toISOString(),
-      queueNumber: 4,
-      diseaseType: "Oyoq og'rig'i",
-    },
-    {
-      id: 5,
-      doctorId: user?.id,
-      firstName: "Laylo",
-      lastName: "Majnunova",
-      status: "completed",
-      registrationDate: new Date().toISOString(),
-      queueNumber: 5,
-      diseaseType: "Bosh og'rig'i",
-    },
-    {
-      id: 6,
-      doctorId: user?.id,
-      firstName: "Karim",
-      lastName: "Karimov",
-      status: "cured",
-      registrationDate: new Date().toISOString(),
-      queueNumber: 6,
-      diseaseType: "Bel og'rig'i",
-    },
-  ];
-  const consultations = [
-    {
-      id: 1,
-      patientId: 1,
-      doctorId: user?.id,
-      diagnosis: "Stenokardiya",
-      recommendations: "Ko'proq dam olish",
-      date: new Date().toISOString(),
-    },
-    {
-      id: 2,
-      patientId: 2,
-      doctorId: user?.id,
-      diagnosis: "Mavsumiy gripp",
-      recommendations: "Issiq choy ichish",
-      date: new Date().toISOString(),
-    },
-  ];
+  const [stats, setStats] = useState<DoctorStats | null>(null);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const myPatients = patients.filter((p) => p.doctorId === user?.id);
-  const myConsultations = consultations.filter((c) => c.doctorId === user?.id);
+  const fetchStats = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await consultationService.findStats();
+      setStats(data);
+    } catch (err) {
+      setError("Statistika yuklashda xatolik yuz berdi.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const stats = {
-    total: myPatients.length,
-    waiting: myPatients.filter(
-      (p) => p.status === "registered" || p.status === "in-lab"
-    ).length,
-    inProgress: myPatients.filter(
-      (p) => p.status === "with-doctor" || p.status === "under-treatment"
-    ).length,
-    completed: myPatients.filter(
-      (p) => p.status === "completed" || p.status === "cured"
-    ).length,
+  const fetchPatients = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data: Patient[] = await patientService.findAllForDoctor();
+      setPatients(data);
+    } catch (err) {
+      setError("Bemorlarni yuklashda xatolik yuz berdi.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+    fetchPatients();
+  }, [fetchStats, fetchPatients]);
+
+  const upcomingPatients = patients.filter(
+    (p) =>
+      p.patient_status === "r" ||
+      p.patient_status === "l" ||
+      p.patient_status === "d" ||
+      p.patient_status === "t"
+  ).slice(0, 5);
+
+  const statCards = stats ? [
+    { title: "Jami bemorlar", value: stats.jami_bemorlar, icon: <Users className="w-8 h-8" />, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950" },
+    { title: "Kutayotgan", value: stats.kutayotgan, icon: <Clock className="w-8 h-8" />, color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-50 dark:bg-yellow-950" },
+    { title: "Davolanayotgan", value: stats.davolanayotgan, icon: <Calendar className="w-8 h-8" />, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-50 dark:bg-purple-950" },
+    { title: "Sog'aygan", value: stats.sogaygan, icon: <CheckCircle className="w-8 h-8" />, color: "text-green-600 dark:text-green-400", bg: "bg-green-50 dark:bg-green-950" },
+  ] : [];
+
+  const getStatusLabel = (status: PatientStatus) => {
+    const statusLabels = {
+      r: "Ro'yxatdan o'tgan",
+      l: "Laboratoriyada",
+      d: "Qabulda",
+      t: "Davolanmoqda",
+      f: "Yakunlangan",
+      rc: "Sog'aygan",
+    };
+    return status ? statusLabels[status] || status : "Noma'lum";
   };
 
-  const todayPatients = myPatients.filter((p) => {
-    const today = new Date().toDateString();
-    const regDate = new Date(p.registrationDate).toDateString();
-    return today === regDate;
-  });
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  const upcomingPatients = myPatients
-    .filter(
-      (p) =>
-        p.status === "registered" ||
-        p.status === "in-lab" ||
-        p.status === "under-treatment"
-    )
-    .slice(0, 5);
-
-  const statCards = [
-    {
-      title: "Jami bemorlar",
-      value: stats.total,
-      icon: <Users className="w-8 h-8" />,
-      color: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-50 dark:bg-blue-950",
-    },
-    {
-      title: "Kutayotgan",
-      value: stats.waiting,
-      icon: <Clock className="w-8 h-8" />,
-      color: "text-yellow-600 dark:text-yellow-400",
-      bg: "bg-yellow-50 dark:bg-yellow-950",
-    },
-    {
-      title: "Qabul/Davolanish",
-      value: stats.inProgress,
-      icon: <Calendar className="w-8 h-8" />,
-      color: "text-purple-600 dark:text-purple-400",
-      bg: "bg-purple-50 dark:bg-purple-950",
-    },
-    {
-      title: "Sog'aygan",
-      value: stats.completed,
-      icon: <CheckCircle className="w-8 h-8" />,
-      color: "text-green-600 dark:text-green-400",
-      bg: "bg-green-50 dark:bg-green-950",
-    },
-  ];
+  if (error) {
+    return <div className="text-center text-red-500">{error}</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1>Shifokor Dashboard</h1>
         <p className="text-muted-foreground">
-          Bugungi bemorlar: {todayPatients.length} ta
+          Bugungi bemorlar: {stats?.bugungi_bemorlar || 0} ta
         </p>
       </div>
 
@@ -188,7 +133,7 @@ export function DoctorDashboard() {
             </p>
           ) : (
             <div className="space-y-4">
-              {upcomingPatients.map((patient) => (
+              {upcomingPatients.map((patient, index) => (
                 <div
                   key={patient.id}
                   className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent transition-colors"
@@ -196,42 +141,36 @@ export function DoctorDashboard() {
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                       <span className="text-primary">
-                        №{patient.queueNumber}
+                        №{index + 1}
                       </span>
                     </div>
                     <div>
                       <p>
-                        {patient.firstName} {patient.lastName}
+                        {patient.name} {patient.last_name}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {patient.diseaseType}
+                        {patient.disease}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm">
-                      {new Date(patient.registrationDate).toLocaleDateString(
+                      {patient.created_at ? new Date(patient.created_at).toLocaleDateString(
                         "uz-UZ"
-                      )}
+                      ) : ''}
                     </p>
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${
-                        patient.status === "in-lab"
+                        patient.patient_status === "l"
                           ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                          : patient.status === "under-treatment"
+                          : patient.patient_status === "t"
                           ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
-                          : patient.status === "with-doctor"
+                          : patient.patient_status === "d"
                           ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
                           : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
                       }`}
                     >
-                      {patient.status === "in-lab"
-                        ? "Laboratoriyada"
-                        : patient.status === "under-treatment"
-                        ? "Davolanmoqda"
-                        : patient.status === "with-doctor"
-                        ? "Qabulda"
-                        : "Ro'yxatda"}
+                      {getStatusLabel(patient.patient_status)}
                     </span>
                   </div>
                 </div>
@@ -242,55 +181,39 @@ export function DoctorDashboard() {
       </Card>
 
       {/* Recent Consultations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Oxirgi konsultatsiyalar</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {myConsultations.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Hozircha konsultatsiyalar yo'q
-            </p>
-          ) : (
+      {stats && stats.oxirgi_konsultatsiyalar && stats.oxirgi_konsultatsiyalar.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Oxirgi konsultatsiyalar</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-4">
-              {[...myConsultations]
-                .reverse()
-                .slice(0, 5)
-                .map((consultation) => {
-                  const patient = patients.find(
-                    (p) => p.id === consultation.patientId
-                  );
-                  return (
-                    <div
-                      key={consultation.id}
-                      className="p-4 border border-border rounded-lg hover:bg-accent transition-colors"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <p>
-                          {patient
-                            ? `${patient.firstName} ${patient.lastName}`
-                            : "Noma'lum bemor"}
-                        </p>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(consultation.date).toLocaleDateString(
-                            "uz-UZ"
-                          )}
-                        </span>
-                      </div>
-                      <p className="text-sm">
-                        <span className="text-muted-foreground">Diagnoz:</span>{" "}
-                        {consultation.diagnosis}
+              {stats.oxirgi_konsultatsiyalar.map((consultation) => (
+                  <div
+                    key={consultation.id}
+                    className="p-4 border border-border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <p>
+                        Bemor ID: {consultation.patient}
                       </p>
-                      <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
-                        {consultation.recommendations}
-                      </p>
+                      <span className="text-sm text-muted-foreground">
+                        {consultation.created_at ? new Date(consultation.created_at).toLocaleDateString("uz-UZ") : ''}
+                      </span>
                     </div>
-                  );
-                })}
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Diagnoz:</span>{" "}
+                      {consultation.diagnosis}
+                    </p>
+                    <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                      {consultation.recommendation}
+                    </p>
+                  </div>
+                ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

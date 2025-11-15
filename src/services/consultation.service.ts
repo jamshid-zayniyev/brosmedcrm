@@ -11,10 +11,22 @@ class ConsultationService {
       throw error;
     }
   }
-  async create(dto: { id: number }) {
+  async create(dto: {
+    patient: number;
+    diagnosis: string;
+    diagnosis_uz: string;
+    diagnosis_ru: string;
+    recommendation: string;
+    recommendation_uz: string;
+    recommendation_ru: string;
+    recipe: string;
+    recipe_uz: string;
+    recipe_ru: string;
+    patient_status: string;
+  }) {
     try {
       const res = await apiInstance.post(
-        `${API_ENDPOINTS.DOCTOR.consultations}${dto.id}/`,
+        `${API_ENDPOINTS.DOCTOR.consultations}`,
         dto
       );
       return res.data;
@@ -24,24 +36,9 @@ class ConsultationService {
     }
   }
 
-  async update(dto: { id: number }) {
+  async findStats() {
     try {
-      const res = await apiInstance.put(
-        `${API_ENDPOINTS.DOCTOR.consultations}${dto.id}/`,
-        dto
-      );
-      return res.data;
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
-  }
-
-  async delete(id: number) {
-    try {
-      const res = await apiInstance.delete(
-        `${API_ENDPOINTS.DOCTOR.consultations}${id}/`
-      );
+      const res = await apiInstance.get(API_ENDPOINTS.DOCTOR.stats);
       return res.data;
     } catch (error) {
       console.error(error);
