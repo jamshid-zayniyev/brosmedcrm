@@ -1,6 +1,6 @@
 import { Consultation } from "./consultation.interface";
 
-export type PatientStatus = 'r' | 'l' | 'd' | 't' | 'f' | 'rc' | null;
+export type PatientStatus = 'r' | 'l' | 'd' | 't' | 'f' | 'rc';
 
 // Corresponds to the patient data structure from the API
 export interface Patient {
