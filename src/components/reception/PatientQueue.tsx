@@ -188,7 +188,7 @@ export function PatientQueue() {
     fetchData();
   }, []);
 
-  const updatePatientState = (patientId: string, updates: Partial<Patient>) => {
+  const updatePatientState = (patientId: number, updates: Partial<Patient>) => {
     setPatients((prevPatients) =>
       prevPatients.map((p) => (p.id === patientId ? { ...p, ...updates } : p))
     );
