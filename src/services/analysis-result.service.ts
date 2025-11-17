@@ -19,8 +19,13 @@ class AnalysisResultService {
   async update(dto: { id: number; result: number; analysis_result: string }) {
     try {
       const res = await apiInstance.put(
-        API_ENDPOINTS.ANALYSIS_RESULT.update(dto.id)
+        API_ENDPOINTS.ANALYSIS_RESULT.update(dto.id),
+        {
+          result: dto.result,
+          analysis_result: dto.analysis_result
+        }
       );
+      return res.data;
     } catch (error) {
       console.error(error);
       throw error;

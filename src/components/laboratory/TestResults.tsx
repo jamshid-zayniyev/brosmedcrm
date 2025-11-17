@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Badge } from "../ui/badge";
+import { Skeleton } from "../ui/skeleton";
 import { toast } from "sonner";
 import {
   TestTube,
@@ -39,6 +40,112 @@ import { departmentTypeService } from "../../services/department-type.service";
 import { patientService } from "../../services/patient.service";
 import { analysisResultService } from "../../services/analysis-result.service";
 import { AnalysisResultPayload } from "../../interfaces/analysis-result.interface";
+
+function EditAnalysisDialog({
+  analysis,
+  onSave,
+  onClose
+}: {
+  analysis: Analysis | null;
+  onSave: (updatedResults: { id: number; result: number; analysis_result: string }[], newStatus?: "n" | "ip" | "f") => void;
+  onClose: () => void;
+}) {
+  const [results, setResults] = useState<{ id: number; result: number; analysis_result: string }[]>([]);
+  const [status, setStatus] = useState<"n" | "ip" | "f">("n");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (analysis) {
+      setStatus(analysis.status);
+      const initialResults = analysis.department_types?.result?.map(res => ({
+        id: res.analysis_result?.[0]?.id || 0,
+        result: res.id,
+        analysis_result: res.analysis_result?.[0]?.analysis_result || ""
+      })) || [];
+      setResults(initialResults);
+    }
+  }, [analysis]);
+
+  const handleResultChange = (resultId: number, value: string) => {
+    setResults(prev =>
+      prev.map(r => r.result === resultId ? { ...r, analysis_result: value } : r)
+    );
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await onSave(results, status);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!analysis) return null;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-status">Status</Label>
+          <Select
+            value={status}
+            onValueChange={(value: "n" | "ip" | "f") => setStatus(value)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="n">Yangi</SelectItem>
+              <SelectItem value="ip">Jarayonda</SelectItem>
+              <SelectItem value="f">Yakunlangan</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="border rounded-lg">
+        <div className="bg-muted p-3 border-b">
+          <h4 className="font-medium">Natijalarni tahrirlash</h4>
+        </div>
+        <div className="divide-y max-h-96 overflow-y-auto">
+          {analysis.department_types?.result?.map((result) => (
+            <div key={result.id} className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-1">
+                  <div className="font-medium text-sm">{result.title}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Norma: {result.norma}
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <Input
+                    value={results.find(r => r.result === result.id)?.analysis_result || ""}
+                    onChange={(e) => handleResultChange(result.id, e.target.value)}
+                    placeholder="Qiymatni kiriting"
+                  />
+                </div>
+              </div>
+            </div>
+          )) || (
+            <div className="p-4 text-center text-muted-foreground">
+              Natijalar mavjud emas
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onClose}>
+          Bekor qilish
+        </Button>
+        <Button onClick={handleSave} disabled={loading}>
+          {loading ? "Saqlanmoqda..." : "Saqlash"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function TestResults() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -215,12 +322,37 @@ export function TestResults() {
     });
   };
 
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // This function also needs to be refactored to handle the new result structure
-    // For now, it's left as is, as the request was about creating new analyses.
+  const handleEditSubmit = async (updatedResults: { id: number; result: number; analysis_result: string }[], newStatus?: "n" | "ip" | "f") => {
     if (!editingAnalysis) return;
-    toast.info("Tahrirlash logikasi yangilanishi kerak.");
+
+    try {
+      // Update results
+      if (updatedResults.length > 0) {
+        await Promise.all(
+          updatedResults.map(result =>
+            analysisResultService.update(result)
+          )
+        );
+      }
+
+      // Update status if changed
+      if (newStatus && newStatus !== editingAnalysis.status) {
+        await labService.updateAnalysis({ id: editingAnalysis.id, dto: { status: newStatus } });
+        updateAnalysis(editingAnalysis.id, { status: newStatus });
+      }
+
+      // Refresh analyses list
+      const [analysesRes] = await Promise.all([
+        labService.findAllAnalysis(),
+      ]);
+      setAnalyses(analysesRes);
+
+      toast.success("Tahlil muvaffaqiyatli yangilandi");
+      setEditingAnalysis(null);
+    } catch (error) {
+      console.error("Tahlil yangilashda xatolik:", error);
+      toast.error("Tahlil yangilashda xatolik yuz berdi");
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -237,7 +369,41 @@ export function TestResults() {
   );
 
   if (loading) {
-    return <div>Yuklanmoqda...</div>;
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+
+        <div className="grid gap-4">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex justify-between gap-4">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-6 w-48" />
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                    <Skeleton className="h-4 w-64" />
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="h-3 w-12" />
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-8 w-20" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -417,7 +583,6 @@ export function TestResults() {
         </TabsContent>
 
         <TabsContent value="list" className="space-y-6">
-          {/* This part remains unchanged for now */}
           <div className="grid gap-4">
             {analyses.length === 0 ? (
               <Card>
@@ -431,6 +596,11 @@ export function TestResults() {
             ) : (
               [...analyses].reverse().map((analysis) => {
                 const patient = analysis.patient;
+                const resultCount = analysis.department_types?.result?.length || 0;
+                const completedResults = analysis.department_types?.result?.filter(r =>
+                  r.analysis_result && r.analysis_result.some(ar => ar.analysis_result.trim() !== "")
+                ).length || 0;
+
                 return (
                   <Card
                     key={analysis.id}
@@ -438,23 +608,35 @@ export function TestResults() {
                   >
                     <CardContent className="p-6">
                       <div className="flex justify-between gap-4">
-                        <div className="space-y-2">
-                          <h3>
-                            {patient
-                              ? `${patient.name} ${patient.last_name}`
-                              : "Noma'lum bemor"}
-                          </h3>
+                        <div className="space-y-2 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">
+                              {patient
+                                ? `${patient.name} ${patient.last_name}`
+                                : "Noma'lum bemor"}
+                            </h3>
+                            <Badge
+                              className={
+                                getStatusBadge(analysis.status).className
+                              }
+                            >
+                              {getStatusBadge(analysis.status).label}
+                            </Badge>
+                          </div>
                           <p className="text-sm text-muted-foreground">
                             {analysis.department_types?.title_uz ||
                               "Noma'lum tahlil turi"}
                           </p>
-                          <Badge
-                            className={
-                              getStatusBadge(analysis.status).className
-                            }
-                          >
-                            {getStatusBadge(analysis.status).label}
-                          </Badge>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>ID: {analysis.id}</span>
+                            <span>Natijalar: {completedResults}/{resultCount}</span>
+                            {analysis.files && analysis.files.length > 0 && (
+                              <span className="flex items-center gap-1">
+                                <FileText className="w-3 h-3" />
+                                {analysis.files.length} ta fayl
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex flex-col gap-2">
                           <Dialog>
@@ -465,21 +647,124 @@ export function TestResults() {
                                 onClick={() => setSelectedAnalysis(analysis)}
                               >
                                 <BarChart3 className="w-4 h-4 mr-2" />
-                                Tahlil
+                                Ko'rish
                               </Button>
                             </DialogTrigger>
-                            <DialogContent>
-                              {/* Dialog content for viewing analysis */}
+                            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                  <BarChart3 className="w-5 h-5" />
+                                  Tahlil natijalari
+                                </DialogTitle>
+                                <DialogDescription>
+                                  {patient ? `${patient.name} ${patient.last_name}` : "Noma'lum bemor"} - {analysis.department_types?.title_uz}
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <span className="font-medium">Bemor:</span> {patient ? `${patient.name} ${patient.last_name}` : "Noma'lum"}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Tahlil turi:</span> {analysis.department_types?.title_uz}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Status:</span>{" "}
+                                    <Badge className={getStatusBadge(analysis.status).className}>
+                                      {getStatusBadge(analysis.status).label}
+                                    </Badge>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">ID:</span> {analysis.id}
+                                  </div>
+                                </div>
+
+                                <div className="border rounded-lg">
+                                  <div className="bg-muted p-3 border-b">
+                                    <h4 className="font-medium">Natijalar</h4>
+                                  </div>
+                                  <div className="divide-y">
+                                    {analysis.department_types?.result?.map((result) => (
+                                      <div key={result.id} className="p-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                          <div className="md:col-span-1">
+                                            <div className="font-medium text-sm">{result.title}</div>
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                              Norma: {result.norma}
+                                            </div>
+                                          </div>
+                                          <div className="md:col-span-2">
+                                            <div className="text-sm">
+                                              <span className="font-medium">Qiymat:</span>{" "}
+                                              {result.analysis_result?.[0]?.analysis_result || "Kiritilmagan"}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )) || (
+                                      <div className="p-4 text-center text-muted-foreground">
+                                        Natijalar mavjud emas
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {analysis.files && analysis.files.length > 0 && (
+                                  <div className="border rounded-lg">
+                                    <div className="bg-muted p-3 border-b">
+                                      <h4 className="font-medium flex items-center gap-2">
+                                        <FileText className="w-4 h-4" />
+                                        Fayllar ({analysis.files.length})
+                                      </h4>
+                                    </div>
+                                    <div className="p-3 space-y-2">
+                                      {analysis.files.map((file) => (
+                                        <div key={file.id} className="flex items-center gap-2">
+                                          <FileText className="w-4 h-4 text-muted-foreground" />
+                                          <a
+                                            href={file.file}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline text-sm"
+                                          >
+                                            Fayl #{file.id}
+                                          </a>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </DialogContent>
                           </Dialog>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditClick(analysis)}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Tahrir
-                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditClick(analysis)}
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Tahrir
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                  <Edit className="w-5 h-5" />
+                                  Tahlilni tahrirlash
+                                </DialogTitle>
+                                <DialogDescription>
+                                  {patient ? `${patient.name} ${patient.last_name}` : "Noma'lum bemor"} - {analysis.department_types?.title_uz}
+                                </DialogDescription>
+                              </DialogHeader>
+                              <EditAnalysisDialog
+                                analysis={editingAnalysis}
+                                onSave={handleEditSubmit}
+                                onClose={() => setEditingAnalysis(null)}
+                              />
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </div>
                     </CardContent>
