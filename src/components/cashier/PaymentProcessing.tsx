@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -18,6 +18,7 @@ import {
   Check,
   Clock,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -27,117 +28,97 @@ import {
   DialogDescription,
 } from "../ui/dialog";
 import { toast } from "sonner";
+import { patientService } from "../../services/patient.service";
+import { Patient as ApiPatient } from "../../interfaces/patient.interface";
+import { User } from "../../interfaces/user.interface";
+import { DepartmentType } from "../../interfaces/department-type.interface";
+import { Skeleton } from "../ui/skeleton";
 
-// Mock data for patients
-const mockPatients: Patient[] = [
-  {
-    id: "1",
-    firstName: "John",
-    lastName: "Doe",
-    department: "Cardiology",
-    registrationDate: new Date().toISOString(),
-    paymentStatus: "paid",
-    paymentAmount: 150000,
-    phone: "123456789",
-    doctorName: "Dr. Smith",
-  },
-  {
-    id: "2",
-    firstName: "Jane",
-    lastName: "Smith",
-    department: "Neurology",
-    registrationDate: new Date().toISOString(),
-    paymentStatus: "pending",
-    paymentAmount: 200000,
-    phone: "987654321",
-    doctorName: "Dr. Jones",
-  },
-  {
-    id: "3",
-    firstName: "Alice",
-    lastName: "Johnson",
-    department: "Pediatrics",
-    registrationDate: new Date(Date.now() - 86400000).toISOString(),
-    paymentStatus: "partial",
-    paymentAmount: 100000,
-    partialPaymentAmount: 50000,
-    phone: "555555555",
-    doctorName: "Dr. Brown",
-  },
-  {
-    id: "4",
-    firstName: "Bob",
-    lastName: "Williams",
-    department: "Orthopedics",
-    registrationDate: new Date(Date.now() - 172800000).toISOString(),
-    paymentStatus: "paid",
-    paymentAmount: 300000,
-    phone: "111222333",
-    doctorName: "Dr. White",
-  },
-  {
-    id: "5",
-    firstName: "Charlie",
-    lastName: "Brown",
-    department: "Cardiology",
-    registrationDate: new Date().toISOString(),
-    paymentStatus: "paid",
-    paymentAmount: 120000,
-    phone: "444555666",
-    labTestName: "Blood Test",
-  },
-];
+// Create a local extended User type to include the price field described by the user
+type ExtendedUser = User & {
+  price?: string;
+};
 
-// Mock Patient type
-interface Patient {
-  id: number;
-  firstName: string;
-  lastName: string;
-  department: string;
-  registrationDate: string;
-  paymentStatus: "pending" | "paid" | "partial";
+// The Patient type used within this component, with calculated fields
+type Patient = Omit<ApiPatient, "user"> & {
+  user?: ExtendedUser;
   paymentAmount?: number;
-  partialPaymentAmount?: number;
-  phone: string;
-  labTestName?: string;
-  doctorName?: string;
-}
+  partialPaymentAmount?: number; // This is a local calculation field
+};
 
 export function PaymentProcessing() {
-  const [patients, setPatients] = useState<Patient[]>(mockPatients);
-  const updatePatient = (id: string, updates: Partial<Patient>) => {
-    setPatients((prevPatients) =>
-      prevPatients.map((p) => (p.id === id ? { ...p, ...updates } : p))
-    );
+  const [allPatients, setAllPatients] = useState<Patient[]>([]);
+  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processingPayment, setProcessingPayment] = useState(false);
+
+  const fetchPatients = async () => {
+    setLoading(true);
+    try {
+      const data = await patientService.findAll();
+      const processedData = data.map((patient: ApiPatient) => {
+        // Safely cast user to ExtendedUser to check for price
+        const extendedUser = patient.user as ExtendedUser | undefined;
+
+        const priceString =
+          patient.department_types?.price || extendedUser?.price || "0";
+        const paymentAmount = parseFloat(priceString);
+
+        return {
+          ...patient,
+          paymentAmount,
+        };
+      });
+      setAllPatients(processedData);
+    } catch (error) {
+      toast.error("Bemorlarni yuklashda xatolik yuz berdi");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
-  const addPatientHistory = (id: string, record: any) => {
-    console.log(`Adding history for patient ${id}:`, record);
-  };
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<
-    "pending" | "paid" | "partial"
-  >("pending");
+  const [paymentStatus, setPaymentStatus] = useState<"p" | "c" | "pc">("p");
   const [partialAmount, setPartialAmount] = useState("");
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "p" | "c" | "pc">(
+    "all"
+  );
+
+  useEffect(() => {
+    let patients = allPatients;
+    if (filterStatus !== "all") {
+      patients = allPatients.filter((p) => p.payment_status === filterStatus);
+    }
+    setFilteredPatients(patients);
+  }, [filterStatus, allPatients]);
 
   const handleSearch = () => {
-    const found = patients.find(
+    if (!searchQuery.trim()) {
+      toast.info("Qidirish uchun ma'lumot kiriting");
+      return;
+    }
+    const found = allPatients.find(
       (p) =>
-        p.phone.includes(searchQuery) ||
-        `${p.firstName} ${p.lastName}`
+        p.phone_number.includes(searchQuery) ||
+        `${p.name} ${p.last_name}`
           .toLowerCase()
           .includes(searchQuery.toLowerCase()) ||
-        p.id.includes(searchQuery)
+        p.id.toString() === searchQuery
     );
 
     if (found) {
       setSelectedPatient(found);
-      setPaymentStatus(found.paymentStatus);
-      setPartialAmount(found.partialPaymentAmount?.toString() || "");
+      setPaymentStatus(found.payment_status);
+      // Assuming partialPaymentAmount is not coming from API, so we don't set it here
+      setPartialAmount("");
       toast.success("Bemor topildi!");
     } else {
       toast.error("Bemor topilmadi");
@@ -145,124 +126,110 @@ export function PaymentProcessing() {
     }
   };
 
-  const handleProcessPayment = () => {
+  const handleProcessPayment = async () => {
     if (!selectedPatient) {
       toast.error("Bemorni tanlang");
       return;
     }
+    setProcessingPayment(true);
 
-    let updatedPartialAmount = selectedPatient.partialPaymentAmount || 0;
+    let updatedPartialAmount = 0;
 
-    if (paymentStatus === "partial") {
+    if (paymentStatus === "pc") {
       const amount = parseFloat(partialAmount);
       if (!amount || amount <= 0) {
         toast.error("To'lov miqdorini kiriting");
+        setProcessingPayment(false);
         return;
       }
       if (amount >= (selectedPatient.paymentAmount || 0)) {
         toast.error("Qisman to'lov to'liq miqdordan kam bo'lishi kerak");
+        setProcessingPayment(false);
         return;
       }
       updatedPartialAmount = amount;
     }
 
-    // Update patient payment status
-    updatePatient(selectedPatient.id, {
-      paymentStatus,
-      partialPaymentAmount:
-        paymentStatus === "partial" ? updatedPartialAmount : undefined,
-    });
+    try {
+      await patientService.update({
+        id: selectedPatient.id,
+        payment_status: paymentStatus,
+        // partial_amount could be sent here if API supports it
+      });
 
-    // Add to patient history
-    addPatientHistory(selectedPatient.id, {
-      id: `h${Date.now()}`,
-      date: new Date().toISOString(),
-      type: "payment",
-      description:
-        paymentStatus === "paid"
-          ? "To'lov to'liq qabul qilindi"
-          : paymentStatus === "partial"
-          ? `Qisman to\'lov qabul qilindi: ${updatedPartialAmount.toLocaleString()} so'm`
-          : "To'lov kutilmoqda",
-      amount:
-        paymentStatus === "partial"
-          ? updatedPartialAmount
-          : selectedPatient.paymentAmount,
-    });
+      // Prepare receipt
+      const receipt = {
+        patientName: `${selectedPatient.name} ${selectedPatient.last_name}`,
+        patientId: selectedPatient.id,
+        department: selectedPatient.department_types?.title || "Noma'lum bo'lim",
+        service: selectedPatient.user?.full_name
+          ? `${selectedPatient.user.full_name} ko'rigi`
+          : "Umumiy xizmat",
+        totalAmount: selectedPatient.paymentAmount,
+        paidAmount:
+          paymentStatus === "c"
+            ? selectedPatient.paymentAmount
+            : updatedPartialAmount,
+        remainingAmount:
+          paymentStatus === "pc"
+            ? (selectedPatient.paymentAmount || 0) - updatedPartialAmount
+            : 0,
+        paymentStatus:
+          paymentStatus === "c"
+            ? "To'langan"
+            : paymentStatus === "pc"
+            ? "Qisman to'langan"
+            : "Kutilmoqda",
+        date: new Date().toISOString(),
+      };
 
-    // Prepare receipt
-    const receipt = {
-      patientName: `${selectedPatient.firstName} ${selectedPatient.lastName}`,
-      patientId: selectedPatient.id,
-      department: selectedPatient.department,
-      service:
-        selectedPatient.labTestName ||
-        (selectedPatient.doctorName
-          ? `${selectedPatient.doctorName} ko'rigi`
-          : "Xizmat"),
-      totalAmount: selectedPatient.paymentAmount,
-      paidAmount:
-        paymentStatus === "paid"
-          ? selectedPatient.paymentAmount
-          : updatedPartialAmount,
-      remainingAmount:
-        paymentStatus === "partial"
-          ? (selectedPatient.paymentAmount || 0) - updatedPartialAmount
-          : 0,
-      paymentStatus:
-        paymentStatus === "paid"
-          ? "To'langan"
-          : paymentStatus === "partial"
-          ? "Qisman to'langan"
-          : "Kutilmoqda",
-      date: new Date().toISOString(),
-    };
+      setReceiptData(receipt);
+      setShowReceipt(true);
+      toast.success("To'lov muvaffaqiyatli amalga oshirildi!");
 
-    setReceiptData(receipt);
-    setShowReceipt(true);
-    toast.success("To'lov muvaffaqiyatli amalga oshirildi!");
-
-    // Reset
-    setSelectedPatient(null);
-    setSearchQuery("");
-    setPaymentStatus("pending");
-    setPartialAmount("");
+      // Reset and refetch
+      setSelectedPatient(null);
+      setSearchQuery("");
+      setPaymentStatus("p");
+      setPartialAmount("");
+      fetchPatients();
+    } catch (error) {
+      toast.error("To'lovni yangilashda xatolik yuz berdi");
+      console.error(error);
+    } finally {
+      setProcessingPayment(false);
+    }
   };
 
   const handlePrintReceipt = () => {
     window.print();
   };
 
-  const getPaymentBadge = (status: string) => {
+  const getPaymentBadge = (status: "p" | "c" | "pc") => {
     const statusConfig: Record<
       string,
       { label: string; className: string; icon: any }
     > = {
-      pending: {
+      p: {
         label: "Kutilmoqda",
         className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
         icon: AlertCircle,
       },
-      partial: {
+      pc: {
         label: "Qisman",
         className:
           "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
         icon: Clock,
       },
-      paid: {
+c: {
         label: "To'langan",
         className:
           "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
         icon: Check,
       },
     };
-    return statusConfig[status] || statusConfig["pending"];
+    return statusConfig[status] || statusConfig["p"];
   };
-
-  const filteredPatients =
-    filterStatus === "all"
-      ? patients
-      : patients.filter((p) => p.paymentStatus === filterStatus);
 
   return (
     <div className="space-y-6">
@@ -273,7 +240,6 @@ export function PaymentProcessing() {
         </p>
       </div>
 
-      {/* Search Patient */}
       <Card>
         <CardHeader>
           <CardTitle>Bemorni qidirish</CardTitle>
@@ -294,7 +260,6 @@ export function PaymentProcessing() {
         </CardContent>
       </Card>
 
-      {/* Payment Form */}
       {selectedPatient && (
         <Card>
           <CardHeader>
@@ -304,12 +269,11 @@ export function PaymentProcessing() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Patient Info */}
             <div className="p-4 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Bemor:</span>
                 <span>
-                  {selectedPatient.firstName} {selectedPatient.lastName}
+                  {selectedPatient.name} {selectedPatient.last_name}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -318,18 +282,14 @@ export function PaymentProcessing() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Bo'lim:</span>
-                <span>{selectedPatient.department}</span>
+                <span>
+                  {selectedPatient.department_types?.title || "Noma'lum"}
+                </span>
               </div>
-              {selectedPatient.labTestName && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tahlil:</span>
-                  <span>{selectedPatient.labTestName}</span>
-                </div>
-              )}
-              {selectedPatient.doctorName && (
+              {selectedPatient.user && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Shifokor:</span>
-                  <span>{selectedPatient.doctorName}</span>
+                  <span>{selectedPatient.user.full_name}</span>
                 </div>
               )}
               <div className="flex justify-between border-t pt-2">
@@ -338,33 +298,24 @@ export function PaymentProcessing() {
                   {selectedPatient.paymentAmount?.toLocaleString()} so'm
                 </span>
               </div>
-              {selectedPatient.partialPaymentAmount && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">To'langan:</span>
-                  <span className="text-green-600">
-                    {selectedPatient.partialPaymentAmount.toLocaleString()} so'm
-                  </span>
-                </div>
-              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Joriy holat:</span>
                 <Badge
                   className={
-                    getPaymentBadge(selectedPatient.paymentStatus).className
+                    getPaymentBadge(selectedPatient.payment_status).className
                   }
                 >
-                  {getPaymentBadge(selectedPatient.paymentStatus).label}
+                  {getPaymentBadge(selectedPatient.payment_status).label}
                 </Badge>
               </div>
             </div>
 
-            {/* Payment Options */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>To'lov holati *</Label>
                 <Select
                   value={paymentStatus}
-                  onValueChange={(value: "pending" | "paid" | "partial") =>
+                  onValueChange={(value: "p" | "c" | "pc") =>
                     setPaymentStatus(value)
                   }
                 >
@@ -372,14 +323,14 @@ export function PaymentProcessing() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="paid">To'liq to'landi</SelectItem>
-                    <SelectItem value="partial">Qisman to'landi</SelectItem>
-                    <SelectItem value="pending">To'lanmadi</SelectItem>
+                    <SelectItem value="c">To'liq to'landi</SelectItem>
+                    <SelectItem value="pc">Qisman to'landi</SelectItem>
+                    <SelectItem value="p">To'lanmadi</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {paymentStatus === "partial" && (
+              {paymentStatus === "pc" && (
                 <div className="space-y-2">
                   <Label>Qisman to'lov miqdori (so'm) *</Label>
                   <Input
@@ -412,7 +363,7 @@ export function PaymentProcessing() {
                 </div>
               )}
 
-              {paymentStatus === "paid" && (
+              {paymentStatus === "c" && (
                 <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
                   <p className="text-sm">
                     ✓ To'lov to'liq qabul qilinadi:{" "}
@@ -424,84 +375,110 @@ export function PaymentProcessing() {
               )}
             </div>
 
-            <Button onClick={handleProcessPayment} className="w-full">
-              <DollarSign className="w-4 h-4 mr-2" />
-              To'lovni qabul qilish va check chiqarish
+            <Button
+              onClick={handleProcessPayment}
+              className="w-full"
+              disabled={processingPayment}
+            >
+              {processingPayment ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Yuklanmoqda...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  To'lovni qabul qilish va check chiqarish
+                </>
+              )}
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Patient List with Payment Status */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Bemorlar ro'yxati</CardTitle>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <Select value={filterStatus} onValueChange={setFilterStatus as any}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Barcha bemorlar</SelectItem>
-                <SelectItem value="pending">To'lanmagan</SelectItem>
-                <SelectItem value="partial">Qisman to'langan</SelectItem>
-                <SelectItem value="paid">To'langan</SelectItem>
+                <SelectItem value="p">To'lanmagan</SelectItem>
+                <SelectItem value="pc">Qisman to'langan</SelectItem>
+                <SelectItem value="c">To'langan</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {filteredPatients.map((patient) => {
-              const badge = getPaymentBadge(patient.paymentStatus);
-              const Icon = badge.icon;
-
-              return (
+            {loading ? (
+              Array.from({ length: 5 }).map((_, index) => (
                 <div
-                  key={patient.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => {
-                    setSelectedPatient(patient);
-                    setPaymentStatus(patient.paymentStatus);
-                    setPartialAmount(
-                      patient.partialPaymentAmount?.toString() || ""
-                    );
-                    setSearchQuery("");
-                  }}
+                  key={index}
+                  className="flex items-center justify-between p-4 border rounded-lg"
                 >
-                  <div className="space-y-1">
-                    <p>
-                      {patient.firstName} {patient.lastName}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {patient.department} •{" "}
-                      {new Date(patient.registrationDate).toLocaleDateString(
-                        "uz-UZ"
-                      )}
-                    </p>
-                    {patient.labTestName && (
-                      <p className="text-xs text-muted-foreground">
-                        Tahlil: {patient.labTestName}
-                      </p>
-                    )}
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-4 w-48" />
                   </div>
                   <div className="text-right space-y-2">
-                    <p className="font-medium">
-                      {patient.paymentAmount?.toLocaleString()} so'm
-                    </p>
-                    <Badge className={badge.className}>
-                      <Icon className="w-3 h-3 mr-1" />
-                      {badge.label}
-                    </Badge>
+                    <Skeleton className="h-5 w-24 ml-auto" />
+                    <Skeleton className="h-6 w-28 ml-auto" />
                   </div>
                 </div>
-              );
-            })}
+              ))
+            ) : filteredPatients.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Bemorlar topilmadi
+              </p>
+            ) : (
+              filteredPatients.map((patient) => {
+                const badge = getPaymentBadge(patient.payment_status);
+                const Icon = badge.icon;
+
+                return (
+                  <div
+                    key={patient.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => {
+                      setSelectedPatient(patient);
+                      setPaymentStatus(patient.payment_status);
+                      setPartialAmount("");
+                      setSearchQuery("");
+                    }}
+                  >
+                    <div className="space-y-1">
+                      <p>
+                        {patient.name} {patient.last_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {patient.department_types?.title || "Noma'lum"} •{" "}
+                        {new Date(patient.created_at).toLocaleDateString(
+                          "uz-UZ"
+                        )}
+                      </p>
+                    </div>
+                    <div className="text-right space-y-2">
+                      <p className="font-medium">
+                        {patient.paymentAmount?.toLocaleString()} so'm
+                      </p>
+                      <Badge className={badge.className}>
+                        <Icon className="w-3 h-3 mr-1" />
+                        {badge.label}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Receipt Dialog */}
       <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
         <DialogContent className="max-w-md">
           <DialogHeader>

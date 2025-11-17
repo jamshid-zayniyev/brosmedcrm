@@ -21,11 +21,23 @@ export const API_ENDPOINTS = {
   },
   LAB: {
     base: "/laboratory/analysis/",
+    stats: "/laboratory/analysis/stats/",
   },
   DOCTOR: {
     base: "/doctor/doctor/",
     consultations: "/doctor/consultations/",
-    stats: "/doctor/consultations/stats/"
+    stats: "/doctor/consultations/stats/",
+  },
+  REPORT: {
+    base: "/utils/report/",
+  },
+  CASHIER: {
+    base: "/cashier/cashier/",
+    stats: "/cashier/cashier/stats/",
+  },
+  RESULT: {
+    findResultForDepartment: (id: number) =>
+      `/laboratory/department/result/${id}/`,
   },
 };
 

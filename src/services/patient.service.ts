@@ -61,6 +61,7 @@ class PatientService {
     disease?: string;
     disease_uz?: string;
     disease_ru?: string;
+    payment_status?: 'p' | 'c' | 'pc';
   }) {
     try {
       const res = await apiInstance.put(

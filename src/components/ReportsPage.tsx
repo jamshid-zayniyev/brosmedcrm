@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -7,8 +7,11 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { FileText, Download, Calendar as CalendarIcon, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { toast } from 'sonner';
+import { reportService, ReportResponse } from '../services/report.service';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
+import { Skeleton } from './ui/skeleton';
 
-// Mock Data Definitions
+// Mock Data Definitions (for charts, as requested)
 interface Patient {
   id: number;
   name: string;
@@ -35,66 +38,74 @@ const mockPatients: Patient[] = [
   { id: 1, name: 'Ali Valiyev', registrationDate: '2023-10-01', department: 'Kardiologiya', paymentAmount: 150000 },
   { id: 2, name: 'Vali Aliyev', registrationDate: '2023-10-05', department: 'Nevrologiya', paymentAmount: 120000 },
   { id: 3, name: 'Salim Salimov', registrationDate: '2023-10-10', department: 'Kardiologiya', paymentAmount: 200000 },
-  { id: 4, name: 'Gulnoza Gulyamova', registrationDate: '2023-10-12', department: 'Pediatriya', paymentAmount: 80000 },
-  { id: 5, name: 'Farhod Fozilov', registrationDate: '2023-11-01', department: 'Nevrologiya', paymentAmount: 180000 },
-  { id: 6, name: 'Zarina Zokirova', registrationDate: '2023-11-03', department: 'Pediatriya', paymentAmount: 90000 },
-  { id: 7, name: 'Botir Botirjonov', registrationDate: '2023-11-05', department: 'Kardiologiya', paymentAmount: 160000 },
-  { id: 8, name: 'Dildora Dilshodova', registrationDate: '2023-11-07', department: 'Nevrologiya', paymentAmount: 130000 },
-  { id: 9, name: 'Eshmat Eshmatov', registrationDate: '2023-11-10', department: 'Pediatriya', paymentAmount: 100000 },
-  { id: 10, name: 'Fotima Fozilova', registrationDate: '2023-11-12', department: 'Kardiologiya', paymentAmount: 170000 },
 ];
 
 const mockLabResults: LabResult[] = [
   { id: 1, patientId: 1, testName: 'Qon tahlili', date: '2023-10-02' },
   { id: 2, patientId: 2, testName: 'MRT', date: '2023-10-06' },
-  { id: 3, patientId: 1, testName: 'EKG', date: '2023-10-03' },
-  { id: 4, patientId: 4, testName: 'Siydik tahlili', date: '2023-10-13' },
-  { id: 5, patientId: 5, testName: 'Qon tahlili', date: '2023-11-02' },
-  { id: 6, patientId: 6, testName: 'MRT', date: '2023-11-04' },
-  { id: 7, patientId: 7, testName: 'EKG', date: '2023-11-06' },
-  { id: 8, patientId: 8, testName: 'Siydik tahlili', date: '2023-11-08' },
-  { id: 9, patientId: 9, testName: 'Qon tahlili', date: '2023-11-11' },
-  { id: 10, patientId: 10, testName: 'MRT', date: '2023-11-13' },
 ];
 
 const mockConsultations: Consultation[] = [
   { id: 1, patientId: 1, doctorId: 101, date: '2023-10-01' },
   { id: 2, patientId: 2, doctorId: 102, date: '2023-10-05' },
-  { id: 3, patientId: 3, doctorId: 101, date: '2023-10-10' },
-  { id: 4, patientId: 4, doctorId: 103, date: '2023-10-12' },
-  { id: 5, patientId: 5, doctorId: 102, date: '2023-11-01' },
-  { id: 6, patientId: 6, doctorId: 103, date: '2023-11-03' },
-  { id: 7, patientId: 7, doctorId: 101, date: '2023-11-05' },
-  { id: 8, patientId: 8, doctorId: 102, date: '2023-11-07' },
-  { id: 9, patientId: 9, doctorId: 103, date: '2023-11-10' },
-  { id: 10, patientId: 10, doctorId: 101, date: '2023-11-12' },
 ];
 
 export function ReportsPage() {
-  const [reportType, setReportType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [reportType, setReportType] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('daily');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date());
   const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
+  const [reportData, setReportData] = useState<ReportResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Generate report data
-  const generateReportData = () => {
-    const today = new Date();
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    return {
-      totalPatients: mockPatients.length,
-      newPatients: mockPatients.filter(p => 
-        new Date(p.registrationDate) >= weekAgo
-      ).length,
-      totalConsultations: mockConsultations.length,
-      totalLabResults: mockLabResults.length,
-      completedConsultations: mockConsultations.filter(c => 
-        new Date(c.date) >= weekAgo
-      ).length,
+  useEffect(() => {
+    const fetchReport = async () => {
+      if (!dateFrom || !dateTo) {
+        return;
+      }
+      setLoading(true);
+      const requestBody = {
+        start_date: format(dateFrom, 'yyyy-MM-dd'),
+        end_date: format(dateTo, 'yyyy-MM-dd'),
+      };
+      try {
+        const data = await reportService.getReport(requestBody);
+        setReportData(data);
+      } catch (error) {
+        toast.error("Hisobot olishda xatolik yuz berdi");
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
     };
+    fetchReport();
+  }, [dateFrom, dateTo]);
+
+  const handleReportTypeChange = (value: 'daily' | 'weekly' | 'monthly' | 'custom') => {
+    setReportType(value);
+    const today = new Date();
+    if (value === 'daily') {
+      setDateFrom(today);
+      setDateTo(today);
+    } else if (value === 'weekly') {
+      setDateFrom(startOfWeek(today, { weekStartsOn: 1 }));
+      setDateTo(endOfWeek(today, { weekStartsOn: 1 }));
+    } else if (value === 'monthly') {
+      setDateFrom(startOfMonth(today));
+      setDateTo(endOfMonth(today));
+    }
   };
 
-  const reportData = generateReportData();
+  const handleDateFromChange = (date: Date | undefined) => {
+    setDateFrom(date);
+    setReportType('custom');
+  };
 
+  const handleDateToChange = (date: Date | undefined) => {
+    setDateTo(date);
+    setReportType('custom');
+  };
+
+  // Mock data for charts
   const dailyPatients = Array.from({ length: 7 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (6 - i));
@@ -137,7 +148,7 @@ export function ReportsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <label className="text-sm">Hisobot turi</label>
-              <Select value={reportType} onValueChange={(value: any) => setReportType(value)}>
+              <Select value={reportType} onValueChange={handleReportTypeChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -145,6 +156,7 @@ export function ReportsPage() {
                   <SelectItem value="daily">Kunlik</SelectItem>
                   <SelectItem value="weekly">Haftalik</SelectItem>
                   <SelectItem value="monthly">Oylik</SelectItem>
+                  <SelectItem value="custom">O'z sanasini tanlash</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -162,7 +174,7 @@ export function ReportsPage() {
                   <Calendar
                     mode="single"
                     selected={dateFrom}
-                    onSelect={setDateFrom}
+                    onSelect={handleDateFromChange}
                   />
                 </PopoverContent>
               </Popover>
@@ -181,14 +193,13 @@ export function ReportsPage() {
                   <Calendar
                     mode="single"
                     selected={dateTo}
-                    onSelect={setDateTo}
+                    onSelect={handleDateToChange}
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm">Eksport</label>
+            <div className="space-y-2 self-end">
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -216,73 +227,89 @@ export function ReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted-foreground mb-1">Jami bemorlar</p>
-                <h2>{reportData.totalPatients}</h2>
-              </div>
-              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950">
-                <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-sm mt-2">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="text-green-600">+{reportData.newPatients}</span>
-              <span className="text-muted-foreground">yangi</span>
-            </div>
+            {loading ? <Skeleton className="h-12 w-full" /> :
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground mb-1">Jami bemorlar</p>
+                    <h2>{reportData?.umumiy.jami_bemorlar || 0}</h2>
+                  </div>
+                  <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950">
+                    <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-sm mt-2">
+                  <TrendingUp className="w-4 h-4 text-green-600" />
+                  <span className="text-green-600">+{mockPatients.length}</span>
+                  <span className="text-muted-foreground">yangi</span>
+                </div>
+              </>
+            }
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted-foreground mb-1">Konsultatsiyalar</p>
-                <h2>{reportData.totalConsultations}</h2>
-              </div>
-              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950">
-                <FileText className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-sm mt-2">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="text-green-600">+{reportData.completedConsultations}</span>
-              <span className="text-muted-foreground">bu hafta</span>
-            </div>
+            {loading ? <Skeleton className="h-12 w-full" /> :
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground mb-1">Konsultatsiyalar</p>
+                    <h2>{reportData?.umumiy.konsultatsiyalar || 0}</h2>
+                  </div>
+                  <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950">
+                    <FileText className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-sm mt-2">
+                  <TrendingUp className="w-4 h-4 text-green-600" />
+                  <span className="text-green-600">+{mockConsultations.length}</span>
+                  <span className="text-muted-foreground">bu hafta</span>
+                </div>
+              </>
+            }
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted-foreground mb-1">Tahlillar</p>
-                <h2>{reportData.totalLabResults}</h2>
-              </div>
-              <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950">
-                <FileText className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-sm mt-2">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="text-green-600">+18%</span>
-              <span className="text-muted-foreground">o'sish</span>
-            </div>
+            {loading ? <Skeleton className="h-12 w-full" /> :
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground mb-1">Tahlillar</p>
+                    <h2>{reportData?.umumiy.tahlillar || 0}</h2>
+                  </div>
+                  <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950">
+                    <FileText className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-sm mt-2">
+                  <TrendingUp className="w-4 h-4 text-green-600" />
+                  <span className="text-green-600">+18%</span>
+                  <span className="text-muted-foreground">o'sish</span>
+                </div>
+              </>
+            }
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted-foreground mb-1">To'lovlar</p>
-                <h2>{(mockPatients.reduce((sum, p) => sum + (p.paymentAmount || 0), 0)).toLocaleString()}</h2>
-              </div>
-              <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950">
-                <FileText className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">so'm</p>
+            {loading ? <Skeleton className="h-12 w-full" /> :
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground mb-1">To'lovlar</p>
+                    <h2>{(reportData?.umumiy.tolovlar || 0).toLocaleString()}</h2>
+                  </div>
+                  <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950">
+                    <FileText className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">so'm</p>
+              </>
+            }
           </CardContent>
         </Card>
       </div>
@@ -345,32 +372,42 @@ export function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {departmentStats.map((dept, index) => (
-                  <tr key={index} className="border-b hover:bg-accent">
-                    <td className="p-2">{dept.name}</td>
-                    <td className="text-right p-2">{dept.bemorlar}</td>
-                    <td className="text-right p-2">{dept.konsultatsiyalar}</td>
-                    <td className="text-right p-2">
-                      {mockLabResults.filter(r => {
-                        const patient = mockPatients.find(p => p.id === r.patientId);
-                        return patient?.department === dept.name;
-                      }).length}
-                    </td>
-                    <td className="text-right p-2">
-                      {mockPatients
-                        .filter(p => p.department === dept.name)
-                        .reduce((sum, p) => sum + (p.paymentAmount || 0), 0)
-                        .toLocaleString()}
+                {loading && !reportData ? (
+                  Array.from({ length: 3 }).map((_, index) => (
+                    <tr key={index} className="border-b">
+                      <td className="p-2"><Skeleton className="h-5 w-24" /></td>
+                      <td className="p-2 text-right"><Skeleton className="h-5 w-12 ml-auto" /></td>
+                      <td className="p-2 text-right"><Skeleton className="h-5 w-12 ml-auto" /></td>
+                      <td className="p-2 text-right"><Skeleton className="h-5 w-12 ml-auto" /></td>
+                      <td className="p-2 text-right"><Skeleton className="h-5 w-20 ml-auto" /></td>
+                    </tr>
+                  ))
+                ) : reportData?.departments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center p-8 text-muted-foreground">
+                      Ma'lumotlar topilmadi
                     </td>
                   </tr>
-                ))}
-                <tr className="border-t-2">
+                ) : (
+                  reportData?.departments.map((dept, index) => (
+                    <tr key={index} className="border-b hover:bg-accent">
+                      <td className="p-2">{dept.department}</td>
+                      <td className="text-right p-2">{dept.jami_bemorlar}</td>
+                      <td className="text-right p-2">{dept.konsultatsiyalar}</td>
+                      <td className="text-right p-2">{dept.tahlillar}</td>
+                      <td className="text-right p-2">
+                        {dept.tolovlar.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))
+                )}
+                <tr className="border-t-2 font-bold">
                   <td className="p-2">Jami</td>
-                  <td className="text-right p-2">{mockPatients.length}</td>
-                  <td className="text-right p-2">{mockConsultations.length}</td>
-                  <td className="text-right p-2">{mockLabResults.length}</td>
+                  <td className="text-right p-2">{reportData?.umumiy.jami_bemorlar || 0}</td>
+                  <td className="text-right p-2">{reportData?.umumiy.konsultatsiyalar || 0}</td>
+                  <td className="text-right p-2">{reportData?.umumiy.tahlillar || 0}</td>
                   <td className="text-right p-2">
-                    {mockPatients.reduce((sum, p) => sum + (p.paymentAmount || 0), 0).toLocaleString()}
+                    {(reportData?.umumiy.tolovlar || 0).toLocaleString()}
                   </td>
                 </tr>
               </tbody>

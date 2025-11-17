@@ -1,61 +1,94 @@
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { TestTube, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { TestTube, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { labService } from "../../services/lab.service";
 
 export function LabDashboard() {
   // Mock data
   const patients = [
-    { id: 1, firstName: 'Ali', lastName: 'Valiyev' },
-    { id: 2, firstName: 'Vali', lastName: 'Aliyev' },
+    { id: 1, firstName: "Ali", lastName: "Valiyev" },
+    { id: 2, firstName: "Vali", lastName: "Aliyev" },
   ];
   const labResults = [
-    { id: 1, patientId: 1, testType: 'Qon tahlili', date: new Date().toISOString(), status: 'completed' },
-    { id: 2, patientId: 2, testType: 'Siydik tahlili', date: new Date().toISOString(), status: 'in-progress' },
-    { id: 3, patientId: 1, testType: 'Rentgen', date: new Date().toISOString(), status: 'new' },
+    {
+      id: 1,
+      patientId: 1,
+      testType: "Qon tahlili",
+      date: new Date().toISOString(),
+      status: "completed",
+    },
+    {
+      id: 2,
+      patientId: 2,
+      testType: "Siydik tahlili",
+      date: new Date().toISOString(),
+      status: "in-progress",
+    },
+    {
+      id: 3,
+      patientId: 1,
+      testType: "Rentgen",
+      date: new Date().toISOString(),
+      status: "new",
+    },
   ];
-
-  const stats = {
-    total: labResults.length,
-    new: labResults.filter(r => r.status === 'new').length,
-    inProgress: labResults.filter(r => r.status === 'in-progress').length,
-    completed: labResults.filter(r => r.status === 'completed').length,
-  };
-
-  const todayResults = labResults.filter(r => {
-    const today = new Date().toDateString();
-    const resultDate = new Date(r.date).toDateString();
-    return today === resultDate;
-  });
-
   const recentResults = [...labResults].reverse().slice(0, 5);
+
+  const [stats, setStats] = useState<{
+    kunlik_tahlil: number;
+    jami_tahlil: number;
+    yangi_tahlil: number;
+    jarayondagi_tahlil: number;
+    yakunlangan_tahlil: number;
+  }>();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await labService.getStats();
+        setStats(data);
+      } catch (error) {
+        console.error(error);
+        // Optionally, set default/empty stats or show an error message
+        setStats({
+          kunlik_tahlil: 0,
+          jami_tahlil: 0,
+          yangi_tahlil: 0,
+          jarayondagi_tahlil: 0,
+          yakunlangan_tahlil: 0,
+        });
+      }
+    })();
+  }, []);
 
   const statCards = [
     {
-      title: 'Jami tahlillar',
-      value: stats.total,
+      title: "Jami tahlillar",
+      value: stats?.jami_tahlil || 0,
       icon: <TestTube className="w-8 h-8" />,
-      color: 'text-blue-600 dark:text-blue-400',
-      bg: 'bg-blue-50 dark:bg-blue-950',
+      color: "text-blue-600 dark:text-blue-400",
+      bg: "bg-blue-50 dark:bg-blue-950",
     },
     {
-      title: 'Yangi',
-      value: stats.new,
+      title: "Yangi",
+      value: stats?.yangi_tahlil || 0,
       icon: <AlertCircle className="w-8 h-8" />,
-      color: 'text-red-600 dark:text-red-400',
-      bg: 'bg-red-50 dark:bg-red-950',
+      color: "text-red-600 dark:text-red-400",
+      bg: "bg-red-50 dark:bg-red-950",
     },
     {
-      title: 'Jarayonda',
-      value: stats.inProgress,
+      title: "Jarayonda",
+      value: stats?.jarayondagi_tahlil || 0,
       icon: <Clock className="w-8 h-8" />,
-      color: 'text-yellow-600 dark:text-yellow-400',
-      bg: 'bg-yellow-50 dark:bg-yellow-950',
+      color: "text-yellow-600 dark:text-yellow-400",
+      bg: "bg-yellow-50 dark:bg-yellow-950",
     },
     {
-      title: 'Yakunlangan',
-      value: stats.completed,
+      title: "Yakunlangan",
+      value: stats?.yakunlangan_tahlil || 0,
       icon: <CheckCircle className="w-8 h-8" />,
-      color: 'text-green-600 dark:text-green-400',
-      bg: 'bg-green-50 dark:bg-green-950',
+      color: "text-green-600 dark:text-green-400",
+      bg: "bg-green-50 dark:bg-green-950",
     },
   ];
 
@@ -64,7 +97,7 @@ export function LabDashboard() {
       <div>
         <h1>Laboratoriya Dashboard</h1>
         <p className="text-muted-foreground">
-          Bugungi tahlillar: {todayResults.length} ta
+          Bugungi tahlillar: {stats?.kunlik_tahlil || 0} ta
         </p>
       </div>
 
@@ -100,7 +133,7 @@ export function LabDashboard() {
           ) : (
             <div className="space-y-4">
               {recentResults.map((result) => {
-                const patient = patients.find(p => p.id === result.patientId);
+                const patient = patients.find((p) => p.id === result.patientId);
                 return (
                   <div
                     key={result.id}
@@ -112,7 +145,9 @@ export function LabDashboard() {
                       </div>
                       <div>
                         <p>
-                          {patient ? `${patient.firstName} ${patient.lastName}` : 'Noma\'lum bemor'}
+                          {patient
+                            ? `${patient.firstName} ${patient.lastName}`
+                            : "Noma'lum bemor"}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {result.testType}
@@ -121,22 +156,22 @@ export function LabDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm">
-                        {new Date(result.date).toLocaleDateString('uz-UZ')}
+                        {new Date(result.date).toLocaleDateString("uz-UZ")}
                       </p>
                       <span
                         className={`text-xs px-2 py-1 rounded-full ${
-                          result.status === 'completed'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : result.status === 'in-progress'
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          result.status === "completed"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                            : result.status === "in-progress"
+                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
                         }`}
                       >
-                        {result.status === 'completed'
-                          ? 'Yakunlangan'
-                          : result.status === 'in-progress'
-                          ? 'Jarayonda'
-                          : 'Yangi'}
+                        {result.status === "completed"
+                          ? "Yakunlangan"
+                          : result.status === "in-progress"
+                          ? "Jarayonda"
+                          : "Yangi"}
                       </span>
                     </div>
                   </div>

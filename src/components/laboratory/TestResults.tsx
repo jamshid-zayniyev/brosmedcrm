@@ -13,7 +13,19 @@ import {
 } from "../ui/select";
 import { Badge } from "../ui/badge";
 import { toast } from "sonner";
-import { TestTube, Upload, BarChart3, TrendingUp, Edit } from "lucide-react";
+import {
+  TestTube,
+  Upload,
+  BarChart3,
+  TrendingUp,
+  Edit,
+  User,
+  FileText,
+  Download,
+  Sparkles,
+  Clock,
+  ClipboardCheck,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +35,6 @@ import {
   DialogDescription,
 } from "../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Separator } from "../ui/separator";
 import { Patient } from "../../interfaces/patient.interface";
 import { Analysis } from "../../interfaces/analysis.interface";
 import { DepartmentType } from "../../interfaces/department-type.interface";
@@ -31,132 +42,11 @@ import { labService } from "../../services/lab.service";
 import { departmentTypeService } from "../../services/department-type.service";
 import { patientService } from "../../services/patient.service";
 
-// Mock Data
-const mockDepartmentTypesData: DepartmentType[] = [
-  {
-    id: 1,
-    department: 1,
-    title: "Umumiy qon tahlili",
-    title_uz: "Umumiy qon tahlili",
-    title_ru: "Общий анализ крови",
-    price: "50000",
-  },
-  {
-    id: 2,
-    department: 2,
-    title: "Siydik tahlili",
-    title_uz: "Siydik tahlili",
-    title_ru: "Анализ мочи",
-    price: "30000",
-  },
-  {
-    id: 3,
-    department: 3,
-    title: "Rentgen",
-    title_uz: "Rentgen",
-    title_ru: "Рентген",
-    price: "100000",
-  },
-];
-
-const mockPatientsData: Patient[] = [
-  {
-    id: 1,
-    user: 1,
-    department: 1,
-    department_types: 1,
-    name: "Alisher",
-    last_name: "Valiyev",
-    middle_name: "O'ktamovich",
-    gender: "e",
-    birth_date: "1990-01-01",
-    phone_number: "+998901234567",
-    address: "Toshkent",
-    disease: "Kardiologiya",
-    disease_uz: "Kardiologiya",
-    disease_ru: "Кардиология",
-    payment_status: "p",
-    patient_status: "l",
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    user: 2,
-    department: 2,
-    department_types: 2,
-    name: "Fotima",
-    last_name: "Zokirova",
-    middle_name: "Ismatovna",
-    gender: "a",
-    birth_date: "1985-05-15",
-    phone_number: "+998907654321",
-    address: "Samarqand",
-    disease: "Nevrologiya",
-    disease_uz: "Nevrologiya",
-    disease_ru: "Неврология",
-    payment_status: "c",
-    patient_status: "r",
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 3,
-    user: 3,
-    department: 3,
-    department_types: 3,
-    name: "Hasan",
-    last_name: "Husanov",
-    middle_name: "Rustamovich",
-    gender: "e",
-    birth_date: "1975-10-20",
-    phone_number: "+998903216549",
-    address: "Buxoro",
-    disease: "Travmatologiya",
-    disease_uz: "Travmatologiya",
-    disease_ru: "Травматология",
-    payment_status: "pc",
-    patient_status: "l",
-    created_at: new Date().toISOString(),
-  },
-];
-
-const mockAnalysesData: Analysis[] = [
-  {
-    id: 1,
-    patient: mockPatientsData[0],
-    department_types: mockDepartmentTypesData[0],
-    analysis_result: "Hemoglobin - 120 g/l (normal)",
-    analysis_result_uz: "Gemoglobin - 120 g/l (normal)",
-    analysis_result_ru: "Гемоглобин - 120 г/л (норма)",
-    status: "f",
-    files: [],
-  },
-  {
-    id: 2,
-    patient: mockPatientsData[1],
-    department_types: mockDepartmentTypesData[1],
-    analysis_result: "Leukocytosis detected (high)",
-    analysis_result_uz: "Leykositoz aniqlandi (yuqori)",
-    analysis_result_ru: "Лейкоцитоз обнаружен (высокий)",
-    status: "n",
-    files: [
-      {
-        id: 1,
-        file: "sample_file.pdf",
-      },
-    ],
-  },
-];
-
-const mockUser = {
-  fullName: "Dr. Laborant",
-};
-
 export function TestResults() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(true);
-  const user = mockUser;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -173,10 +63,6 @@ export function TestResults() {
       } catch (error) {
         console.error("Ma'lumotlarni yuklashda xatolik:", error);
         toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
-        // Fallback to mock data
-        setPatients(mockPatientsData);
-        setDepartmentTypes(mockDepartmentTypesData);
-        setAnalyses(mockAnalysesData);
       } finally {
         setLoading(false);
       }
@@ -204,6 +90,7 @@ export function TestResults() {
     null
   );
   const [editingAnalysis, setEditingAnalysis] = useState<Analysis | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState({
     departmentTypeId: "",
     analysisResult: "",
@@ -246,6 +133,12 @@ export function TestResults() {
       formDataToSend.append("analysis_result_ru", formData.analysisResultRu);
       formDataToSend.append("status", formData.status);
 
+      if (files.length > 0) {
+        files.forEach((file) => {
+          formDataToSend.append("files", file);
+        });
+      }
+
       const newAnalysis = await labService.createAnalysis(formDataToSend);
       addAnalysis(newAnalysis);
 
@@ -267,6 +160,7 @@ export function TestResults() {
         analysisResultRu: "",
         status: "n",
       });
+      setFiles([]);
       setSelectedPatient("");
     } catch (error) {
       console.error("Tahlil yaratishda xatolik:", error);
@@ -289,9 +183,10 @@ export function TestResults() {
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      toast.success(`${files.length} ta fayl yuklandi`);
+    const selectedFiles = e.target.files;
+    if (selectedFiles && selectedFiles.length > 0) {
+      setFiles(Array.from(selectedFiles));
+      toast.success(`${selectedFiles.length} ta fayl tanlandi`);
     }
   };
 
@@ -599,6 +494,31 @@ export function TestResults() {
                       PNG, JPG, PDF (maks. 10MB)
                     </p>
                   </div>
+                  {files.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-sm font-medium">Tanlangan fayllar:</p>
+                      <ul className="space-y-1">
+                        {files.map((file, index) => (
+                          <li
+                            key={index}
+                            className="text-sm text-muted-foreground flex items-center justify-between bg-muted p-2 rounded-md"
+                          >
+                            <span>
+                              {file.name} ({Math.round(file.size / 1024)} KB)
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFiles([])}
+                        className="mt-2 w-full"
+                      >
+                        Fayllarni tozalash
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full">
@@ -853,192 +773,217 @@ export function TestResults() {
                                 Tahlil qilish
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
-                                <DialogTitle>
-                                  Tahlil natijasi va tahlil
+                                <DialogTitle className="flex items-center gap-2">
+                                  <BarChart3 className="w-6 h-6" />
+                                  Tahlil Natijasi
                                 </DialogTitle>
                                 <DialogDescription>
-                                  Tahlil to'liq ma'lumotlari
+                                  Bemor tahlilining to'liq ma'lumotlari va
+                                  natijalari.
                                 </DialogDescription>
                               </DialogHeader>
                               {selectedAnalysis && (
-                                <div className="space-y-6">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <p className="text-sm text-muted-foreground">
-                                        Bemor
-                                      </p>
-                                      <p>
-                                        {patient
-                                          ? `${patient.name} ${patient.last_name}`
-                                          : "Noma'lum"}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-muted-foreground">
-                                        Tahlil turi
-                                      </p>
-                                      <p>
-                                        {selectedAnalysis.department_types
-                                          ?.title_uz || "Noma'lum tahlil turi"}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-muted-foreground">
-                                        Sana
-                                      </p>
-                                      <p>
-                                        {new Date(
-                                          selectedAnalysis.patient.created_at
-                                        ).toLocaleString("uz-UZ")}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-muted-foreground">
-                                        Laborant
-                                      </p>
-                                      <p>Laborant</p>
-                                    </div>
-                                  </div>
+                                <div className="space-y-6 pt-4">
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-lg flex items-center gap-2">
+                                        <User className="w-5 h-5 text-primary" />
+                                        Bemor ma'lumotlari
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                                      <div>
+                                        <p className="text-muted-foreground">
+                                          F.I.O.
+                                        </p>
+                                        <p className="font-medium">
+                                          {patient
+                                            ? `${patient.name} ${patient.last_name}`
+                                            : "Noma'lum"}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-muted-foreground">
+                                          Tahlil turi
+                                        </p>
+                                        <p className="font-medium">
+                                          {selectedAnalysis.department_types
+                                            ?.title_uz ||
+                                            "Noma'lum tahlil turi"}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-muted-foreground">
+                                          Sana
+                                        </p>
+                                        <p className="font-medium">
+                                          {new Date(
+                                            selectedAnalysis.patient.created_at
+                                          ).toLocaleString("uz-UZ")}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-muted-foreground">
+                                          Laborant
+                                        </p>
+                                        <p className="font-medium">Laborant</p>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
 
-                                  <Separator />
-
-                                  <div>
-                                    <p className="text-sm text-muted-foreground mb-2">
-                                      Natija
-                                    </p>
-                                    <div className="p-4 bg-muted rounded-lg">
-                                      <p className="whitespace-pre-wrap">
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-lg flex items-center gap-2">
+                                        <FileText className="w-5 h-5 text-primary" />
+                                        Tahlil natijasi
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <div className="p-4 bg-muted rounded-lg whitespace-pre-wrap text-sm">
                                         {selectedAnalysis.analysis_result_uz}
-                                      </p>
-                                    </div>
-                                  </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
 
                                   {selectedAnalysis.files.length > 0 && (
-                                    <>
-                                      <Separator />
-                                      <div>
-                                        <p className="text-sm text-muted-foreground mb-2">
-                                          Fayllar
-                                        </p>
-                                        <div className="space-y-2">
-                                          {selectedAnalysis.files.map(
-                                            (file, idx) => (
-                                              <div
-                                                key={idx}
-                                                className="flex items-center gap-2 p-2 bg-muted rounded"
-                                              >
-                                                <span className="text-sm">
-                                                  {file.file}
-                                                </span>
-                                              </div>
-                                            )
-                                          )}
-                                        </div>
-                                      </div>
-                                    </>
+                                    <Card>
+                                      <CardHeader>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                          <Download className="w-5 h-5 text-primary" />
+                                          Biriktirilgan fayllar
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="space-y-2">
+                                        {selectedAnalysis.files.map(
+                                          (file, idx) => (
+                                            <a
+                                              key={idx}
+                                              href={file.file}
+                                              download
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="flex items-center justify-between gap-2 p-3 bg-muted hover:bg-muted/80 rounded-lg transition-colors"
+                                            >
+                                              <span className="font-medium text-sm truncate">
+                                                {file.file.split("/").pop()}
+                                              </span>
+                                              <Download className="w-4 h-4 text-muted-foreground" />
+                                            </a>
+                                          )
+                                        )}
+                                      </CardContent>
+                                    </Card>
                                   )}
 
-                                  <Separator />
-
-                                  {analyzeTestResult(selectedAnalysis).concerns
+                                  {(analyzeTestResult(selectedAnalysis).concerns
                                     .length > 0 ||
-                                  analyzeTestResult(selectedAnalysis)
-                                    .recommendations.length > 0 ? (
-                                    <div className="space-y-4">
-                                      <div className="flex items-center gap-2">
-                                        <TrendingUp className="w-5 h-5 text-primary" />
-                                        <h4>Avtomatik tahlil</h4>
-                                      </div>
-
-                                      {analyzeTestResult(selectedAnalysis)
-                                        .concerns.length > 0 && (
-                                        <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
-                                          <p className="text-sm mb-2">
-                                            E'tiborga olish kerak:
-                                          </p>
-                                          <ul className="list-disc list-inside space-y-1">
-                                            {analyzeTestResult(
-                                              selectedAnalysis
-                                            ).concerns.map((concern, idx) => (
-                                              <li
-                                                key={idx}
-                                                className="text-sm text-red-800 dark:text-red-200"
-                                              >
-                                                {concern}
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        </div>
-                                      )}
-
-                                      {analyzeTestResult(selectedAnalysis)
-                                        .recommendations.length > 0 && (
-                                        <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                          <p className="text-sm mb-2">
-                                            Tavsiyalar:
-                                          </p>
-                                          <ul className="list-disc list-inside space-y-1">
-                                            {analyzeTestResult(
-                                              selectedAnalysis
-                                            ).recommendations.map(
-                                              (rec, idx) => (
+                                    analyzeTestResult(selectedAnalysis)
+                                      .recommendations.length > 0) && (
+                                    <Card>
+                                      <CardHeader>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                          <Sparkles className="w-5 h-5 text-primary" />
+                                          Avtomatik tahlil
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="space-y-4">
+                                        {analyzeTestResult(selectedAnalysis)
+                                          .concerns.length > 0 && (
+                                          <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+                                            <p className="text-sm font-semibold mb-2 text-red-900 dark:text-red-100">
+                                              E'tiborga olish kerak:
+                                            </p>
+                                            <ul className="list-disc list-inside space-y-1">
+                                              {analyzeTestResult(
+                                                selectedAnalysis
+                                              ).concerns.map((concern, idx) => (
                                                 <li
                                                   key={idx}
-                                                  className="text-sm text-blue-800 dark:text-blue-200"
+                                                  className="text-sm text-red-800 dark:text-red-200"
                                                 >
-                                                  {rec}
+                                                  {concern}
                                                 </li>
-                                              )
-                                            )}
-                                          </ul>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="p-4 bg-muted rounded-lg text-center">
-                                      <p className="text-sm text-muted-foreground">
-                                        Hozircha avtomatik tahlil mavjud emas
-                                      </p>
-                                    </div>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+                                        {analyzeTestResult(selectedAnalysis)
+                                          .recommendations.length > 0 && (
+                                          <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                            <p className="text-sm font-semibold mb-2 text-blue-900 dark:text-blue-100">
+                                              Tavsiyalar:
+                                            </p>
+                                            <ul className="list-disc list-inside space-y-1">
+                                              {analyzeTestResult(
+                                                selectedAnalysis
+                                              ).recommendations.map(
+                                                (rec, idx) => (
+                                                  <li
+                                                    key={idx}
+                                                    className="text-sm text-blue-800 dark:text-blue-200"
+                                                  >
+                                                    {rec}
+                                                  </li>
+                                                )
+                                              )}
+                                            </ul>
+                                          </div>
+                                        )}
+                                      </CardContent>
+                                    </Card>
                                   )}
 
-                                  <Separator />
-
-                                  <div>
-                                    <p className="text-sm text-muted-foreground mb-2">
-                                      Status
-                                    </p>
-                                    <Select
-                                      value={selectedAnalysis.status}
-                                      onValueChange={(
-                                        value: "n" | "ip" | "f"
-                                      ) => {
-                                        handleUpdateStatus(
-                                          selectedAnalysis.id,
-                                          value
-                                        );
-                                        setSelectedAnalysis({
-                                          ...selectedAnalysis,
-                                          status: value,
-                                        });
-                                      }}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="n">Yangi</SelectItem>
-                                        <SelectItem value="ip">
-                                          Jarayonda
-                                        </SelectItem>
-                                        <SelectItem value="f">
-                                          Yakunlangan
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-lg flex items-center gap-2">
+                                        <ClipboardCheck className="w-5 h-5 text-primary" />
+                                        Statusni o'zgartirish
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <Select
+                                        value={selectedAnalysis.status}
+                                        onValueChange={(
+                                          value: "n" | "ip" | "f"
+                                        ) => {
+                                          handleUpdateStatus(
+                                            selectedAnalysis.id,
+                                            value
+                                          );
+                                          setSelectedAnalysis({
+                                            ...selectedAnalysis,
+                                            status: value,
+                                          });
+                                        }}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="n">
+                                            <div className="flex items-center gap-2">
+                                              <Clock className="w-4 h-4 text-red-500" />
+                                              Yangi
+                                            </div>
+                                          </SelectItem>
+                                          <SelectItem value="ip">
+                                            <div className="flex items-center gap-2">
+                                              <Clock className="w-4 h-4 text-yellow-500" />
+                                              Jarayonda
+                                            </div>
+                                          </SelectItem>
+                                          <SelectItem value="f">
+                                            <div className="flex items-center gap-2">
+                                              <ClipboardCheck className="w-4 h-4 text-green-500" />
+                                              Yakunlangan
+                                            </div>
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </CardContent>
+                                  </Card>
                                 </div>
                               )}
                             </DialogContent>

@@ -24,10 +24,7 @@ class LabService {
 
   async updateAnalysis({ id, dto }: { dto: any; id: number }) {
     try {
-      const res = await apiInstance.patch(
-        `${API_ENDPOINTS.LAB.base}${id}/`,
-        dto
-      );
+      const res = await apiInstance.put(`${API_ENDPOINTS.LAB.base}${id}/`, dto);
       return res.data;
     } catch (error) {
       console.error(error);
@@ -38,6 +35,16 @@ class LabService {
   async deleteAnalysis(id: number) {
     try {
       const res = await apiInstance.delete(`${API_ENDPOINTS.LAB.base}${id}/`);
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async getStats() {
+    try {
+      const res = await apiInstance.get(API_ENDPOINTS.LAB.stats);
       return res.data;
     } catch (error) {
       console.error(error);

@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { DollarSign, Users, TrendingUp, Clock } from "lucide-react";
+import { cashierService } from "../../services/cashier.service";
+import { Skeleton } from "../ui/skeleton";
 
-// Mock data for patients
+// Mock data for patients (for "Recent Activity" list, as requested)
 const mockPatients = [
   {
     id: "1",
@@ -61,36 +64,36 @@ const mockPatients = [
   },
 ];
 
+interface CashierStats {
+  bugungi_daromad: string;
+  tolangan: string;
+  qisman_tolangan: string;
+  kutilmoqda: string;
+  bugungi_bemorlar: number;
+  jami_bemorlar: number;
+}
+
 export function CashierDashboard() {
+  const [stats, setStats] = useState<CashierStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const data = await cashierService.getStats();
+        setStats(data);
+      } catch (error) {
+        console.error("Failed to fetch cashier stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  // Keep mock data for "Recent Activity"
   const patients = mockPatients;
-
-  // Calculate statistics
-  const pendingPayments = patients.filter((p) => p.paymentStatus === "pending");
-  const paidPayments = patients.filter((p) => p.paymentStatus === "paid");
-  const partialPayments = patients.filter((p) => p.paymentStatus === "partial");
-
-  const totalPending = pendingPayments.reduce(
-    (sum, p) => sum + (p.paymentAmount || 0),
-    0
-  );
-  const totalPaid = paidPayments.reduce(
-    (sum, p) => sum + (p.paymentAmount || 0),
-    0
-  );
-  const totalPartial = partialPayments.reduce(
-    (sum, p) => sum + (p.partialPaymentAmount || 0),
-    0
-  );
-
-  const todayPatients = patients.filter((p) => {
-    const registrationDate = new Date(p.registrationDate);
-    const today = new Date();
-    return registrationDate.toDateString() === today.toDateString();
-  });
-
-  const todayRevenue = todayPatients
-    .filter((p) => p.paymentStatus === "paid")
-    .reduce((sum, p) => sum + (p.paymentAmount || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -109,10 +112,16 @@ export function CashierDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{todayRevenue.toLocaleString()} so'm</div>
-            <p className="text-xs text-muted-foreground">
-              Bugun: {todayPatients.length} ta bemor
-            </p>
+            {loading ? (
+              <Skeleton className="h-8 w-3/4 mt-1" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.bugungi_daromad || "0 so'm"}</div>
+                <p className="text-xs text-muted-foreground">
+                  Bugun: {stats?.bugungi_bemorlar || 0} ta bemor
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -122,10 +131,11 @@ export function CashierDashboard() {
             <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{totalPaid.toLocaleString()} so'm</div>
-            <p className="text-xs text-muted-foreground">
-              {paidPayments.length} ta bemor
-            </p>
+            {loading ? (
+              <Skeleton className="h-8 w-3/4 mt-1" />
+            ) : (
+              <div className="text-2xl font-bold">{stats?.tolangan || "0 so'm"}</div>
+            )}
           </CardContent>
         </Card>
 
@@ -135,10 +145,13 @@ export function CashierDashboard() {
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{totalPartial.toLocaleString()} so'm</div>
-            <p className="text-xs text-muted-foreground">
-              {partialPayments.length} ta bemor
-            </p>
+            {loading ? (
+              <Skeleton className="h-8 w-3/4 mt-1" />
+            ) : (
+              <div className="text-2xl font-bold">
+                {stats?.qisman_tolangan || "0 so'm"}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -148,10 +161,11 @@ export function CashierDashboard() {
             <Users className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{totalPending.toLocaleString()} so'm</div>
-            <p className="text-xs text-muted-foreground">
-              {pendingPayments.length} ta bemor
-            </p>
+            {loading ? (
+              <Skeleton className="h-8 w-3/4 mt-1" />
+            ) : (
+              <div className="text-2xl font-bold">{stats?.kutilmoqda || "0 so'm"}</div>
+            )}
           </CardContent>
         </Card>
       </div>
