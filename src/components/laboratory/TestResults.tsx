@@ -1,141 +1,291 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Badge } from '../ui/badge';
-import { toast } from 'sonner';
-import { TestTube, Upload, BarChart3, TrendingUp, Edit } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Separator } from '../ui/separator';
-
-// Define the types locally as they are no longer coming from AppContext
-type Patient = {
-  id: number;
-  firstName: string;
-  lastName: string;
-  department: string;
-  status: string;
-  labTestName?: string;
-  queueNumber?: number;
-};
-
-type LabResult = {
-  id: number;
-  patientId: string;
-  testType: string;
-  result: string;
-  date: string;
-  technicianName: string;
-  status: 'new' | 'in-progress' | 'completed';
-};
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { Badge } from "../ui/badge";
+import { toast } from "sonner";
+import { TestTube, Upload, BarChart3, TrendingUp, Edit } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "../ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Separator } from "../ui/separator";
+import { Patient } from "../../interfaces/patient.interface";
+import { Analysis } from "../../interfaces/analysis.interface";
+import { DepartmentType } from "../../interfaces/department-type.interface";
+import { labService } from "../../services/lab.service";
+import { departmentTypeService } from "../../services/department-type.service";
+import { patientService } from "../../services/patient.service";
 
 // Mock Data
-const mockPatientsData: Patient[] = [
-  { id: 'p1', firstName: 'Alisher', lastName: 'Valiyev', department: 'Kardiologiya', status: 'in-lab', labTestName: 'Umumiy qon tahlili', queueNumber: 1 },
-  { id: 'p2', firstName: 'Fotima', lastName: 'Zokirova', department: 'Nevrologiya', status: 'registered', labTestName: 'Siydik tahlili', queueNumber: 2 },
-  { id: 'p3', firstName: 'Hasan', lastName: 'Husanov', department: 'Travmatologiya', status: 'in-lab', labTestName: 'Rentgen', queueNumber: 3 },
+const mockDepartmentTypesData: DepartmentType[] = [
+  {
+    id: 1,
+    department: 1,
+    title: "Umumiy qon tahlili",
+    title_uz: "Umumiy qon tahlili",
+    title_ru: "Общий анализ крови",
+    price: "50000",
+  },
+  {
+    id: 2,
+    department: 2,
+    title: "Siydik tahlili",
+    title_uz: "Siydik tahlili",
+    title_ru: "Анализ мочи",
+    price: "30000",
+  },
+  {
+    id: 3,
+    department: 3,
+    title: "Rentgen",
+    title_uz: "Rentgen",
+    title_ru: "Рентген",
+    price: "100000",
+  },
 ];
 
-const mockLabResultsData: LabResult[] = [
-  { id: 'lr1', patientId: 'p1', testType: 'Umumiy qon tahlili', result: 'Gemoglobin - 120 g/l (normal)', date: new Date().toISOString(), technicianName: 'Laborant A', status: 'completed' },
-  { id: 'lr2', patientId: 'p2', testType: 'Siydik tahlili', result: 'Leykositoz aniqlandi (yuqori)', date: new Date().toISOString(), technicianName: 'Laborant B', status: 'new' },
+const mockPatientsData: Patient[] = [
+  {
+    id: 1,
+    user: 1,
+    department: 1,
+    department_types: 1,
+    name: "Alisher",
+    last_name: "Valiyev",
+    middle_name: "O'ktamovich",
+    gender: "e",
+    birth_date: "1990-01-01",
+    phone_number: "+998901234567",
+    address: "Toshkent",
+    disease: "Kardiologiya",
+    disease_uz: "Kardiologiya",
+    disease_ru: "Кардиология",
+    payment_status: "p",
+    patient_status: "l",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    user: 2,
+    department: 2,
+    department_types: 2,
+    name: "Fotima",
+    last_name: "Zokirova",
+    middle_name: "Ismatovna",
+    gender: "a",
+    birth_date: "1985-05-15",
+    phone_number: "+998907654321",
+    address: "Samarqand",
+    disease: "Nevrologiya",
+    disease_uz: "Nevrologiya",
+    disease_ru: "Неврология",
+    payment_status: "c",
+    patient_status: "r",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    user: 3,
+    department: 3,
+    department_types: 3,
+    name: "Hasan",
+    last_name: "Husanov",
+    middle_name: "Rustamovich",
+    gender: "e",
+    birth_date: "1975-10-20",
+    phone_number: "+998903216549",
+    address: "Buxoro",
+    disease: "Travmatologiya",
+    disease_uz: "Travmatologiya",
+    disease_ru: "Травматология",
+    payment_status: "pc",
+    patient_status: "l",
+    created_at: new Date().toISOString(),
+  },
+];
+
+const mockAnalysesData: Analysis[] = [
+  {
+    id: 1,
+    patient: mockPatientsData[0],
+    department_types: mockDepartmentTypesData[0],
+    analysis_result: "Hemoglobin - 120 g/l (normal)",
+    analysis_result_uz: "Gemoglobin - 120 g/l (normal)",
+    analysis_result_ru: "Гемоглобин - 120 г/л (норма)",
+    status: "f",
+    files: [],
+  },
+  {
+    id: 2,
+    patient: mockPatientsData[1],
+    department_types: mockDepartmentTypesData[1],
+    analysis_result: "Leukocytosis detected (high)",
+    analysis_result_uz: "Leykositoz aniqlandi (yuqori)",
+    analysis_result_ru: "Лейкоцитоз обнаружен (высокий)",
+    status: "n",
+    files: [
+      {
+        id: 1,
+        file: "sample_file.pdf",
+      },
+    ],
+  },
 ];
 
 const mockUser = {
-  fullName: 'Dr. Laborant',
+  fullName: "Dr. Laborant",
 };
 
-
 export function TestResults() {
-  const [patients, setPatients] = useState<Patient[]>(mockPatientsData);
-  const [labResults, setLabResults] = useState<LabResult[]>(mockLabResultsData);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
+  const [analyses, setAnalyses] = useState<Analysis[]>([]);
+  const [loading, setLoading] = useState(true);
   const user = mockUser;
 
-  const addLabResult = (newResult: LabResult) => {
-    setLabResults(prev => [...prev, newResult]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [patientsRes, departmentTypesRes, analysesRes] =
+          await Promise.all([
+            patientService.findAll(),
+            departmentTypeService.findAll(),
+            labService.findAllAnalysis(),
+          ]);
+        setPatients(patientsRes);
+        setDepartmentTypes(departmentTypesRes);
+        setAnalyses(analysesRes);
+      } catch (error) {
+        console.error("Ma'lumotlarni yuklashda xatolik:", error);
+        toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
+        // Fallback to mock data
+        setPatients(mockPatientsData);
+        setDepartmentTypes(mockDepartmentTypesData);
+        setAnalyses(mockAnalysesData);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const addAnalysis = (newAnalysis: Analysis) => {
+    setAnalyses((prev) => [...prev, newAnalysis]);
   };
 
-  const updateLabResult = (resultId: string, updates: Partial<LabResult>) => {
-    setLabResults(prev => prev.map(r => r.id === resultId ? { ...r, ...updates } : r));
+  const updateAnalysis = (analysisId: number, updates: Partial<Analysis>) => {
+    setAnalyses((prev) =>
+      prev.map((a) => (a.id === analysisId ? { ...a, ...updates } : a))
+    );
   };
 
   const addPatientHistory = (patientId: string, historyEntry: any) => {
     console.log(`History added for patient ${patientId}:`, historyEntry);
   };
 
-  const [selectedPatient, setSelectedPatient] = useState('');
-  const [selectedResult, setSelectedResult] = useState<LabResult | null>(null);
-  const [editingResult, setEditingResult] = useState<LabResult | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState("");
+  const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(
+    null
+  );
+  const [editingAnalysis, setEditingAnalysis] = useState<Analysis | null>(null);
   const [formData, setFormData] = useState({
-    testType: '',
-    result: '',
-    status: 'new' as 'new' | 'in-progress' | 'completed',
+    departmentTypeId: "",
+    analysisResult: "",
+    analysisResultUz: "",
+    analysisResultRu: "",
+    status: "n" as "n" | "ip" | "f",
   });
   const [editFormData, setEditFormData] = useState({
-    testType: '',
-    result: '',
-    status: 'new' as 'new' | 'in-progress' | 'completed',
+    departmentTypeId: "",
+    analysisResult: "",
+    analysisResultUz: "",
+    analysisResultRu: "",
+    status: "n" as "n" | "ip" | "f",
   });
 
-  const testTypes = [
-    'Umumiy qon tahlili',
-    'Biokimyoviy qon tahlili',
-    'Siydik tahlili',
-    'Rentgen',
-    'Ultratovush (USG)',
-    'EKG',
-    'MRI',
-    'CT',
-    'Mikrobio tahlil',
-    'Gemma tahlili',
-  ];
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedPatient) {
-      toast.error('Bemorni tanlang');
+      toast.error("Bemorni tanlang");
       return;
     }
 
-    const newResult: LabResult = {
-      id: `lr${Date.now()}`,
-      patientId: selectedPatient,
-      testType: formData.testType,
-      result: formData.result,
-      date: new Date().toISOString(),
-      technicianName: user?.fullName || 'Laborant',
-      status: formData.status,
-    };
+    const patient = patients.find((p) => p.id.toString() === selectedPatient);
+    const departmentType = departmentTypes.find(
+      (dt) => dt.id.toString() === formData.departmentTypeId
+    );
 
-    addLabResult(newResult);
+    if (!patient || !departmentType) {
+      toast.error("Bemor yoki tahlil turi topilmadi");
+      return;
+    }
 
-    addPatientHistory(selectedPatient, {
-      id: `h${Date.now()}`,
-      date: new Date().toISOString(),
-      type: 'lab-test',
-      description: `Laboratoriya tahlili: ${formData.testType}`,
-      labTest: formData.testType,
-      labResult: formData.result,
-    });
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append("patient", patient.id.toString());
+      formDataToSend.append("department_types", departmentType.id.toString());
+      formDataToSend.append("analysis_result", formData.analysisResult);
+      formDataToSend.append("analysis_result_uz", formData.analysisResultUz);
+      formDataToSend.append("analysis_result_ru", formData.analysisResultRu);
+      formDataToSend.append("status", formData.status);
 
-    toast.success('Tahlil natijasi saqlandi');
+      const newAnalysis = await labService.createAnalysis(formDataToSend);
+      addAnalysis(newAnalysis);
 
-    setFormData({
-      testType: '',
-      result: '',
-      status: 'new',
-    });
-    setSelectedPatient('');
+      addPatientHistory(selectedPatient, {
+        id: `h${Date.now()}`,
+        date: new Date().toISOString(),
+        type: "lab-test",
+        description: `Laboratoriya tahlili: ${departmentType.title_uz}`,
+        labTest: departmentType.title_uz,
+        labResult: formData.analysisResultUz,
+      });
+
+      toast.success("Tahlil natijasi saqlandi");
+
+      setFormData({
+        departmentTypeId: "",
+        analysisResult: "",
+        analysisResultUz: "",
+        analysisResultRu: "",
+        status: "n",
+      });
+      setSelectedPatient("");
+    } catch (error) {
+      console.error("Tahlil yaratishda xatolik:", error);
+      toast.error("Tahlil yaratishda xatolik yuz berdi");
+    }
   };
 
-  const handleUpdateStatus = (resultId: string, status: 'new' | 'in-progress' | 'completed') => {
-    updateLabResult(resultId, { status });
-    toast.success('Status yangilandi');
+  const handleUpdateStatus = async (
+    analysisId: number,
+    status: "n" | "ip" | "f"
+  ) => {
+    try {
+      await labService.updateAnalysis({ id: analysisId, dto: { status } });
+      updateAnalysis(analysisId, { status });
+      toast.success("Status yangilandi");
+    } catch (error) {
+      console.error("Status yangilashda xatolik:", error);
+      toast.error("Status yangilashda xatolik yuz berdi");
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,65 +295,127 @@ export function TestResults() {
     }
   };
 
-  const handleEditClick = (result: LabResult) => {
-    setEditingResult(result);
+  const handleEditClick = (analysis: Analysis) => {
+    setEditingAnalysis(analysis);
     setEditFormData({
-      testType: result.testType,
-      result: result.result,
-      status: result.status,
+      departmentTypeId: analysis.department_types?.id.toString() || "",
+      analysisResult: analysis.analysis_result,
+      analysisResultUz: analysis.analysis_result_uz,
+      analysisResultRu: analysis.analysis_result_ru,
+      status: analysis.status,
     });
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!editingResult) return;
+    if (!editingAnalysis) return;
 
-    updateLabResult(editingResult.id, {
-      testType: editFormData.testType,
-      result: editFormData.result,
-      status: editFormData.status,
-    });
+    const departmentType = departmentTypes.find(
+      (dt) => dt.id.toString() === editFormData.departmentTypeId
+    );
 
-    toast.success('Tahlil natijasi yangilandi');
-    setEditingResult(null);
+    if (!departmentType) {
+      toast.error("Tahlil turi topilmadi");
+      return;
+    }
+
+    try {
+      const updateData = {
+        department_types: departmentType.id,
+        analysis_result: editFormData.analysisResult,
+        analysis_result_uz: editFormData.analysisResultUz,
+        analysis_result_ru: editFormData.analysisResultRu,
+        status: editFormData.status,
+      };
+
+      await labService.updateAnalysis({
+        id: editingAnalysis.id,
+        dto: updateData,
+      });
+
+      updateAnalysis(editingAnalysis.id, {
+        department_types: departmentType,
+        analysis_result: editFormData.analysisResult,
+        analysis_result_uz: editFormData.analysisResultUz,
+        analysis_result_ru: editFormData.analysisResultRu,
+        status: editFormData.status,
+      });
+    } catch (error) {
+      console.error("Tahlil yangilashda xatolik:", error);
+      toast.error("Tahlil yangilashda xatolik yuz berdi");
+    }
   };
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; className: string }> = {
-      'new': { label: 'Yangi', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
-      'in-progress': { label: 'Jarayonda', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
-      'completed': { label: 'Yakunlangan', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+      n: {
+        label: "Yangi",
+        className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+      },
+      ip: {
+        label: "Jarayonda",
+        className:
+          "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+      },
+      f: {
+        label: "Yakunlangan",
+        className:
+          "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      },
     };
-    return statusConfig[status] || statusConfig['new'];
+    return statusConfig[status] || statusConfig["n"];
   };
 
-  const analyzeTestResult = (result: LabResult) => {
-    const analysis = {
+  const analyzeTestResult = (analysis: Analysis) => {
+    const resultAnalysis = {
       concerns: [] as string[],
       recommendations: [] as string[],
     };
 
-    const resultText = result.result.toLowerCase();
+    const resultText = analysis.analysis_result_uz.toLowerCase();
 
-    if (resultText.includes('yuqori') || resultText.includes('oshgan')) {
-      analysis.concerns.push('Ko\'rsatkichlar me\'yordan yuqori');
-      analysis.recommendations.push('Shifokor konsultatsiyasi tavsiya etiladi');
+    if (resultText.includes("yuqori") || resultText.includes("oshgan")) {
+      resultAnalysis.concerns.push("Ko'rsatkichlar me'yordan yuqori");
+      resultAnalysis.recommendations.push(
+        "Shifokor konsultatsiyasi tavsiya etiladi"
+      );
     }
 
-    if (resultText.includes('past') || resultText.includes('kamaygan')) {
-      analysis.concerns.push('Ko\'rsatkichlar me\'yordan past');
-      analysis.recommendations.push('Qo\'shimcha tekshiruvlar kerak bo\'lishi mumkin');
+    if (resultText.includes("past") || resultText.includes("kamaygan")) {
+      resultAnalysis.concerns.push("Ko'rsatkichlar me'yordan past");
+      resultAnalysis.recommendations.push(
+        "Qo'shimcha tekshiruvlar kerak bo'lishi mumkin"
+      );
     }
 
-    if (resultText.includes('normal')) {
-      analysis.recommendations.push('Natijalar me\'yor doirasida');
+    if (resultText.includes("normal")) {
+      resultAnalysis.recommendations.push("Natijalar me'yor doirasida");
     }
 
-    return analysis;
+    return resultAnalysis;
   };
 
-  const registeredPatients = patients.filter(p => p.status === 'registered' || p.status === 'in-lab');
+  const registeredPatients = patients.filter(
+    (p) => p.patient_status === "r" || p.patient_status === "l"
+  );
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1>Tahlillar va tekshiruvlar</h1>
+          <p className="text-muted-foreground">Ma'lumotlar yuklanmoqda...</p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-muted-foreground mt-4">Yuklanmoqda...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -242,41 +454,52 @@ export function TestResults() {
                     </SelectTrigger>
                     <SelectContent>
                       {registeredPatients.map((patient) => (
-                        <SelectItem key={patient.id} value={patient.id}>
-                          {patient.firstName} {patient.lastName} - {patient.department} 
-                          {patient.labTestName && ` (${patient.labTestName})`}
-                          {patient.queueNumber && ` - Navbat: ${patient.queueNumber}`}
+                        <SelectItem
+                          key={patient.id}
+                          value={patient.id.toString()}
+                        >
+                          {patient.name} {patient.last_name} -{" "}
+                          {patient.disease_uz}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {selectedPatient && (() => {
-                    const patient = registeredPatients.find(p => p.id === selectedPatient);
-                    return patient?.labTestName ? (
-                      <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                        <p className="text-sm">
-                          <span className="text-muted-foreground">Buyurtma qilingan tahlil:</span>{' '}
-                          <span className="font-medium">{patient.labTestName}</span>
-                        </p>
-                      </div>
-                    ) : null;
-                  })()}
+                  {selectedPatient &&
+                    (() => {
+                      const patient = registeredPatients.find(
+                        (p) => p.id.toString() === selectedPatient
+                      );
+                      return patient ? (
+                        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                          <p className="text-sm">
+                            <span className="text-muted-foreground">
+                              Bemor:
+                            </span>{" "}
+                            <span className="font-medium">
+                              {patient.name} {patient.last_name}
+                            </span>
+                          </p>
+                        </div>
+                      ) : null;
+                    })()}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="testType">Tahlil turi *</Label>
+                  <Label htmlFor="departmentType">Tahlil turi *</Label>
                   <Select
-                    value={formData.testType}
-                    onValueChange={(value) => setFormData({ ...formData, testType: value })}
+                    value={formData.departmentTypeId}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, departmentTypeId: value })
+                    }
                     required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Tahlil turini tanlang" />
                     </SelectTrigger>
                     <SelectContent>
-                      {testTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
+                      {departmentTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id.toString()}>
+                          {type.title_uz}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -284,13 +507,54 @@ export function TestResults() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="result">Tahlil natijasi *</Label>
+                  <Label htmlFor="analysisResult">Tahlil natijasi (EN) *</Label>
                   <Textarea
-                    id="result"
-                    value={formData.result}
-                    onChange={(e) => setFormData({ ...formData, result: e.target.value })}
+                    id="analysisResult"
+                    value={formData.analysisResult}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        analysisResult: e.target.value,
+                      })
+                    }
                     placeholder="Tahlil natijasini kiriting..."
-                    rows={6}
+                    rows={3}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="analysisResultUz">
+                    Tahlil natijasi (UZ) *
+                  </Label>
+                  <Textarea
+                    id="analysisResultUz"
+                    value={formData.analysisResultUz}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        analysisResultUz: e.target.value,
+                      })
+                    }
+                    placeholder="Tahlil natijasini uzbek tilida kiriting..."
+                    rows={3}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="analysisResultRu">
+                    Tahlil natijasi (RU) *
+                  </Label>
+                  <Textarea
+                    id="analysisResultRu"
+                    value={formData.analysisResultRu}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        analysisResultRu: e.target.value,
+                      })
+                    }
+                    placeholder="Tahlil natijasini rus tilida kiriting..."
+                    rows={3}
                     required
                   />
                 </div>
@@ -299,7 +563,7 @@ export function TestResults() {
                   <Label htmlFor="status">Status *</Label>
                   <Select
                     value={formData.status}
-                    onValueChange={(value: 'new' | 'in-progress' | 'completed') => 
+                    onValueChange={(value: "n" | "ip" | "f") =>
                       setFormData({ ...formData, status: value })
                     }
                     required
@@ -308,9 +572,9 @@ export function TestResults() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="new">Yangi</SelectItem>
-                      <SelectItem value="in-progress">Jarayonda</SelectItem>
-                      <SelectItem value="completed">Yakunlangan</SelectItem>
+                      <SelectItem value="n">Yangi</SelectItem>
+                      <SelectItem value="ip">Jarayonda</SelectItem>
+                      <SelectItem value="f">Yakunlangan</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -328,7 +592,8 @@ export function TestResults() {
                       className="hidden"
                     />
                     <Label htmlFor="files" className="cursor-pointer">
-                      <span className="text-primary">Fayl tanlash</span> yoki bu yerga tashlang
+                      <span className="text-primary">Fayl tanlash</span> yoki bu
+                      yerga tashlang
                     </Label>
                     <p className="text-xs text-muted-foreground mt-2">
                       PNG, JPG, PDF (maks. 10MB)
@@ -347,59 +612,83 @@ export function TestResults() {
 
         <TabsContent value="list" className="space-y-6">
           <div className="grid gap-4">
-            {labResults.length === 0 ? (
+            {analyses.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
                   <TestTube className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">Hozircha tahlillar yo'q</p>
+                  <p className="text-muted-foreground">
+                    Hozircha tahlillar yo'q
+                  </p>
                 </CardContent>
               </Card>
             ) : (
-              [...labResults].reverse().map((result) => {
-                const patient = patients.find(p => p.id === result.patientId);
-                
+              [...analyses].reverse().map((analysis) => {
+                const patient = analysis.patient;
+
                 return (
-                  <Card key={result.id} className="hover:shadow-md transition-shadow">
+                  <Card
+                    key={analysis.id}
+                    className="hover:shadow-md transition-shadow"
+                  >
                     <CardContent className="p-6">
                       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                         <div className="flex items-start gap-4 flex-1">
                           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <TestTube className="w-6 h-6 text-primary" />
                           </div>
-                          
+
                           <div className="space-y-2 flex-1">
                             <div>
                               <h3>
-                                {patient ? `${patient.firstName} ${patient.lastName}` : 'Noma\'lum bemor'}
+                                {patient
+                                  ? `${patient.name} ${patient.last_name}`
+                                  : "Noma'lum bemor"}
                               </h3>
                               <p className="text-sm text-muted-foreground">
-                                {result.testType}
+                                {analysis.department_types?.title_uz ||
+                                  "Noma'lum tahlil turi"}
                               </p>
                             </div>
-                            
+
                             <div className="flex flex-wrap gap-2">
-                              <Badge className={getStatusBadge(result.status).className}>
-                                {getStatusBadge(result.status).label}
+                              <Badge
+                                className={
+                                  getStatusBadge(analysis.status).className
+                                }
+                              >
+                                {getStatusBadge(analysis.status).label}
                               </Badge>
-                              <Badge variant="outline">{result.technicianName}</Badge>
+                              <Badge variant="outline">Laborant</Badge>
                               <Badge variant="outline">
-                                {new Date(result.date).toLocaleDateString('uz-UZ')}
+                                {new Date(
+                                  analysis.patient.created_at
+                                ).toLocaleDateString("uz-UZ")}
                               </Badge>
+                              {analysis.files.length > 0 && (
+                                <Badge variant="outline">
+                                  {analysis.files.length} ta fayl
+                                </Badge>
+                              )}
                             </div>
 
                             <p className="text-sm mt-2 line-clamp-2">
-                              {result.result}
+                              {analysis.analysis_result_uz}
                             </p>
                           </div>
                         </div>
 
                         <div className="flex flex-col gap-2">
-                          <Dialog open={editingResult?.id === result.id} onOpenChange={(open) => !open && setEditingResult(null)}>
+                          <Dialog
+                            open={editingAnalysis?.id === analysis.id}
+                            onOpenChange={(open: boolean) =>
+                              !open && setEditingAnalysis(null)
+                            }
+                          >
                             <DialogTrigger asChild>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleEditClick(result)}
+                                onClick={() => handleEditClick(analysis)}
                               >
                                 <Edit className="w-4 h-4 mr-2" />
                                 Tahrirlash
@@ -407,51 +696,29 @@ export function TestResults() {
                             </DialogTrigger>
                             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                               <DialogHeader>
-                                <DialogTitle>Tahlil natijasini tahrirlash</DialogTitle>
+                                <DialogTitle>
+                                  Tahlil natijasini tahrirlash
+                                </DialogTitle>
                                 <DialogDescription>
                                   Tahlil natijalarini o'zgartirish
                                 </DialogDescription>
                               </DialogHeader>
-                              {editingResult && (
-                                <form onSubmit={handleEditSubmit} className="space-y-6">
+                              {editingAnalysis && (
+                                <form
+                                  onSubmit={handleEditSubmit}
+                                  className="space-y-6"
+                                >
                                   <div className="space-y-2">
-                                    <Label htmlFor="edit-testType">Tahlil turi *</Label>
+                                    <Label htmlFor="edit-departmentType">
+                                      Tahlil turi *
+                                    </Label>
                                     <Select
-                                      value={editFormData.testType}
-                                      onValueChange={(value) => setEditFormData({ ...editFormData, testType: value })}
-                                      required
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {testTypes.map((type) => (
-                                          <SelectItem key={type} value={type}>
-                                            {type}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <Label htmlFor="edit-result">Tahlil natijasi *</Label>
-                                    <Textarea
-                                      id="edit-result"
-                                      value={editFormData.result}
-                                      onChange={(e) => setEditFormData({ ...editFormData, result: e.target.value })}
-                                      placeholder="Tahlil natijasini kiriting..."
-                                      rows={8}
-                                      required
-                                    />
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <Label htmlFor="edit-status">Status *</Label>
-                                    <Select
-                                      value={editFormData.status}
-                                      onValueChange={(value: 'new' | 'in-progress' | 'completed') => 
-                                        setEditFormData({ ...editFormData, status: value })
+                                      value={editFormData.departmentTypeId}
+                                      onValueChange={(value) =>
+                                        setEditFormData({
+                                          ...editFormData,
+                                          departmentTypeId: value,
+                                        })
                                       }
                                       required
                                     >
@@ -459,9 +726,100 @@ export function TestResults() {
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="new">Yangi</SelectItem>
-                                        <SelectItem value="in-progress">Jarayonda</SelectItem>
-                                        <SelectItem value="completed">Yakunlangan</SelectItem>
+                                        {departmentTypes.map((type) => (
+                                          <SelectItem
+                                            key={type.id}
+                                            value={type.id.toString()}
+                                          >
+                                            {type.title_uz}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-analysisResult">
+                                      Tahlil natijasi (EN) *
+                                    </Label>
+                                    <Textarea
+                                      id="edit-analysisResult"
+                                      value={editFormData.analysisResult}
+                                      onChange={(e) =>
+                                        setEditFormData({
+                                          ...editFormData,
+                                          analysisResult: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Tahlil natijasini kiriting..."
+                                      rows={3}
+                                      required
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-analysisResultUz">
+                                      Tahlil natijasi (UZ) *
+                                    </Label>
+                                    <Textarea
+                                      id="edit-analysisResultUz"
+                                      value={editFormData.analysisResultUz}
+                                      onChange={(e) =>
+                                        setEditFormData({
+                                          ...editFormData,
+                                          analysisResultUz: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Tahlil natijasini uzbek tilida kiriting..."
+                                      rows={3}
+                                      required
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-analysisResultRu">
+                                      Tahlil natijasi (RU) *
+                                    </Label>
+                                    <Textarea
+                                      id="edit-analysisResultRu"
+                                      value={editFormData.analysisResultRu}
+                                      onChange={(e) =>
+                                        setEditFormData({
+                                          ...editFormData,
+                                          analysisResultRu: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Tahlil natijasini rus tilida kiriting..."
+                                      rows={3}
+                                      required
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-status">
+                                      Status *
+                                    </Label>
+                                    <Select
+                                      value={editFormData.status}
+                                      onValueChange={(
+                                        value: "n" | "ip" | "f"
+                                      ) =>
+                                        setEditFormData({
+                                          ...editFormData,
+                                          status: value,
+                                        })
+                                      }
+                                      required
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="n">Yangi</SelectItem>
+                                        <SelectItem value="ip">
+                                          Jarayonda
+                                        </SelectItem>
+                                        <SelectItem value="f">
+                                          Yakunlangan
+                                        </SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
@@ -470,7 +828,7 @@ export function TestResults() {
                                     <Button
                                       type="button"
                                       variant="outline"
-                                      onClick={() => setEditingResult(null)}
+                                      onClick={() => setEditingAnalysis(null)}
                                     >
                                       Bekor qilish
                                     </Button>
@@ -489,7 +847,7 @@ export function TestResults() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setSelectedResult(result)}
+                                onClick={() => setSelectedAnalysis(analysis)}
                               >
                                 <BarChart3 className="w-4 h-4 mr-2" />
                                 Tahlil qilish
@@ -497,58 +855,117 @@ export function TestResults() {
                             </DialogTrigger>
                             <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                               <DialogHeader>
-                                <DialogTitle>Tahlil natijasi va tahlil</DialogTitle>
+                                <DialogTitle>
+                                  Tahlil natijasi va tahlil
+                                </DialogTitle>
                                 <DialogDescription>
                                   Tahlil to'liq ma'lumotlari
                                 </DialogDescription>
                               </DialogHeader>
-                              {selectedResult && (
+                              {selectedAnalysis && (
                                 <div className="space-y-6">
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                      <p className="text-sm text-muted-foreground">Bemor</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Bemor
+                                      </p>
                                       <p>
-                                        {patient ? `${patient.firstName} ${patient.lastName}` : 'Noma\'lum'}
+                                        {patient
+                                          ? `${patient.name} ${patient.last_name}`
+                                          : "Noma'lum"}
                                       </p>
                                     </div>
                                     <div>
-                                      <p className="text-sm text-muted-foreground">Tahlil turi</p>
-                                      <p>{selectedResult.testType}</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Tahlil turi
+                                      </p>
+                                      <p>
+                                        {selectedAnalysis.department_types
+                                          ?.title_uz || "Noma'lum tahlil turi"}
+                                      </p>
                                     </div>
                                     <div>
-                                      <p className="text-sm text-muted-foreground">Sana</p>
-                                      <p>{new Date(selectedResult.date).toLocaleString('uz-UZ')}</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Sana
+                                      </p>
+                                      <p>
+                                        {new Date(
+                                          selectedAnalysis.patient.created_at
+                                        ).toLocaleString("uz-UZ")}
+                                      </p>
                                     </div>
                                     <div>
-                                      <p className="text-sm text-muted-foreground">Laborant</p>
-                                      <p>{selectedResult.technicianName}</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Laborant
+                                      </p>
+                                      <p>Laborant</p>
                                     </div>
                                   </div>
-                                  
+
                                   <Separator />
 
                                   <div>
-                                    <p className="text-sm text-muted-foreground mb-2">Natija</p>
+                                    <p className="text-sm text-muted-foreground mb-2">
+                                      Natija
+                                    </p>
                                     <div className="p-4 bg-muted rounded-lg">
-                                      <p className="whitespace-pre-wrap">{selectedResult.result}</p>
+                                      <p className="whitespace-pre-wrap">
+                                        {selectedAnalysis.analysis_result_uz}
+                                      </p>
                                     </div>
                                   </div>
 
+                                  {selectedAnalysis.files.length > 0 && (
+                                    <>
+                                      <Separator />
+                                      <div>
+                                        <p className="text-sm text-muted-foreground mb-2">
+                                          Fayllar
+                                        </p>
+                                        <div className="space-y-2">
+                                          {selectedAnalysis.files.map(
+                                            (file, idx) => (
+                                              <div
+                                                key={idx}
+                                                className="flex items-center gap-2 p-2 bg-muted rounded"
+                                              >
+                                                <span className="text-sm">
+                                                  {file.file}
+                                                </span>
+                                              </div>
+                                            )
+                                          )}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+
                                   <Separator />
 
-                                  {analyzeTestResult(selectedResult).concerns.length > 0 || analyzeTestResult(selectedResult).recommendations.length > 0 ? (
+                                  {analyzeTestResult(selectedAnalysis).concerns
+                                    .length > 0 ||
+                                  analyzeTestResult(selectedAnalysis)
+                                    .recommendations.length > 0 ? (
                                     <div className="space-y-4">
                                       <div className="flex items-center gap-2">
                                         <TrendingUp className="w-5 h-5 text-primary" />
                                         <h4>Avtomatik tahlil</h4>
                                       </div>
 
-                                      {analyzeTestResult(selectedResult).concerns.length > 0 && (
+                                      {analyzeTestResult(selectedAnalysis)
+                                        .concerns.length > 0 && (
                                         <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
-                                          <p className="text-sm mb-2">E'tiborga olish kerak:</p>
+                                          <p className="text-sm mb-2">
+                                            E'tiborga olish kerak:
+                                          </p>
                                           <ul className="list-disc list-inside space-y-1">
-                                            {analyzeTestResult(selectedResult).concerns.map((concern, idx) => (
-                                              <li key={idx} className="text-sm text-red-800 dark:text-red-200">
+                                            {analyzeTestResult(
+                                              selectedAnalysis
+                                            ).concerns.map((concern, idx) => (
+                                              <li
+                                                key={idx}
+                                                className="text-sm text-red-800 dark:text-red-200"
+                                              >
                                                 {concern}
                                               </li>
                                             ))}
@@ -556,15 +973,25 @@ export function TestResults() {
                                         </div>
                                       )}
 
-                                      {analyzeTestResult(selectedResult).recommendations.length > 0 && (
+                                      {analyzeTestResult(selectedAnalysis)
+                                        .recommendations.length > 0 && (
                                         <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                          <p className="text-sm mb-2">Tavsiyalar:</p>
+                                          <p className="text-sm mb-2">
+                                            Tavsiyalar:
+                                          </p>
                                           <ul className="list-disc list-inside space-y-1">
-                                            {analyzeTestResult(selectedResult).recommendations.map((rec, idx) => (
-                                              <li key={idx} className="text-sm text-blue-800 dark:text-blue-200">
-                                                {rec}
-                                              </li>
-                                            ))}
+                                            {analyzeTestResult(
+                                              selectedAnalysis
+                                            ).recommendations.map(
+                                              (rec, idx) => (
+                                                <li
+                                                  key={idx}
+                                                  className="text-sm text-blue-800 dark:text-blue-200"
+                                                >
+                                                  {rec}
+                                                </li>
+                                              )
+                                            )}
                                           </ul>
                                         </div>
                                       )}
@@ -580,21 +1007,35 @@ export function TestResults() {
                                   <Separator />
 
                                   <div>
-                                    <p className="text-sm text-muted-foreground mb-2">Status</p>
+                                    <p className="text-sm text-muted-foreground mb-2">
+                                      Status
+                                    </p>
                                     <Select
-                                      value={selectedResult.status}
-                                      onValueChange={(value: 'new' | 'in-progress' | 'completed') => {
-                                        handleUpdateStatus(selectedResult.id, value);
-                                        setSelectedResult({ ...selectedResult, status: value });
+                                      value={selectedAnalysis.status}
+                                      onValueChange={(
+                                        value: "n" | "ip" | "f"
+                                      ) => {
+                                        handleUpdateStatus(
+                                          selectedAnalysis.id,
+                                          value
+                                        );
+                                        setSelectedAnalysis({
+                                          ...selectedAnalysis,
+                                          status: value,
+                                        });
                                       }}
                                     >
                                       <SelectTrigger>
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="new">Yangi</SelectItem>
-                                        <SelectItem value="in-progress">Jarayonda</SelectItem>
-                                        <SelectItem value="completed">Yakunlangan</SelectItem>
+                                        <SelectItem value="n">Yangi</SelectItem>
+                                        <SelectItem value="ip">
+                                          Jarayonda
+                                        </SelectItem>
+                                        <SelectItem value="f">
+                                          Yakunlangan
+                                        </SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
@@ -604,18 +1045,18 @@ export function TestResults() {
                           </Dialog>
 
                           <Select
-                            value={result.status}
-                            onValueChange={(value: 'new' | 'in-progress' | 'completed') =>
-                              handleUpdateStatus(result.id, value)
+                            value={analysis.status}
+                            onValueChange={(value: "n" | "ip" | "f") =>
+                              handleUpdateStatus(analysis.id, value)
                             }
                           >
                             <SelectTrigger className="text-xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="new">Yangi</SelectItem>
-                              <SelectItem value="in-progress">Jarayonda</SelectItem>
-                              <SelectItem value="completed">Yakunlangan</SelectItem>
+                              <SelectItem value="n">Yangi</SelectItem>
+                              <SelectItem value="ip">Jarayonda</SelectItem>
+                              <SelectItem value="f">Yakunlangan</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>

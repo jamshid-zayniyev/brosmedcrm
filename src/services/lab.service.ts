@@ -2,7 +2,7 @@ import apiInstance from "../lib/api-instance";
 import { API_ENDPOINTS } from "../utils/shared";
 
 class LabService {
-  async findAll() {
+  async findAllAnalysis() {
     try {
       const res = await apiInstance.get(API_ENDPOINTS.LAB.base);
       return res.data;
@@ -12,7 +12,7 @@ class LabService {
     }
   }
 
-  async create(dto: FormData) {
+  async createAnalysis(dto: FormData) {
     try {
       const res = await apiInstance.post(API_ENDPOINTS.LAB.base, dto);
       return res.data;
@@ -22,9 +22,9 @@ class LabService {
     }
   }
 
-  async update({ id, dto }: { dto: FormData; id: number }) {
+  async updateAnalysis({ id, dto }: { dto: any; id: number }) {
     try {
-      const res = await apiInstance.post(
+      const res = await apiInstance.patch(
         `${API_ENDPOINTS.LAB.base}${id}/`,
         dto
       );
@@ -35,7 +35,7 @@ class LabService {
     }
   }
 
-  async delete(id: number) {
+  async deleteAnalysis(id: number) {
     try {
       const res = await apiInstance.delete(`${API_ENDPOINTS.LAB.base}${id}/`);
       return res.data;
