@@ -53,7 +53,7 @@ export function DepartmentPage() {
       const data = await departmentService.findAll();
       setDepartments(data);
     } catch (error) {
-      toast.error("Bo'limlarni yuklashda xatolik yuz berdi");
+      toast.error("Bo'limlarni yuklashda xatolik yuz berdi !");
     } finally {
       setIsLoading(false);
     }
