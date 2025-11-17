@@ -23,6 +23,10 @@ export const API_ENDPOINTS = {
     base: "/laboratory/analysis/",
     stats: "/laboratory/analysis/stats/",
   },
+  ANALYSIS_RESULT: {
+    create: "/department/analysis_result/",
+    update: (id: number) => `/department/analysis_result/${id}/`,
+  },
   DOCTOR: {
     base: "/doctor/doctor/",
     consultations: "/doctor/consultations/",

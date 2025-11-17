@@ -4,13 +4,13 @@ import { User } from "./user.interface";
 
 // Assuming PatientStatus is a string based on its usage.
 // If it's more complex, it should have its own interface file.
-export type PatientStatus = 'r' | 'l' | 'd' | 't' | 'f' | 'rc';
+export type PatientStatus = "r" | "l" | "d" | "t" | "f" | "rc";
 
 export interface Patient {
   id: number;
-  user?: User;
+  user?: User | number;
   department: number;
-  department_types?: DepartmentType;
+  department_types?: DepartmentType | number;
   name: string;
   last_name: string;
   middle_name: string;

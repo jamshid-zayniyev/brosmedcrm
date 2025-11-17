@@ -1,16 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  Users,
-  Search,
-  Edit,
-  History,
-  Printer,
-  AlertCircle,
-} from "lucide-react";
+import { Users, Search, Edit, History, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Patient, PatientStatus } from "../../interfaces/patient.interface";
 import { User } from "../../interfaces/user.interface";
-import { Consultation } from "../../interfaces/consultation.interface";
 import { patientService } from "../../services/patient.service";
 import { departmentService } from "../../services/department.service";
 import { departmentTypeService } from "../../services/department-type.service";
@@ -39,7 +31,6 @@ import {
 import { Alert, AlertDescription } from "../ui/alert";
 import { Skeleton } from "../ui/skeleton";
 
-// ==================== TYPES ====================
 interface DepartmentType {
   id: number;
   title: string;
@@ -61,7 +52,6 @@ interface Department {
   department_types: DepartmentType[];
 }
 
-// ==================== CONSTANTS ====================
 const STATUS_CONFIG = {
   r: {
     label: "Ro'yxatda",
@@ -138,20 +128,21 @@ const formatDateTime = (date: string): string => {
 // ==================== DTO MAPPERS ====================
 const toPatientDto = (patient: Partial<Patient>) => {
   const dto: any = {};
-  if (patient.id) dto.id = patient.id;
-  if (patient.name) dto.name = patient.name;
-  if (patient.last_name) dto.last_name = patient.last_name;
-  if (patient.middle_name) dto.middle_name = patient.middle_name;
-  if (patient.gender) dto.gender = patient.gender;
-  if (patient.birth_date) dto.birth_date = patient.birth_date;
-  if (patient.phone_number) dto.phone_number = patient.phone_number;
-  if (patient.address) dto.address = patient.address;
-  if (patient.disease) dto.disease = patient.disease;
-  if (patient.department) dto.department = patient.department;
-  if (patient.department_types) dto.department_types = patient.department_types;
-  if (patient.user) dto.user = patient.user;
-  if (patient.payment_status) dto.payment_status = patient.payment_status;
-  if (patient.patient_status) dto.patient_status = patient.patient_status;
+  if (patient?.id) dto.id = patient?.id;
+  if (patient?.name) dto.name = patient?.name;
+  if (patient?.last_name) dto.last_name = patient?.last_name;
+  if (patient?.middle_name) dto.middle_name = patient?.middle_name;
+  if (patient?.gender) dto.gender = patient?.gender;
+  if (patient?.birth_date) dto.birth_date = patient?.birth_date;
+  if (patient?.phone_number) dto.phone_number = patient?.phone_number;
+  if (patient?.address) dto.address = patient?.address;
+  if (patient?.disease) dto.disease = patient?.disease;
+  if (patient?.department) dto.department = patient?.department;
+  if (patient?.department_types)
+    dto.department_types = patient?.department_types;
+  if (patient?.user) dto.user = patient?.user;
+  if (patient?.payment_status) dto.payment_status = patient?.payment_status;
+  if (patient?.patient_status) dto.patient_status = patient?.patient_status;
   return dto;
 };
 
@@ -167,8 +158,8 @@ const PatientCard = ({
   onEdit: () => void;
   departments: Department[];
 }) => {
-  const department = departments.find((d) => d.id === patient.department);
-  const age = calculateAge(patient.birth_date);
+  const department = departments.find((d) => d.id === patient?.department);
+  const age = calculateAge(patient?.birth_date);
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -176,36 +167,41 @@ const PatientCard = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <span className="text-primary font-semibold">№{patient.id}</span>
+              <span className="text-primary font-semibold">№{patient?.id}</span>
             </div>
 
             <div className="space-y-2">
               <div>
                 <h3 className="text-lg font-semibold">
-                  {patient.name} {patient.last_name}
+                  {patient?.name} {patient?.last_name}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {patient.gender === "e" ? "Erkak" : "Ayol"} • {age} yosh
+                  {patient?.gender === "e" ? "Erkak" : "Ayol"} • {age} yosh
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{department?.title_uz}</Badge>
-                {patient.user && (
-                  <Badge variant="outline">Shifokor ID: {patient.user}</Badge>
+                {patient?.user && (
+                  <Badge variant="outline">
+                    Shifokor ID:{" "}
+                    {typeof patient?.user === "number"
+                      ? patient?.user
+                      : patient?.user?.id}
+                  </Badge>
                 )}
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <Badge
-                  className={getStatusBadge(patient.patient_status).className}
+                  className={getStatusBadge(patient?.patient_status).className}
                 >
-                  {getStatusBadge(patient.patient_status).label}
+                  {getStatusBadge(patient?.patient_status).label}
                 </Badge>
                 <Badge
-                  className={getPaymentBadge(patient.payment_status).className}
+                  className={getPaymentBadge(patient?.payment_status).className}
                 >
-                  {getPaymentBadge(patient.payment_status).label}
+                  {getPaymentBadge(patient?.payment_status).label}
                 </Badge>
               </div>
             </div>
@@ -220,7 +216,7 @@ const PatientCard = ({
               Tahrirlash
             </Button>
             <span className="text-sm text-muted-foreground text-right">
-              {formatDateTime(patient.created_at)}
+              {formatDateTime(patient?.created_at)}
             </span>
           </div>
         </div>
@@ -242,7 +238,7 @@ const PatientDetailsDialog = ({
 }) => {
   if (!patient) return null;
 
-  const department = departments.find((d) => d.id === patient.department);
+  const department = departments.find((d) => d.id === patient?.department);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -258,46 +254,46 @@ const PatientDetailsDialog = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Ism</p>
-              <p className="font-medium">{patient.name}</p>
+              <p className="font-medium">{patient?.name}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Familiya</p>
-              <p className="font-medium">{patient.last_name}</p>
+              <p className="font-medium">{patient?.last_name}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Tug'ilgan sana</p>
               <p className="font-medium">
-                {new Date(patient.birth_date).toLocaleDateString("uz-UZ")}
+                {new Date(patient?.birth_date).toLocaleDateString("uz-UZ")}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Telefon</p>
-              <p className="font-medium">{patient.phone_number}</p>
+              <p className="font-medium">{patient?.phone_number}</p>
             </div>
             <div className="col-span-2">
               <p className="text-sm text-muted-foreground">Manzil</p>
-              <p className="font-medium">{patient.address}</p>
+              <p className="font-medium">{patient?.address}</p>
             </div>
             <div className="col-span-2">
               <p className="text-sm text-muted-foreground">Kasallik</p>
               <p className="font-medium">
-                {patient.disease_uz || patient.disease}
+                {patient?.disease_uz || patient?.disease}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">To'lov holati</p>
               <Badge
-                className={getPaymentBadge(patient.payment_status).className}
+                className={getPaymentBadge(patient?.payment_status).className}
               >
-                {getPaymentBadge(patient.payment_status).label}
+                {getPaymentBadge(patient?.payment_status).label}
               </Badge>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Bemor holati</p>
               <Badge
-                className={getStatusBadge(patient.patient_status).className}
+                className={getStatusBadge(patient?.patient_status).className}
               >
-                {getStatusBadge(patient.patient_status).label}
+                {getStatusBadge(patient?.patient_status).label}
               </Badge>
             </div>
             <div>
@@ -309,12 +305,12 @@ const PatientDetailsDialog = ({
                 Ro'yxatga olingan sana
               </p>
               <p className="font-medium">
-                {formatDateTime(patient.created_at)}
+                {formatDateTime(patient?.created_at)}
               </p>
             </div>
           </div>
 
-          {patient.consultations && patient.consultations.length > 0 && (
+          {patient?.consultations && patient?.consultations.length > 0 && (
             <>
               <Separator />
               <div className="space-y-3">
@@ -323,7 +319,7 @@ const PatientDetailsDialog = ({
                   Konsultatsiyalar tarixi
                 </h4>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {[...patient.consultations].reverse().map((consultation) => (
+                  {[...patient?.consultations].reverse().map((consultation) => (
                     <Card key={consultation.id} className="p-3">
                       <div className="flex justify-between items-start mb-2">
                         <Badge variant="outline">
@@ -415,30 +411,30 @@ const PatientEditDialog = ({
   useEffect(() => {
     if (patient) {
       setFormData({
-        id: patient.id,
-        name: patient.name,
-        last_name: patient.last_name,
-        middle_name: patient.middle_name,
-        gender: patient.gender,
-        birth_date: patient.birth_date,
-        phone_number: patient.phone_number,
-        address: patient.address,
-        disease: patient.disease,
-        department: patient.department,
-        department_types: patient.department_types,
-        user: patient.user,
-        payment_status: patient.payment_status,
-        patient_status: patient.patient_status,
+        id: patient?.id,
+        name: patient?.name,
+        last_name: patient?.last_name,
+        middle_name: patient?.middle_name,
+        gender: patient?.gender,
+        birth_date: patient?.birth_date,
+        phone_number: patient?.phone_number,
+        address: patient?.address,
+        disease: patient?.disease,
+        department: patient?.department,
+        department_types: patient?.department_types,
+        user: patient?.user,
+        payment_status: patient?.payment_status,
+        patient_status: patient?.patient_status,
       });
 
-      const dept = departments.find((d) => d.id === patient.department);
+      const dept = departments.find((d) => d.id === patient?.department);
       if (dept) {
         if (dept.department_types && dept.department_types.length > 0) {
           setEditMode("types");
         } else {
           setEditMode("doctors");
-          if (patient.user) {
-            onDepartmentChange(patient.department);
+          if (patient?.user) {
+            onDepartmentChange(patient?.department);
           }
         }
       }
@@ -475,9 +471,6 @@ const PatientEditDialog = ({
   const selectedDept = departments.find((d) => d.id === formData.department);
   const filteredTypes = departmentTypes.filter(
     (t) => t.department === formData.department
-  );
-  const selectedType = filteredTypes.find(
-    (t) => t.id === formData.department_types
   );
 
   return (
@@ -631,7 +624,7 @@ const PatientEditDialog = ({
               </div>
             )}
 
-            {editMode === "doctors" && doctors.length > 0 && (
+            {editMode === "doctors" && doctors?.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="edit-doctor">Shifokor</Label>
                 <Select
@@ -646,10 +639,13 @@ const PatientEditDialog = ({
                     <SelectValue placeholder="Shifokorni tanlang" />
                   </SelectTrigger>
                   <SelectContent>
-                    {doctors.map((doctor) => (
-                      <SelectItem key={doctor.id} value={doctor.id.toString()}>
-                        {doctor.full_name} -{" "}
-                        {formatCurrency(parseInt(doctor.price))}
+                    {doctors?.map((doctor) => (
+                      <SelectItem
+                        key={doctor?.id}
+                        value={doctor?.id.toString()}
+                      >
+                        {doctor?.full_name} -{" "}
+                        {formatCurrency(parseInt(doctor?.price))}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -663,9 +659,9 @@ const PatientEditDialog = ({
               <p className="text-sm text-muted-foreground">To'lov holati</p>
               <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
                 <Badge
-                  className={getPaymentBadge(patient.payment_status).className}
+                  className={getPaymentBadge(patient?.payment_status).className}
                 >
-                  {getPaymentBadge(patient.payment_status).label}
+                  {getPaymentBadge(patient?.payment_status).label}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   (faqat ko'rish)
@@ -676,9 +672,9 @@ const PatientEditDialog = ({
               <p className="text-sm text-muted-foreground">Bemor holati</p>
               <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
                 <Badge
-                  className={getStatusBadge(patient.patient_status).className}
+                  className={getStatusBadge(patient?.patient_status).className}
                 >
-                  {getStatusBadge(patient.patient_status).label}
+                  {getStatusBadge(patient?.patient_status).label}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   (faqat ko'rish)
@@ -761,18 +757,18 @@ export function PatientQueue() {
   // Filter patients
   const filteredPatients = useMemo(() => {
     return patients.filter((patient) => {
-      const fullName = `${patient.name} ${patient.last_name}`.toLowerCase();
+      const fullName = `${patient?.name} ${patient?.last_name}`.toLowerCase();
       const matchesSearch =
         fullName.includes(searchQuery.toLowerCase()) ||
-        patient.phone_number.includes(searchQuery) ||
-        patient.id.toString().includes(searchQuery);
+        patient?.phone_number.includes(searchQuery) ||
+        patient?.id.toString().includes(searchQuery);
 
-      const dept = departments.find((d) => d.id === patient.department);
+      const dept = departments.find((d) => d.id === patient?.department);
       const matchesDepartment =
         filterDepartment === "all" || dept?.title_uz === filterDepartment;
 
       const matchesStatus =
-        filterStatus === "all" || patient.patient_status === filterStatus;
+        filterStatus === "all" || patient?.patient_status === filterStatus;
 
       return matchesSearch && matchesDepartment && matchesStatus;
     });
@@ -825,7 +821,7 @@ export function PatientQueue() {
         // Update local state
         setPatients((prev) =>
           prev.map((p) =>
-            p.id === editingPatient.id ? { ...p, ...formData } : p
+            p.id === editingPatient?.id ? { ...p, ...formData } : p
           )
         );
 
@@ -936,7 +932,7 @@ export function PatientQueue() {
         ) : (
           filteredPatients.map((patient) => (
             <PatientCard
-              key={patient.id}
+              key={patient?.id}
               patient={patient}
               departments={departments}
               onView={() => handleViewPatient(patient)}
