@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { FileText, Download, Calendar as CalendarIcon, TrendingUp } from 'lucide-react';
+import { FileText, Download, Calendar as CalendarIcon, TrendingUp, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { toast } from 'sonner';
 import { reportService, ReportResponse } from '../services/report.service';
@@ -56,6 +56,7 @@ export function ReportsPage() {
   const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
   const [reportData, setReportData] = useState<ReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -129,8 +130,50 @@ export function ReportsPage() {
       }).length,
     }));
 
-  const handleExport = (format: 'pdf' | 'excel') => {
-    toast.success(`Hisobot ${format.toUpperCase()} formatda yuklab olindi`);
+  const handleExport = async (formatType: 'pdf' | 'excel') => {
+    if (!dateFrom || !dateTo) {
+      toast.error("Hisobot sanalarini tanlang.");
+      return;
+    }
+
+    setExportLoading(true); // Set loading to true
+    const startDateFormatted = format(dateFrom, 'yyyy-MM-dd');
+    const endDateFormatted = format(dateTo, 'yyyy-MM-dd');
+
+    try {
+      let responseBlob: Blob;
+      let filename: string;
+
+      if (formatType === 'pdf') {
+        responseBlob = await reportService.reportStatsPdf({
+          start_date: startDateFormatted,
+          end_date: endDateFormatted,
+        });
+        filename = `hisobot_${startDateFormatted}_${endDateFormatted}.pdf`;
+      } else {
+        responseBlob = await reportService.reportStatsExcel({
+          start_date: startDateFormatted,
+          end_date: endDateFormatted,
+        });
+        filename = `hisobot_${startDateFormatted}_${endDateFormatted}.xlsx`;
+      }
+
+      const url = window.URL.createObjectURL(responseBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`Hisobot ${formatType.toUpperCase()} formatda yuklab olindi`);
+    } catch (error) {
+      toast.error("Hisobotni yuklab olishda xatolik yuz berdi.");
+      console.error("Export error:", error);
+    } finally {
+      setExportLoading(false); // Set loading to false
+    }
   };
 
   return (
@@ -205,16 +248,26 @@ export function ReportsPage() {
                   variant="outline"
                   onClick={() => handleExport('pdf')}
                   className="flex-1"
+                  disabled={exportLoading}
                 >
-                  <Download className="w-4 h-4 mr-2" />
+                  {exportLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
                   PDF
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => handleExport('excel')}
                   className="flex-1"
+                  disabled={exportLoading}
                 >
-                  <Download className="w-4 h-4 mr-2" />
+                  {exportLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
                   Excel
                 </Button>
               </div>

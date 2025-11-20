@@ -71,7 +71,7 @@ export function DoctorDashboard() {
 
   const getStatusLabel = (status: PatientStatus) => {
     const statusLabels = {
-      r: "Ro'yxatdan o'tgan",
+      r: "Kutmoqda",
       l: "Laboratoriyada",
       d: "Qabulda",
       t: "Davolanmoqda",

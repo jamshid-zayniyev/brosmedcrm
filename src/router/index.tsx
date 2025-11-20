@@ -45,16 +45,6 @@ export const privateRoutes: (RouteType & { allowedRoles: string[] })[] = [
     allowedRoles: ["s"],
   },
   {
-    path: "/reports",
-    element: <ReportsPage />,
-    allowedRoles: ["s", "r"],
-  },
-  {
-    path: "/settings",
-    element: <SettingsPage />,
-    allowedRoles: ["s"],
-  },
-  {
     path: "/reception",
     element: <ReceptionDashboard />,
     allowedRoles: ["r"],
@@ -62,11 +52,6 @@ export const privateRoutes: (RouteType & { allowedRoles: string[] })[] = [
   {
     path: "/reception/patient-queue",
     element: <PatientQueue />,
-    allowedRoles: ["r"],
-  },
-  {
-    path: "/reception/patient-registration",
-    element: <PatientRegistration />,
     allowedRoles: ["r"],
   },
   {
@@ -78,6 +63,11 @@ export const privateRoutes: (RouteType & { allowedRoles: string[] })[] = [
     path: "/lab/test-results",
     element: <TestResults />,
     allowedRoles: ["l"],
+  },
+  {
+    path: "/reception/patient-registration",
+    element: <PatientRegistration />,
+    allowedRoles: ["r", "l"],
   },
   {
     path: "/doctor",
@@ -99,6 +89,16 @@ export const privateRoutes: (RouteType & { allowedRoles: string[] })[] = [
     element: <PaymentProcessing />,
     allowedRoles: ["c"],
   },
+  {
+    path: "/reports",
+    element: <ReportsPage />,
+    allowedRoles: ["s", "r"],
+  },
+  {
+    path: "/settings",
+    element: <SettingsPage />,
+    allowedRoles: ["s"],
+  },
 ];
 
 export const defaultRoutes: { [key: string]: string } = {
@@ -108,4 +108,3 @@ export const defaultRoutes: { [key: string]: string } = {
   d: "/doctor",
   c: "/cashier",
 };
-

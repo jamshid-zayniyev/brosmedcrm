@@ -34,6 +34,8 @@ export const API_ENDPOINTS = {
   },
   REPORT: {
     base: "/utils/report/",
+    excel: "/utils/clinic/stats/excel/",
+    pdf: "/utils/clinic/stats/pdf/",
   },
   CASHIER: {
     base: "/cashier/cashier/",

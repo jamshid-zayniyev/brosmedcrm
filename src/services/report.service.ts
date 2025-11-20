@@ -32,11 +32,52 @@ export interface ReportResponse {
 class ReportService {
   async getReport(dto: ReportRequest): Promise<ReportResponse> {
     try {
-      // Assuming the endpoint is '/report/'. You might need to add this to your API_ENDPOINTS
       const res = await apiInstance.post(API_ENDPOINTS.REPORT.base, dto);
       return res.data;
     } catch (error) {
       console.error("Error fetching report:", error);
+      throw error;
+    }
+  }
+
+  async reportStatsPdf({
+    start_date,
+    end_date,
+  }: {
+    start_date: string;
+    end_date: string;
+  }) {
+    try {
+      const res = await apiInstance.post(API_ENDPOINTS.REPORT.pdf, {
+        start_date,
+        end_date,
+      }, {
+        responseType: 'blob' // Important for file downloads
+      });
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async reportStatsExcel({
+    start_date,
+    end_date,
+  }: {
+    start_date: string;
+    end_date: string;
+  }) {
+    try {
+      const res = await apiInstance.post(API_ENDPOINTS.REPORT.excel, {
+        start_date,
+        end_date,
+      }, {
+        responseType: 'blob' // Important for file downloads
+      });
+      return res.data;
+    } catch (error) {
+      console.error(error);
       throw error;
     }
   }
