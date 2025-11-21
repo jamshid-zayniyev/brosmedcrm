@@ -54,18 +54,20 @@ export function Layout({ children }: LayoutProps) {
     return <Navigate to="/login" replace />;
   }
 
-  const menuItems: MenuItem[] = privateRoutes.map((route, index) => ({
-    id: index,
-    label:
-      route.path
-        .split("/")
-        .pop()
-        ?.replace("-", " ")
-        .replace(/\b\w/g, (l) => l.toUpperCase()) || "",
-    icon: <LayoutDashboard className="w-5 h-5" />,
-    roles: route.allowedRoles,
-    path: route.path,
-  }));
+  const menuItems: MenuItem[] = privateRoutes
+    .filter((route) => !route.path.includes("/:")) // dynamic paramlarni olib tashlaydi
+    .map((route, index) => ({
+      id: index,
+      label:
+        route.path
+          .split("/")
+          .pop()
+          ?.replace("-", " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase()) || "",
+      icon: <LayoutDashboard className="w-5 h-5" />,
+      roles: route.allowedRoles,
+      path: route.path,
+    }));
 
   const filteredMenuItems = menuItems.filter((item) =>
     item.roles.includes(user?.role)
@@ -193,7 +195,7 @@ export function Layout({ children }: LayoutProps) {
                 size="sm"
                 onClick={onLogout}
                 className="flex-1"
-                title={'Logout'}
+                title={"Logout"}
               >
                 <LogOut className="w-4 h-4 mr-2" />
               </Button>

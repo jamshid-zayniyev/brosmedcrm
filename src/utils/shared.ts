@@ -18,10 +18,13 @@ export const API_ENDPOINTS = {
   PATIENT: {
     base: "/reception/patient/",
     patientsForDoctor: "/reception/doctor/patients",
+    patientAnalysis: "/reception/analysis/patient/",
+    downloadAnalysisFile: "/reception/export-analysis/",
   },
   LAB: {
     base: "/laboratory/analysis/",
     stats: "/laboratory/analysis/stats/",
+    analysisResult: "/laboratory/patient/result",
   },
   ANALYSIS_RESULT: {
     create: "/department/analysis_result/",

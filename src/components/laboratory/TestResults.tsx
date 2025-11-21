@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -17,26 +18,11 @@ import {
   TestTube,
   Upload,
   BarChart3,
-  Edit,
   FileText,
   User,
-  Eye,
   Plus,
-  Download,
-  FileSearch,
-  List,
-  TrendingUp,
-  Target,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogDescription,
-} from "../ui/dialog";
 import {
   Accordion,
   AccordionContent,
@@ -45,211 +31,18 @@ import {
 } from "../ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Patient } from "../../interfaces/patient.interface";
-import { Analysis } from "../../interfaces/analysis.interface";
 import { DepartmentType } from "../../interfaces/department-type.interface";
 import { labService } from "../../services/lab.service";
 import { departmentTypeService } from "../../services/department-type.service";
 import { patientService } from "../../services/patient.service";
 import { analysisResultService } from "../../services/analysis-result.service";
 import { AnalysisResultPayload } from "../../interfaces/analysis-result.interface";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
-
-function EditAnalysisDialog({
-  analysis,
-  onSave,
-  onClose,
-  onStatusUpdate,
-}: {
-  analysis: Analysis | null;
-  onSave: (result: {
-    id: number;
-    result: number;
-    analysis_result: string;
-  }) => Promise<void>;
-  onClose: () => void;
-  onStatusUpdate: (newStatus: "n" | "ip" | "f") => Promise<void>;
-}) {
-  const [results, setResults] = useState<
-    { id: number; result: number; analysis_result: string; loading?: boolean }[]
-  >([]);
-  const [status, setStatus] = useState<"n" | "ip" | "f">("n");
-  const [statusLoading, setStatusLoading] = useState(false);
-
-  useEffect(() => {
-    if (analysis) {
-      setStatus(analysis.status);
-      const initialResults =
-        analysis.department_types?.result?.map((res) => ({
-          id: res.analysis_result?.[0]?.id || 0,
-          result: res.id,
-          analysis_result: res.analysis_result?.[0]?.analysis_result || "",
-          loading: false,
-        })) || [];
-      setResults(initialResults);
-    }
-  }, [analysis]);
-
-  const handleResultChange = (resultId: number, value: string) => {
-    setResults((prev) =>
-      prev.map((r) =>
-        r.result === resultId ? { ...r, analysis_result: value } : r
-      )
-    );
-  };
-
-  const handleSaveSingleResult = async (resultId: number) => {
-    const resultToSave = results.find((r) => r.result === resultId);
-    if (!resultToSave) return;
-
-    setResults((prev) =>
-      prev.map((r) => (r.result === resultId ? { ...r, loading: true } : r))
-    );
-    try {
-      await onSave(resultToSave);
-      toast.success("Natija muvaffaqiyatli saqlandi");
-    } catch (error) {
-      toast.error("Natijani saqlashda xatolik");
-    } finally {
-      setResults((prev) =>
-        prev.map((r) => (r.result === resultId ? { ...r, loading: false } : r))
-      );
-    }
-  };
-
-  const handleStatusUpdate = async () => {
-    setStatusLoading(true);
-    try {
-      await onStatusUpdate(status);
-      toast.success("Status muvaffaqiyatli yangilandi");
-    } catch (error) {
-      toast.error("Statusni yangilashda xatolik");
-    } finally {
-      setStatusLoading(false);
-    }
-  };
-
-  if (!analysis) return null;
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="edit-status" className="text-sm font-semibold">
-            Tahlil Holati
-          </Label>
-          <Select
-            value={status}
-            onValueChange={(value: "n" | "ip" | "f") => setStatus(value)}
-          >
-            <SelectTrigger className="bg-white border-gray-200">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="n">Yangi</SelectItem>
-              <SelectItem value="ip">Jarayonda</SelectItem>
-              <SelectItem value="f">Yakunlangan</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button
-          onClick={handleStatusUpdate}
-          disabled={statusLoading}
-          className="bg-primary hover:bg-primary/90"
-        >
-          {statusLoading ? "Yangilanmoqda..." : "Yangilash"}
-        </Button>
-      </div>
-
-      <Card className="border-gray-200">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
-            Natijalarni Tahrirlash
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-gray-200 hover:bg-transparent">
-                  <TableHead className="font-semibold text-gray-700 w-[40%]">
-                    Natija
-                  </TableHead>
-                  <TableHead className="font-semibold text-gray-700">
-                    Qiymat
-                  </TableHead>
-                  <TableHead className="text-right font-semibold text-gray-700">
-                    Amal
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {analysis.department_types?.result?.map((result) => {
-                  const currentResult = results.find(
-                    (r) => r.result === result.id
-                  );
-                  return (
-                    <TableRow
-                      key={result.id}
-                      className="border-gray-100 hover:bg-gray-50"
-                    >
-                      <TableCell>
-                        <div className="font-medium text-gray-900">
-                          {result.title}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Norma:{" "}
-                          <span className="font-semibold">{result.norma}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={currentResult?.analysis_result || ""}
-                          onChange={(e) =>
-                            handleResultChange(result.id, e.target.value)
-                          }
-                          placeholder="Qiymat kiriting..."
-                          className="border-gray-200 focus:border-primary"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => handleSaveSingleResult(result.id)}
-                          disabled={currentResult?.loading}
-                          className="bg-primary hover:bg-primary/90 text-white"
-                        >
-                          {currentResult?.loading
-                            ? "Saqlanmoqda..."
-                            : "Saqlash"}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 export function TestResults() {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
-  const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewingAnalysis, setViewingAnalysis] = useState<Analysis | null>(null);
-
   const [analysisResults, setAnalysisResults] = useState<
     AnalysisResultPayload[]
   >([]);
@@ -257,15 +50,13 @@ export function TestResults() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [patientsRes, departmentTypesRes, analysesRes] =
+        const [patientsRes, departmentTypesRes] =
           await Promise.all([
             patientService.findAll(),
             departmentTypeService.findAll(),
-            labService.findAllAnalysis(),
           ]);
         setPatients(patientsRes);
         setDepartmentTypes(departmentTypesRes);
-        setAnalyses(analysesRes);
       } catch (error) {
         console.error("Ma'lumotlarni yuklashda xatolik:", error);
         toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
@@ -277,22 +68,7 @@ export function TestResults() {
     fetchData();
   }, []);
 
-  const updateAnalysis = (analysisId: number, updates: Partial<Analysis>) => {
-    setAnalyses((prev) =>
-      prev.map((a) => (a.id === analysisId ? { ...a, ...updates } : a))
-    );
-    setPatients((prev) =>
-      prev.map((p) => ({
-        ...p,
-        analysis: p.analysis?.map((a) =>
-          a.id === analysisId ? { ...a, ...updates } : a
-        ),
-      }))
-    );
-  };
-
   const [selectedPatient, setSelectedPatient] = useState("");
-  const [editingAnalysis, setEditingAnalysis] = useState<Analysis | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState({
     departmentTypeId: "",
@@ -381,28 +157,6 @@ export function TestResults() {
       setFiles(Array.from(selectedFiles));
       toast.success(`${selectedFiles.length} ta fayl tanlandi`);
     }
-  };
-
-  const handleEditClick = (analysis: Analysis) => {
-    setEditingAnalysis(analysis);
-  };
-
-  const handleSaveSingleResult = async (result: {
-    id: number;
-    result: number;
-    analysis_result: string;
-  }) => {
-    if (!editingAnalysis) return;
-    await analysisResultService.update(result);
-  };
-
-  const handleStatusUpdate = async (newStatus: "n" | "ip" | "f") => {
-    if (!editingAnalysis) return;
-    await labService.updateAnalysis({
-      id: editingAnalysis.id,
-      dto: { status: newStatus },
-    });
-    updateAnalysis(editingAnalysis.id, { status: newStatus });
   };
 
   const getStatusBadge = (status: string) => {
@@ -857,307 +611,11 @@ export function TestResults() {
                       </CardContent>
                     </Card>
 
-                    {patient.consultations &&
-                      patient.consultations.length > 0 && (
-                        <Card className="border-gray-200">
-                          <CardHeader className="pb-4">
-                            <CardTitle className="text-lg font-semibold">
-                              Konsultatsiyalar
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {patient.consultations.map((consultation) => (
-                              <div
-                                key={consultation.id}
-                                className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0 bg-gradient-to-r from-blue-50/50 to-transparent p-4 rounded-lg"
-                              >
-                                <p className="text-sm mb-2">
-                                  <span className="font-semibold text-gray-700">
-                                    Tashxis:
-                                  </span>{" "}
-                                  <span className="text-gray-900">
-                                    {consultation.diagnosis}
-                                  </span>
-                                </p>
-                                <p className="text-sm mb-2">
-                                  <span className="font-semibold text-gray-700">
-                                    Tavsiya:
-                                  </span>{" "}
-                                  <span className="text-gray-900">
-                                    {consultation.recommendation}
-                                  </span>
-                                </p>
-                                <p className="text-sm">
-                                  <span className="font-semibold text-gray-700">
-                                    Retsept:
-                                  </span>{" "}
-                                  <span className="text-gray-900">
-                                    {consultation.recipe}
-                                  </span>
-                                </p>
-                              </div>
-                            ))}
-                          </CardContent>
-                        </Card>
-                      )}
-
-                    {patient.analysis && patient.analysis.length > 0 && (
-                      <Card className="border-gray-200">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                            <BarChart3 className="w-5 h-5 text-primary" />
-                            Tahlillar
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {patient.analysis.map((analysisItem) => (
-                            <div
-                              key={analysisItem.id}
-                              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-gradient-to-br from-white to-gray-50"
-                            >
-                              <div className="flex justify-between items-start mb-4">
-                                <div>
-                                  <p className="font-semibold text-gray-900 text-base">
-                                    {analysisItem.department_types?.title}
-                                  </p>
-                                  <Badge
-                                    className={`${
-                                      getStatusBadge(analysisItem.status)
-                                        .className
-                                    } mt-2`}
-                                  >
-                                    {getStatusBadge(analysisItem.status).label}
-                                  </Badge>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Dialog
-                                    open={
-                                      viewingAnalysis?.id === analysisItem.id
-                                    }
-                                    onOpenChange={(isOpen: boolean) =>
-                                      !isOpen && setViewingAnalysis(null)
-                                    }
-                                  >
-                                    <DialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() =>
-                                          setViewingAnalysis(analysisItem)
-                                        }
-                                        className="h-10 w-10 hover:bg-blue-50 hover:scale-105 transition-all duration-200 rounded-lg border border-gray-200 shadow-xs"
-                                      >
-                                        <Eye className="w-4 h-4 text-blue-600" />
-                                      </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="w-full h-full overflow-y-auto">
-                                      {/* Background decoration */}
-                                      <div className="absolute inset-0 from-blue-50/20 to-indigo-50/10 rounded-2xl pointer-events-none"></div>
-
-                                      <DialogHeader className="relative p-6 pb-4 bg-white rounded-t-2xl border-b border-gray-100">
-                                        <div className="flex items-center gap-3 mb-2">
-                                          <div className="p-2 bg-blue-100 rounded-xl">
-                                            <FileText className="w-6 h-6 text-blue-600" />
-                                          </div>
-                                          <DialogTitle className="text-2xl font-bold text-gray-900">
-                                            Tahlil Natijalarini Ko'rish
-                                          </DialogTitle>
-                                        </div>
-                                        <DialogDescription className="text-lg text-gray-600 font-medium">
-                                          <span className="text-blue-600">
-                                            {patient.name} {patient.last_name}
-                                          </span>
-                                          <span className="text-gray-400 mx-2">
-                                            —
-                                          </span>
-                                          <span className="text-indigo-600">
-                                            {
-                                              viewingAnalysis?.department_types
-                                                ?.title
-                                            }
-                                          </span>
-                                        </DialogDescription>
-                                      </DialogHeader>
-
-                                      <div className="relative p-6 overflow-auto max-h-[calc(95vh-180px)]">
-                                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                          <Table>
-                                            <TableHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                                              <TableRow className="hover:bg-transparent border-b border-blue-100">
-                                                <TableHead className="font-bold text-blue-900 py-4 text-base border-r border-blue-100">
-                                                  <div className="flex items-center gap-2">
-                                                    <List className="w-4 h-4" />
-                                                    Natija
-                                                  </div>
-                                                </TableHead>
-                                                <TableHead className="font-bold text-blue-900 py-4 text-base border-r border-blue-100">
-                                                  <div className="flex items-center gap-2">
-                                                    <TrendingUp className="w-4 h-4" />
-                                                    Qiymat
-                                                  </div>
-                                                </TableHead>
-                                                <TableHead className="font-bold text-blue-900 py-4 text-base">
-                                                  <div className="flex items-center gap-2">
-                                                    <Target className="w-4 h-4" />
-                                                    Norma
-                                                  </div>
-                                                </TableHead>
-                                              </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                              {viewingAnalysis?.department_types?.result?.map(
-                                                (res, index) => (
-                                                  <TableRow
-                                                    key={res.id}
-                                                    className={`
-                  transition-colors duration-200 border-b border-gray-100
-                  ${index % 2 === 0 ? "bg-gray-50/50" : "bg-white"}
-                  hover:bg-blue-50/30
-                `}
-                                                  >
-                                                    <TableCell className="font-semibold text-gray-900 py-4 border-r border-gray-100">
-                                                      <div className="flex items-center gap-3">
-                                                        <div
-                                                          className={`w-2 h-2 rounded-full ${
-                                                            res
-                                                              .analysis_result?.[0]
-                                                              ?.analysis_result
-                                                              ? "bg-green-400"
-                                                              : "bg-gray-300"
-                                                          }`}
-                                                        ></div>
-                                                        {res.title}
-                                                      </div>
-                                                    </TableCell>
-                                                    <TableCell className="py-4 border-r border-gray-100">
-                                                      <span
-                                                        className={`
-                    inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                    ${
-                      res.analysis_result?.[0]?.analysis_result
-                        ? "bg-green-100 text-green-800 border border-green-200"
-                        : "bg-amber-100 text-amber-800 border border-amber-200"
-                    }
-                  `}
-                                                      >
-                                                        {res
-                                                          .analysis_result?.[0]
-                                                          ?.analysis_result ||
-                                                          "Kiritilmagan"}
-                                                      </span>
-                                                    </TableCell>
-                                                    <TableCell className="text-gray-700 py-4 font-medium">
-                                                      {res.norma}
-                                                    </TableCell>
-                                                  </TableRow>
-                                                )
-                                              )}
-                                            </TableBody>
-                                          </Table>
-                                        </div>
-
-                                        {/* Empty state */}
-                                        {!viewingAnalysis?.department_types
-                                          ?.result?.length && (
-                                          <div className="text-center py-12">
-                                            <FileSearch className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                                            <h3 className="text-lg font-semibold text-gray-500">
-                                              Tahlil natijalari mavjud emas
-                                            </h3>
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {/* Footer actions */}
-                                      <div className="relative p-6 pt-4 bg-white rounded-b-2xl border-t border-gray-100">
-                                        <div className="flex justify-end gap-3">
-                                          <Button
-                                            variant="outline"
-                                            onClick={() =>
-                                              setViewingAnalysis(null)
-                                            }
-                                            className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2 rounded-lg font-medium"
-                                          >
-                                            Yopish
-                                          </Button>
-                                          <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow-sm">
-                                            <Download className="w-4 h-4 mr-2" />
-                                            Yuklab olish
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </DialogContent>
-                                  </Dialog>
-                                  <Dialog
-                                    open={
-                                      editingAnalysis?.id === analysisItem.id
-                                    }
-                                    onOpenChange={(isOpen: boolean) =>
-                                      !isOpen && setEditingAnalysis(null)
-                                    }
-                                  >
-                                    <DialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() =>
-                                          handleEditClick(analysisItem)
-                                        }
-                                        className="h-10 w-10 hover:bg-blue-50"
-                                      >
-                                        <Edit className="w-4 h-4 text-gray-600" />
-                                      </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="w-full h-full overflow-y-auto">
-                                      <DialogHeader>
-                                        <DialogTitle className="text-xl">
-                                          Tahlilni Tahrirlash
-                                        </DialogTitle>
-                                        <DialogDescription>
-                                          {patient.name} {patient.last_name} —{" "}
-                                          {
-                                            editingAnalysis?.department_types
-                                              ?.title
-                                          }
-                                        </DialogDescription>
-                                      </DialogHeader>
-                                      <EditAnalysisDialog
-                                        analysis={editingAnalysis}
-                                        onSave={handleSaveSingleResult}
-                                        onStatusUpdate={handleStatusUpdate}
-                                        onClose={() => setEditingAnalysis(null)}
-                                      />
-                                    </DialogContent>
-                                  </Dialog>
-                                </div>
-                              </div>
-                              {analysisItem.files &&
-                                analysisItem.files.length > 0 && (
-                                  <div className="mt-4 pt-4 border-t border-gray-200">
-                                    <p className="font-medium text-sm text-gray-700 mb-3">
-                                      Fayllar:
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                      {analysisItem.files.map((file) => (
-                                        <a
-                                          key={file.id}
-                                          href={file.file}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-primary hover:underline text-sm flex items-center gap-2 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-md transition-colors border border-blue-200"
-                                        >
-                                          <FileText className="w-4 h-4" />
-                                          Fayl #{file.id}
-                                        </a>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                            </div>
-                          ))}
-                        </CardContent>
-                      </Card>
-                    )}
+                    <div className="mt-4">
+                        <Button onClick={() => navigate(`/lab/patient-analysis/${patient.id}`)}>
+                            Analizlarni ko'rish
+                        </Button>
+                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>

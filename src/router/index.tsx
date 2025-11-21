@@ -4,6 +4,7 @@ import { DoctorDashboard } from "../components/doctor/DoctorDashboard";
 import { PatientConsultation } from "../components/doctor/PatientConsultation";
 import { LabDashboard } from "../components/laboratory/LabDashboard";
 import { TestResults } from "../components/laboratory/TestResults";
+import PatientAnalysis from "../components/patient/patient-analysis"; // Import the new component
 import { LoginPage } from "../components/LoginPage";
 import { ReportsPage } from "../components/ReportsPage";
 import { PatientQueue } from "../components/reception/PatientQueue";
@@ -63,6 +64,11 @@ export const privateRoutes: (RouteType & { allowedRoles: string[] })[] = [
     path: "/lab/test-results",
     element: <TestResults />,
     allowedRoles: ["l"],
+  },
+  {
+    path: "/lab/patient-analysis/:id", // NEW ROUTE
+    element: <PatientAnalysis />,
+    allowedRoles: ["l", "s"],
   },
   {
     path: "/reception/patient-registration",

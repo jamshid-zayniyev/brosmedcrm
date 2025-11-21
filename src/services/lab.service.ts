@@ -51,5 +51,24 @@ class LabService {
       throw error;
     }
   }
+
+  async findAnalysisResults({
+    analysis_id,
+    patient_id,
+  }: {
+    patient_id: number;
+    analysis_id: number;
+  }) {
+    try {
+      const res = await apiInstance.post(API_ENDPOINTS.LAB.analysisResult, {
+        patient_id,
+        analysis_id,
+      });
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
 }
 export const labService = new LabService();
