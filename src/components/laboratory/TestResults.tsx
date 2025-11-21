@@ -22,6 +22,11 @@ import {
   User,
   Eye,
   Plus,
+  Download,
+  FileSearch,
+  List,
+  TrendingUp,
+  Target,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
@@ -303,6 +308,7 @@ export function TestResults() {
       const initialResults = selectedType.result.map((res) => ({
         result: res.id,
         analysis_result: "",
+        patient: parseInt(selectedPatient) || 0, // Add patient ID
       }));
       setAnalysisResults(initialResults);
     } else {
@@ -504,17 +510,9 @@ export function TestResults() {
       </div>
 
       <Tabs defaultValue="list" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 bg-gray-100 p-1">
-          <TabsTrigger
-            value="list"
-            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
-          >
-            Barcha bemorlar
-          </TabsTrigger>
-          <TabsTrigger
-            value="new"
-            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
-          >
+        <TabsList className="grid w-full grid-cols-2 p-1">
+          <TabsTrigger value="list">Barcha bemorlar</TabsTrigger>
+          <TabsTrigger value="new">
             <Plus className="w-4 h-4 mr-2" />
             Yangi tahlil
           </TabsTrigger>
@@ -555,7 +553,7 @@ export function TestResults() {
                             value={patient.id.toString()}
                           >
                             {patient.name} {patient.last_name} —{" "}
-                            {patient.disease_uz}
+                            {patient.disease}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -580,7 +578,7 @@ export function TestResults() {
                       <SelectContent>
                         {departmentTypes.map((type) => (
                           <SelectItem key={type.id} value={type.id.toString()}>
-                            {type.title_uz}
+                            {type.title}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -765,48 +763,65 @@ export function TestResults() {
                 </AccordionTrigger>
                 <AccordionContent className="px-6 py-6 bg-gray-50 border-t border-gray-200">
                   <div className="space-y-6 py-8">
-                    <Card className="border-gray-200">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                          <User className="w-5 h-5 text-primary" />
+                    <Card className="border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300 bg-gradient-to-br from-white to-gray-50/30">
+                      <CardHeader className="pb-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/30 rounded-t-lg border-b border-blue-100">
+                        <CardTitle className="text-lg font-semibold flex items-center gap-2 text-blue-800">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <User className="w-5 h-5 text-blue-600" />
+                          </div>
                           Bemor ma'lumotlari
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-1">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                          <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                            <span className="text-sm font-medium text-gray-600">
-                              Jinsi:
-                            </span>
-                            <span className="text-sm font-medium text-gray-900">
+                      <CardContent className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                              <span className="text-sm font-medium text-gray-600">
+                                Jinsi:
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 px-2 py-1 rounded bg-gray-50">
                               {patient.gender === "e" ? "Erkak" : "Ayol"}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                            <span className="text-sm font-medium text-gray-600">
-                              Tug'ilgan sana:
-                            </span>
-                            <span className="text-sm font-medium text-gray-900">
+
+                          <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                              <span className="text-sm font-medium text-gray-600">
+                                Tug'ilgan sana:
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 px-2 py-1 rounded bg-gray-50">
                               {patient.birth_date}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                            <span className="text-sm font-medium text-gray-600">
-                              Telefon:
-                            </span>
-                            <span className="text-sm font-medium text-gray-900">
+
+                          <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-purple-400"></div>
+                              <span className="text-sm font-medium text-gray-600">
+                                Telefon:
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 px-2 py-1 rounded bg-gray-50">
                               {patient.phone_number}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                            <span className="text-sm font-medium text-gray-600">
-                              To'lov holati:
-                            </span>
+
+                          <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                              <span className="text-sm font-medium text-gray-600">
+                                To'lov holati:
+                              </span>
+                            </div>
                             <Badge
                               className={
                                 patient.payment_status === "c"
-                                  ? "bg-green-50 text-green-700 border border-green-200"
-                                  : "bg-red-50 text-red-700 border border-red-200"
+                                  ? "bg-green-100 text-green-800 border border-green-200 shadow-xs font-medium px-3 py-1"
+                                  : "bg-red-100 text-red-800 border border-red-200 shadow-xs font-medium px-3 py-1"
                               }
                             >
                               {patient.payment_status === "c"
@@ -814,20 +829,28 @@ export function TestResults() {
                                 : "To'lanmagan"}
                             </Badge>
                           </div>
-                          <div className="col-span-full flex justify-between items-start pb-3 border-b border-gray-200">
-                            <span className="text-sm font-medium text-gray-600">
-                              Manzil:
-                            </span>
-                            <span className="text-sm font-medium text-gray-900 text-right">
+
+                          <div className="col-span-full flex justify-between items-start p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
+                              <span className="text-sm font-medium text-gray-600">
+                                Manzil:
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 text-right max-w-[70%] px-2 py-1 rounded bg-gray-50">
                               {patient.address}
                             </span>
                           </div>
-                          <div className="col-span-full flex justify-between items-start">
-                            <span className="text-sm font-medium text-gray-600">
-                              Kasallik:
-                            </span>
-                            <span className="text-sm font-medium text-gray-900 text-right">
-                              {patient.disease_uz}
+
+                          <div className="col-span-full flex justify-between items-start p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                              <span className="text-sm font-medium text-gray-600">
+                                Kasallik:
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 text-right max-w-[70%] px-2 py-1 rounded bg-gray-50">
+                              {patient.disease}
                             </span>
                           </div>
                         </div>
@@ -853,7 +876,7 @@ export function TestResults() {
                                     Tashxis:
                                   </span>{" "}
                                   <span className="text-gray-900">
-                                    {consultation.diagnosis_uz}
+                                    {consultation.diagnosis}
                                   </span>
                                 </p>
                                 <p className="text-sm mb-2">
@@ -861,7 +884,7 @@ export function TestResults() {
                                     Tavsiya:
                                   </span>{" "}
                                   <span className="text-gray-900">
-                                    {consultation.recommendation_uz}
+                                    {consultation.recommendation}
                                   </span>
                                 </p>
                                 <p className="text-sm">
@@ -869,7 +892,7 @@ export function TestResults() {
                                     Retsept:
                                   </span>{" "}
                                   <span className="text-gray-900">
-                                    {consultation.recipe_uz}
+                                    {consultation.recipe}
                                   </span>
                                 </p>
                               </div>
@@ -895,7 +918,7 @@ export function TestResults() {
                               <div className="flex justify-between items-start mb-4">
                                 <div>
                                   <p className="font-semibold text-gray-900 text-base">
-                                    {analysisItem.department_types?.title_uz}
+                                    {analysisItem.department_types?.title}
                                   </p>
                                   <Badge
                                     className={`${
@@ -922,59 +945,146 @@ export function TestResults() {
                                         onClick={() =>
                                           setViewingAnalysis(analysisItem)
                                         }
-                                        className="h-10 w-10 hover:bg-blue-50"
+                                        className="h-10 w-10 hover:bg-blue-50 hover:scale-105 transition-all duration-200 rounded-lg border border-gray-200 shadow-xs"
                                       >
-                                        <Eye className="w-4 h-4 text-gray-600" />
+                                        <Eye className="w-4 h-4 text-blue-600" />
                                       </Button>
                                     </DialogTrigger>
-                                    <DialogContent>
-                                      <DialogHeader>
-                                        <DialogTitle className="text-xl">
-                                          Tahlil Natijalarini Ko'rish
-                                        </DialogTitle>
-                                        <DialogDescription>
-                                          {patient.name} {patient.last_name} —{" "}
-                                          {
-                                            viewingAnalysis?.department_types
-                                              ?.title_uz
-                                          }
+                                    <DialogContent className="w-full h-full overflow-y-auto">
+                                      {/* Background decoration */}
+                                      <div className="absolute inset-0 from-blue-50/20 to-indigo-50/10 rounded-2xl pointer-events-none"></div>
+
+                                      <DialogHeader className="relative p-6 pb-4 bg-white rounded-t-2xl border-b border-gray-100">
+                                        <div className="flex items-center gap-3 mb-2">
+                                          <div className="p-2 bg-blue-100 rounded-xl">
+                                            <FileText className="w-6 h-6 text-blue-600" />
+                                          </div>
+                                          <DialogTitle className="text-2xl font-bold text-gray-900">
+                                            Tahlil Natijalarini Ko'rish
+                                          </DialogTitle>
+                                        </div>
+                                        <DialogDescription className="text-lg text-gray-600 font-medium">
+                                          <span className="text-blue-600">
+                                            {patient.name} {patient.last_name}
+                                          </span>
+                                          <span className="text-gray-400 mx-2">
+                                            —
+                                          </span>
+                                          <span className="text-indigo-600">
+                                            {
+                                              viewingAnalysis?.department_types
+                                                ?.title
+                                            }
+                                          </span>
                                         </DialogDescription>
                                       </DialogHeader>
-                                      <div>
-                                        <Table>
-                                          <TableHeader>
-                                            <TableRow>
-                                              <TableHead className="font-semibold">
-                                                Natija
-                                              </TableHead>
-                                              <TableHead className="font-semibold">
-                                                Qiymat
-                                              </TableHead>
-                                              <TableHead className="font-semibold">
-                                                Norma
-                                              </TableHead>
-                                            </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                            {viewingAnalysis?.department_types?.result?.map(
-                                              (res) => (
-                                                <TableRow key={res.id}>
-                                                  <TableCell className="font-medium text-gray-900">
-                                                    {res.title}
-                                                  </TableCell>
-                                                  <TableCell className="text-gray-900">
-                                                    {res.analysis_result?.[0]
-                                                      ?.analysis_result ||
-                                                      "Kiritilmagan"}
-                                                  </TableCell>
-                                                  <TableCell className="text-gray-900">
-                                                    {res.norma}
-                                                  </TableCell>
-                                                </TableRow>
-                                              )
-                                            )}
-                                          </TableBody>
-                                        </Table>
+
+                                      <div className="relative p-6 overflow-auto max-h-[calc(95vh-180px)]">
+                                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                                          <Table>
+                                            <TableHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                                              <TableRow className="hover:bg-transparent border-b border-blue-100">
+                                                <TableHead className="font-bold text-blue-900 py-4 text-base border-r border-blue-100">
+                                                  <div className="flex items-center gap-2">
+                                                    <List className="w-4 h-4" />
+                                                    Natija
+                                                  </div>
+                                                </TableHead>
+                                                <TableHead className="font-bold text-blue-900 py-4 text-base border-r border-blue-100">
+                                                  <div className="flex items-center gap-2">
+                                                    <TrendingUp className="w-4 h-4" />
+                                                    Qiymat
+                                                  </div>
+                                                </TableHead>
+                                                <TableHead className="font-bold text-blue-900 py-4 text-base">
+                                                  <div className="flex items-center gap-2">
+                                                    <Target className="w-4 h-4" />
+                                                    Norma
+                                                  </div>
+                                                </TableHead>
+                                              </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                              {viewingAnalysis?.department_types?.result?.map(
+                                                (res, index) => (
+                                                  <TableRow
+                                                    key={res.id}
+                                                    className={`
+                  transition-colors duration-200 border-b border-gray-100
+                  ${index % 2 === 0 ? "bg-gray-50/50" : "bg-white"}
+                  hover:bg-blue-50/30
+                `}
+                                                  >
+                                                    <TableCell className="font-semibold text-gray-900 py-4 border-r border-gray-100">
+                                                      <div className="flex items-center gap-3">
+                                                        <div
+                                                          className={`w-2 h-2 rounded-full ${
+                                                            res
+                                                              .analysis_result?.[0]
+                                                              ?.analysis_result
+                                                              ? "bg-green-400"
+                                                              : "bg-gray-300"
+                                                          }`}
+                                                        ></div>
+                                                        {res.title}
+                                                      </div>
+                                                    </TableCell>
+                                                    <TableCell className="py-4 border-r border-gray-100">
+                                                      <span
+                                                        className={`
+                    inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                    ${
+                      res.analysis_result?.[0]?.analysis_result
+                        ? "bg-green-100 text-green-800 border border-green-200"
+                        : "bg-amber-100 text-amber-800 border border-amber-200"
+                    }
+                  `}
+                                                      >
+                                                        {res
+                                                          .analysis_result?.[0]
+                                                          ?.analysis_result ||
+                                                          "Kiritilmagan"}
+                                                      </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-gray-700 py-4 font-medium">
+                                                      {res.norma}
+                                                    </TableCell>
+                                                  </TableRow>
+                                                )
+                                              )}
+                                            </TableBody>
+                                          </Table>
+                                        </div>
+
+                                        {/* Empty state */}
+                                        {!viewingAnalysis?.department_types
+                                          ?.result?.length && (
+                                          <div className="text-center py-12">
+                                            <FileSearch className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                            <h3 className="text-lg font-semibold text-gray-500">
+                                              Tahlil natijalari mavjud emas
+                                            </h3>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Footer actions */}
+                                      <div className="relative p-6 pt-4 bg-white rounded-b-2xl border-t border-gray-100">
+                                        <div className="flex justify-end gap-3">
+                                          <Button
+                                            variant="outline"
+                                            onClick={() =>
+                                              setViewingAnalysis(null)
+                                            }
+                                            className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2 rounded-lg font-medium"
+                                          >
+                                            Yopish
+                                          </Button>
+                                          <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow-sm">
+                                            <Download className="w-4 h-4 mr-2" />
+                                            Yuklab olish
+                                          </Button>
+                                        </div>
                                       </div>
                                     </DialogContent>
                                   </Dialog>
@@ -998,7 +1108,7 @@ export function TestResults() {
                                         <Edit className="w-4 h-4 text-gray-600" />
                                       </Button>
                                     </DialogTrigger>
-                                    <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+                                    <DialogContent className="w-full h-full overflow-y-auto">
                                       <DialogHeader>
                                         <DialogTitle className="text-xl">
                                           Tahlilni Tahrirlash
@@ -1007,7 +1117,7 @@ export function TestResults() {
                                           {patient.name} {patient.last_name} —{" "}
                                           {
                                             editingAnalysis?.department_types
-                                              ?.title_uz
+                                              ?.title
                                           }
                                         </DialogDescription>
                                       </DialogHeader>

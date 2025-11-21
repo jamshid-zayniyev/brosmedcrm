@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -25,7 +25,6 @@ import { patientService } from "../../services/patient.service";
 import { departmentService } from "../../services/department.service";
 import { departmentTypeService } from "../../services/department-type.service";
 
-// Define types locally
 interface PatientHistory {
   id: number;
   date: string;
@@ -105,6 +104,18 @@ export function PatientRegistration() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
+
+  const [isPhoneFocused, setIsPhoneFocused] = useState(false);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handlePhoneFocus = useCallback(() => {
+    setIsPhoneFocused(true);
+  }, []);
+
+  const handlePhoneBlur = useCallback(() => {
+    setIsPhoneFocused(false);
+  }, []);
 
   const [mode, setMode] = useState<"types" | "doctors" | null>(null);
   const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
@@ -250,7 +261,7 @@ export function PatientRegistration() {
       middle_name: "",
       gender: formData.gender,
       birth_date: formData.birthDate,
-      phone_number: formData.phone,
+      phone_number: `+998${formData.phone}`,
       address: formData.address,
       disease: formData.diseaseType,
       disease_uz: formData.diseaseType,
@@ -412,17 +423,65 @@ export function PatientRegistration() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefon raqami *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+998 90 123 45 67"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  required
-                  disabled={!!selectedPatient}
-                />
+                <div
+                  ref={containerRef}
+                  style={{
+                    background: "#f8fafc",
+                    display: "flex",
+                    alignItems: "center",
+                    borderRadius: "6px",
+                    border: "1px solid #e2e8f0",
+                    padding: "8px 12px",
+                    width: "100%",
+                    height: "36px",
+                    fontSize: "14px",
+                    outline: "none",
+                    transition: "all 0.2s ease-in-out",
+                    // Focus holati
+                    ...(isPhoneFocused && {
+                      boxShadow: "0 0 0 3px rgba(100, 100, 100, 0.3)",
+                    }),
+                  }}
+                >
+                  <Input
+                    id="country-code"
+                    readOnly
+                    value={"+998"}
+                    style={{
+                      width: "35px",
+                      background: "transparent",
+                      padding: 0,
+                      margin: 0,
+                      border: "none",
+                      boxShadow: "none",
+                      outline: "none",
+                    }}
+                  />
+                  <Input
+                    ref={phoneInputRef}
+                    id="phone"
+                    type="tel"
+                    placeholder="901234567"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
+                    onFocus={handlePhoneFocus}
+                    onBlur={handlePhoneBlur}
+                    required
+                    disabled={!!selectedPatient}
+                    maxLength={9}
+                    style={{
+                      flex: 1,
+                      border: "none",
+                      background: "transparent",
+                      padding: '0 0 0 5px',
+                      margin: 0,
+                      boxShadow: "none",
+                      outline: "none",
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
