@@ -50,11 +50,10 @@ export function TestResults() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [patientsRes, departmentTypesRes] =
-          await Promise.all([
-            patientService.findAll(),
-            departmentTypeService.findAll(),
-          ]);
+        const [patientsRes, departmentTypesRes] = await Promise.all([
+          patientService.findAll(),
+          departmentTypeService.findAll(),
+        ]);
         setPatients(patientsRes);
         setDepartmentTypes(departmentTypesRes);
       } catch (error) {
@@ -564,7 +563,7 @@ export function TestResults() {
                             </span>
                           </div>
 
-                          <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                          {/* <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full bg-amber-400"></div>
                               <span className="text-sm font-medium text-gray-600">
@@ -582,7 +581,7 @@ export function TestResults() {
                                 ? "To'langan"
                                 : "To'lanmagan"}
                             </Badge>
-                          </div>
+                          </div> */}
 
                           <div className="col-span-full flex justify-between items-start p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
                             <div className="flex items-center gap-2">
@@ -612,9 +611,13 @@ export function TestResults() {
                     </Card>
 
                     <div className="mt-4">
-                        <Button onClick={() => navigate(`/lab/patient-analysis/${patient.id}`)}>
-                            Analizlarni ko'rish
-                        </Button>
+                      <Button
+                        onClick={() =>
+                          navigate(`/lab/patient-analysis/${patient.id}`)
+                        }
+                      >
+                        Analizlarni ko'rish
+                      </Button>
                     </div>
                   </div>
                 </AccordionContent>

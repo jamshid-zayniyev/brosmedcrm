@@ -1,23 +1,97 @@
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Users, UserCheck, TestTube, Stethoscope, Activity, TrendingUp } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import {
+  Users,
+  UserCheck,
+  TestTube,
+  Stethoscope,
+  Activity,
+  TrendingUp,
+  Calendar as CalendarIcon,
+} from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { format } from "date-fns";
+import { reportService, LineChartStat } from "../../services/report.service";
+import { toast } from "sonner";
+import { Calendar } from "../ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Button } from "../ui/button";
+import { Skeleton } from "../ui/skeleton";
 
 export function SuperadminDashboard() {
-  // Mock data
+  // Mock data (kept for other charts as requested)
   const patients = [
-    { id: 1, department: 'Kardiologiya', gender: 'male' },
-    { id: 2, department: 'Nevrologiya', gender: 'female' },
-    { id: 3, department: 'Kardiologiya', gender: 'female' },
-    { id: 4, department: 'Ginekologiya', gender: 'female' },
-    { id: 5, department: 'Urologiya', gender: 'male' },
+    {
+      id: 1,
+      department: "Kardiologiya",
+      gender: "male",
+      firstName: "Ali",
+      lastName: "Valiyev",
+    },
+    {
+      id: 2,
+      department: "Nevrologiya",
+      gender: "female",
+      firstName: "Vali",
+      lastName: "Aliyev",
+    },
+    {
+      id: 3,
+      department: "Kardiologiya",
+      gender: "female",
+      firstName: "Salima",
+      lastName: "Salimova",
+    },
+    {
+      id: 4,
+      department: "Ginekologiya",
+      gender: "female",
+      firstName: "Guli",
+      lastName: "Anorova",
+    },
+    {
+      id: 5,
+      department: "Urologiya",
+      gender: "male",
+      firstName: "Sardor",
+      lastName: "Kamolov",
+    },
   ];
-  const labResults = [ { id: 1 }, { id: 2 } ];
+  const labResults = [{ id: 1 }, { id: 2 }];
   const consultations = [
-    { id: 1, patientId: 1, doctorName: 'Dr. Akmal', date: new Date().toISOString() },
-    { id: 2, patientId: 2, doctorName: 'Dr. Sevara', date: new Date().toISOString() },
-    { id: 3, patientId: 3, doctorName: 'Dr. Akmal', date: new Date().toISOString() },
+    {
+      id: 1,
+      patientId: 1,
+      doctorName: "Dr. Akmal",
+      date: new Date().toISOString(),
+    },
+    {
+      id: 2,
+      patientId: 2,
+      doctorName: "Dr. Sevara",
+      date: new Date().toISOString(),
+    },
+    {
+      id: 3,
+      patientId: 3,
+      doctorName: "Dr. Akmal",
+      date: new Date().toISOString(),
+    },
   ];
-  const doctors = [ { id: 1 }, { id: 2 }, { id: 3 } ];
+  const doctors = [{ id: 1 }, { id: 2 }, { id: 3 }];
 
   const stats = {
     totalPatients: patients.length,
@@ -26,67 +100,110 @@ export function SuperadminDashboard() {
     totalConsultations: consultations.length,
   };
 
-  // Data for charts
-  const departmentData = Array.from(new Set(patients.map(p => p.department)))
-    .filter(Boolean)
-    .map(dept => ({
-      name: dept,
-      value: patients.filter(p => p.department === dept).length,
-    }));
+  // Live data for Department Chart
+  const [departmentChartData, setDepartmentChartData] = useState<any[]>([]);
+  const [departmentChartLoading, setDepartmentChartLoading] = useState(true);
+  const [dailyActivityData, setDailyActivityData] = useState<any[]>([]);
+  const [dailyActivityLoading, setDailyActivityLoading] = useState(true);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date());
+  const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
 
-  const dailyData = (() => {
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      return date.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' });
-    });
+  useEffect(() => {
+    const fetchDepartmentReport = async () => {
+      if (!dateFrom || !dateTo) {
+        return;
+      }
+      setDepartmentChartLoading(true);
+      const requestBody = {
+        start_date: format(dateFrom, "yyyy-MM-dd"),
+        end_date: format(dateTo, "yyyy-MM-dd"),
+      };
+      try {
+        const data = await reportService.getReport(requestBody);
+        const chartData = data.departments.map((dept) => ({
+          name: dept.department,
+          value: dept.jami_bemorlar,
+        }));
+        setDepartmentChartData(chartData);
+      } catch (error) {
+        toast.error("Bo'limlar hisobotini olishda xatolik yuz berdi");
+        console.error(error);
+      } finally {
+        setDepartmentChartLoading(false);
+      }
+    };
+    fetchDepartmentReport();
+  }, [dateFrom, dateTo]);
 
-    return last7Days.map(date => ({
-      date,
-      patients: Math.floor(Math.random() * 20) + 5,
-      consultations: Math.floor(Math.random() * 15) + 3,
-    }));
-  })();
+  useEffect(() => {
+    const fetchDailyActivity = async () => {
+      setDailyActivityLoading(true);
+      try {
+        const data = await reportService.reportLineChartStats();
+        const formattedData = data.map((item: LineChartStat) => ({
+          date: new Date(item.day).toLocaleDateString("uz-UZ", {
+            day: "2-digit",
+            month: "2-digit",
+          }),
+          patients: item.patients,
+          consultations: item.consultations,
+        }));
+        setDailyActivityData(formattedData);
+      } catch (error) {
+        toast.error("Kunlik faollik yuklanmadi");
+      } finally {
+        setDailyActivityLoading(false);
+      }
+    };
+    fetchDailyActivity();
+  }, []);
 
+  // Mock data for other charts
   const genderData = [
-    { name: 'Erkak', value: patients.filter(p => p.gender === 'male').length },
-    { name: 'Ayol', value: patients.filter(p => p.gender === 'female').length },
+    {
+      name: "Erkak",
+      value: patients.filter((p) => p.gender === "male").length,
+    },
+    {
+      name: "Ayol",
+      value: patients.filter((p) => p.gender === "female").length,
+    },
   ];
 
-  const COLORS = ['#0088FE', '#FF8042', '#00C49F', '#FFBB28', '#8884D8'];
+  const COLORS = ["#0088FE", "#FF8042", "#00C49F", "#FFBB28", "#8884D8"];
 
   const statCards = [
     {
-      title: 'Jami bemorlar',
+      title: "Jami bemorlar",
       value: stats.totalPatients,
       icon: <Users className="w-8 h-8" />,
-      color: 'text-blue-600 dark:text-blue-400',
-      bg: 'bg-blue-50 dark:bg-blue-950',
-      change: '+12%',
+      color: "text-blue-600 dark:text-blue-400",
+      bg: "bg-blue-50 dark:bg-blue-950",
+      change: "+12%",
     },
     {
-      title: 'Shifokorlar',
+      title: "Shifokorlar",
       value: stats.totalDoctors,
       icon: <Stethoscope className="w-8 h-8" />,
-      color: 'text-green-600 dark:text-green-400',
-      bg: 'bg-green-50 dark:bg-green-950',
-      change: '+5%',
+      color: "text-green-600 dark:text-green-400",
+      bg: "bg-green-50 dark:bg-green-950",
+      change: "+5%",
     },
     {
-      title: 'Tahlillar',
+      title: "Tahlillar",
       value: stats.totalLabResults,
       icon: <TestTube className="w-8 h-8" />,
-      color: 'text-purple-600 dark:text-purple-400',
-      bg: 'bg-purple-50 dark:bg-purple-950',
-      change: '+18%',
+      color: "text-purple-600 dark:text-purple-400",
+      bg: "bg-purple-50 dark:bg-purple-950",
+      change: "+18%",
     },
     {
-      title: 'Konsultatsiyalar',
+      title: "Konsultatsiyalar",
       value: stats.totalConsultations,
       icon: <UserCheck className="w-8 h-8" />,
-      color: 'text-orange-600 dark:text-orange-400',
-      bg: 'bg-orange-50 dark:bg-orange-950',
-      change: '+8%',
+      color: "text-orange-600 dark:text-orange-400",
+      bg: "bg-orange-50 dark:bg-orange-950",
+      change: "+8%",
     },
   ];
 
@@ -94,9 +211,7 @@ export function SuperadminDashboard() {
     <div className="space-y-6">
       <div>
         <h1>Superadmin Dashboard</h1>
-        <p className="text-muted-foreground">
-          Tizimning umumiy ko'rinishi
-        </p>
+        <p className="text-muted-foreground">Tizimning umumiy ko'rinishi</p>
       </div>
 
       {/* Statistics Grid */}
@@ -131,37 +246,32 @@ export function SuperadminDashboard() {
             <CardTitle>Kunlik faollik</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dailyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="patients" stroke="#0088FE" name="Bemorlar" />
-                <Line type="monotone" dataKey="consultations" stroke="#00C49F" name="Konsultatsiyalar" />
-              </LineChart>
-            </ResponsiveContainer>
+            {dailyActivityLoading ? (
+              <Skeleton className="h-[300px] w-full" />
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={dailyActivityData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line
+                    type="monotone"
+                    dataKey="patients"
+                    stroke="#0088FE"
+                    name="Bemorlar"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="consultations"
+                    stroke="#00C49F"
+                    name="Konsultatsiyalar"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
-
-        {/* Department Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Bo'limlar bo'yicha taqsimot</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={departmentData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8884D8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         {/* Gender Distribution */}
         <Card>
           <CardHeader>
@@ -175,13 +285,18 @@ export function SuperadminDashboard() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) =>
+                    `${name}: ${(percent * 100).toFixed(0)}%`
+                  }
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
                 >
                   {genderData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -189,42 +304,92 @@ export function SuperadminDashboard() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Activity className="w-5 h-5 inline mr-2" />
-              Oxirgi faolliklar
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[...consultations].reverse().slice(0, 6).map((consultation, index) => {
-                const patient = patients.find(p => p.id === consultation.patientId);
-                return (
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 pb-3 border-b border-border last:border-0"
-                  >
-                    <div className="w-2 h-2 rounded-full bg-green-500 mt-2" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">
-                        <span>{consultation.doctorName}</span> tomonidan{' '}
-                        <span>{patient ? `${patient.firstName} ${patient.lastName}` : 'bemor'}</span>{' '}
-                        konsultatsiya qilindi
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(consultation.date).toLocaleString('uz-UZ')}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
       </div>
+      {/* Department Distribution with LIVE DATA */}
+      <Card>
+        <CardHeader>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <CardTitle className="p-0">
+              Bo'limlar bo'yicha taqsimot
+            </CardTitle>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto justify-start"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateFrom
+                      ? dateFrom.toLocaleDateString("uz-UZ")
+                      : "Boshlanish"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={setDateFrom}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto justify-start"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateTo ? dateTo.toLocaleDateString("uz-UZ") : "Tugash"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={setDateTo}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {departmentChartLoading ? (
+            <Skeleton className="h-[300px] w-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={departmentChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="name"
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                  interval={0}
+                />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#8884D8" name="Bemorlar" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

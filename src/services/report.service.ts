@@ -29,6 +29,14 @@ export interface ReportResponse {
   departments: DepartmentReport[];
 }
 
+export interface LineChartStat {
+  day: string;
+  patients: number;
+  consultations: number;
+  tahlillar: number;
+  tolovlar: number;
+}
+
 class ReportService {
   async getReport(dto: ReportRequest): Promise<ReportResponse> {
     try {
@@ -48,12 +56,16 @@ class ReportService {
     end_date: string;
   }) {
     try {
-      const res = await apiInstance.post(API_ENDPOINTS.REPORT.pdf, {
-        start_date,
-        end_date,
-      }, {
-        responseType: 'blob' // Important for file downloads
-      });
+      const res = await apiInstance.post(
+        API_ENDPOINTS.REPORT.pdf,
+        {
+          start_date,
+          end_date,
+        },
+        {
+          responseType: "blob", // Important for file downloads
+        }
+      );
       return res.data;
     } catch (error) {
       console.error(error);
@@ -69,12 +81,26 @@ class ReportService {
     end_date: string;
   }) {
     try {
-      const res = await apiInstance.post(API_ENDPOINTS.REPORT.excel, {
-        start_date,
-        end_date,
-      }, {
-        responseType: 'blob' // Important for file downloads
-      });
+      const res = await apiInstance.post(
+        API_ENDPOINTS.REPORT.excel,
+        {
+          start_date,
+          end_date,
+        },
+        {
+          responseType: "blob", // Important for file downloads
+        }
+      );
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async reportLineChartStats(): Promise<LineChartStat[]> {
+    try {
+      const res = await apiInstance.get(API_ENDPOINTS.REPORT.weekStatsChart);
       return res.data;
     } catch (error) {
       console.error(error);
