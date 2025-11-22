@@ -1,6 +1,23 @@
 import { useUserStore } from "../stores/user.store";
 import { Button } from "./ui/button";
-import { LayoutDashboard, LogOut, Sun, Moon, Menu, X } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogOut,
+  Sun,
+  Moon,
+  Menu,
+  X,
+  Users,
+  Building,
+  GitMerge,
+  UserPlus,
+  List,
+  Stethoscope,
+  DollarSign,
+  FlaskConical,
+  FileText,
+  Settings,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { handleStorage } from "../utils/handle-storage";
@@ -27,12 +44,31 @@ interface MenuItem {
 }
 
 const roleMap: { [key: string]: string } = {
-  s: "Superadmin",
-  r: "Receptionist",
-  l: "Laboratory",
-  d: "Doctor",
-  c: "Cashier",
+  s: "Super Admin",
+  r: "Registrator",
+  l: "Laborant",
+  d: "Shifokor",
+  c: "Kassir",
 };
+
+const routeConfig: { [key: string]: { label: string; icon: React.ReactNode } } = {
+  "/superadmin": { label: "Boshqaruv paneli", icon: <LayoutDashboard className="w-5 h-5" /> },
+  "/superadmin/user-management": { label: "Foydalanuvchilar", icon: <Users className="w-5 h-5" /> },
+  "/superadmin/departments": { label: "Bo'limlar", icon: <Building className="w-5 h-5" /> },
+  "/superadmin/department-types": { label: "Bo'lim turlari", icon: <GitMerge className="w-5 h-5" /> },
+  "/reception": { label: "Qabulxona paneli", icon: <LayoutDashboard className="w-5 h-5" /> },
+  "/reception/patient-queue": { label: "Bemor navbati", icon: <List className="w-5 h-5" /> },
+  "/reception/patient-registration": { label: "Bemor ro'yxatga olish", icon: <UserPlus className="w-5 h-5" /> },
+  "/lab": { label: "Laboratoriya paneli", icon: <LayoutDashboard className="w-5 h-5" /> },
+  "/lab/test-results": { label: "Test natijalari", icon: <FlaskConical className="w-5 h-5" /> },
+  "/doctor": { label: "Shifokor paneli", icon: <LayoutDashboard className="w-5 h-5" /> },
+  "/doctor/consultation": { label: "Konsultatsiya", icon: <Stethoscope className="w-5 h-5" /> },
+  "/cashier": { label: "Kassir paneli", icon: <LayoutDashboard className="w-5 h-5" /> },
+  "/cashier/payment-processing": { label: "To'lovlar", icon: <DollarSign className="w-5 h-5" /> },
+  "/reports": { label: "Hisobotlar", icon: <FileText className="w-5 h-5" /> },
+  "/settings": { label: "Sozlamalar", icon: <Settings className="w-5 h-5" /> },
+};
+
 
 export function Layout({ children }: LayoutProps) {
   const { user, setUser } = useUserStore();
@@ -56,18 +92,24 @@ export function Layout({ children }: LayoutProps) {
 
   const menuItems: MenuItem[] = privateRoutes
     .filter((route) => !route.path.includes("/:")) // dynamic paramlarni olib tashlaydi
-    .map((route, index) => ({
-      id: index,
-      label:
-        route.path
-          .split("/")
-          .pop()
-          ?.replace("-", " ")
-          .replace(/\b\w/g, (l) => l.toUpperCase()) || "",
-      icon: <LayoutDashboard className="w-5 h-5" />,
-      roles: route.allowedRoles,
-      path: route.path,
-    }));
+    .map((route, index) => {
+      const config = routeConfig[route.path] || {
+        label:
+          route.path
+            .split("/")
+            .pop()
+            ?.replace("-", " ")
+            .replace(/\b\w/g, (l) => l.toUpperCase()) || "",
+        icon: <LayoutDashboard className="w-5 h-5" />,
+      };
+      return {
+        id: index,
+        label: config.label,
+        icon: config.icon,
+        roles: route.allowedRoles,
+        path: route.path,
+      };
+    });
 
   const filteredMenuItems = menuItems.filter((item) =>
     item.roles.includes(user?.role)
@@ -195,9 +237,9 @@ export function Layout({ children }: LayoutProps) {
                 size="sm"
                 onClick={onLogout}
                 className="flex-1"
-                title={"Logout"}
+                title="Chiqish"
               >
-                <LogOut className="w-4 h-4 mr-2" />
+                <LogOut className="w-4 h-4" />
               </Button>
             </div>
           </div>
