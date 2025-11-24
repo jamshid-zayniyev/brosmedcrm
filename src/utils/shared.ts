@@ -52,6 +52,7 @@ export const API_ENDPOINTS = {
   },
   DISEASE: {
     base: "/reception/disease/",
+    forPatient: (id: number) => `/reception/patient/${id}/diseases/`,
   },
 };
 

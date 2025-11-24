@@ -17,5 +17,15 @@ class DiseaseService {
       throw error;
     }
   }
+
+  async findDiseaseForPatient(id: number) {
+    try {
+      const res = await apiInstance.get(API_ENDPOINTS.DISEASE.forPatient(id));
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
 }
-export const diseaseService = new DiseaseService();   
+export const diseaseService = new DiseaseService();
