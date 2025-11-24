@@ -170,7 +170,7 @@ export function TestResults() {
       },
       f: {
         label: "Yakunlangan",
-        className: "bg-green-50 text-green-700 border border-green-200",
+        className: "",
       },
       r: {
         label: "Kutmoqda",
