@@ -18,10 +18,14 @@ export const API_ENDPOINTS = {
   PATIENT: {
     base: "/reception/patient/",
     patientsForDoctor: "/reception/doctor/patients",
+    patientAnalysis: "/reception/analysis/patient/",
+    downloadAnalysisFile: "/reception/export-analysis/",
+    search: "/reception/search/patient/",
   },
   LAB: {
     base: "/laboratory/analysis/",
     stats: "/laboratory/analysis/stats/",
+    analysisResult: "/laboratory/patient/result",
   },
   ANALYSIS_RESULT: {
     create: "/department/analysis_result/",
@@ -34,6 +38,9 @@ export const API_ENDPOINTS = {
   },
   REPORT: {
     base: "/utils/report/",
+    excel: "/utils/clinic/stats/excel/",
+    pdf: "/utils/clinic/stats/pdf/",
+    weekStatsChart: "/utils/clinic/last_week",
   },
   CASHIER: {
     base: "/cashier/cashier/",
@@ -42,6 +49,10 @@ export const API_ENDPOINTS = {
   RESULT: {
     findResultForDepartment: (id: number) =>
       `/laboratory/department/result/${id}/`,
+  },
+  DISEASE: {
+    base: "/reception/disease/",
+    forPatient: (id: number) => `/reception/patient/${id}/diseases/`,
   },
 };
 

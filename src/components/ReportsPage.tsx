@@ -4,10 +4,10 @@ import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { FileText, Download, Calendar as CalendarIcon, TrendingUp } from 'lucide-react';
+import { FileText, Download, Calendar as CalendarIcon, TrendingUp, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { toast } from 'sonner';
-import { reportService, ReportResponse } from '../services/report.service';
+import { reportService, ReportResponse, LineChartStat } from '../services/report.service';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
 import { Skeleton } from './ui/skeleton';
 
@@ -55,7 +55,31 @@ export function ReportsPage() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date());
   const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
   const [reportData, setReportData] = useState<ReportResponse | null>(null);
+  const [lineChartData, setLineChartData] = useState<any[]>([]);
+  const [lineChartLoading, setLineChartLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchDailyStats = async () => {
+      setLineChartLoading(true);
+      try {
+        const data = await reportService.reportLineChartStats();
+        const formattedData = data.map((item: LineChartStat) => ({
+          date: new Date(item.day).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' }),
+          bemorlar: item.patients,
+          konsultatsiyalar: item.consultations,
+          tahlillar: item.tahlillar,
+        }));
+        setLineChartData(formattedData);
+      } catch (error) {
+        toast.error("Kunlik statistika yuklanmadi");
+      } finally {
+        setLineChartLoading(false);
+      }
+    };
+    fetchDailyStats();
+  }, []);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -105,32 +129,56 @@ export function ReportsPage() {
     setReportType('custom');
   };
 
-  // Mock data for charts
-  const dailyPatients = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - i));
-    const dateStr = date.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' });
-    return {
-      date: dateStr,
-      bemorlar: Math.floor(Math.random() * 20) + 5,
-      konsultatsiyalar: Math.floor(Math.random() * 15) + 3,
-      tahlillar: Math.floor(Math.random() * 18) + 4,
-    };
-  });
+  const departmentStats = reportData?.departments.map(dept => ({
+    name: dept.department,
+    bemorlar: dept.jami_bemorlar,
+    konsultatsiyalar: dept.konsultatsiyalar,
+  })) || [];
 
-  const departmentStats = Array.from(new Set(mockPatients.map(p => p.department)))
-    .filter(Boolean)
-    .map(dept => ({
-      name: dept,
-      bemorlar: mockPatients.filter(p => p.department === dept).length,
-      konsultatsiyalar: mockConsultations.filter(c => {
-        const patient = mockPatients.find(p => p.id === c.patientId);
-        return patient?.department === dept;
-      }).length,
-    }));
+  const handleExport = async (formatType: 'pdf' | 'excel') => {
+    if (!dateFrom || !dateTo) {
+      toast.error("Hisobot sanalarini tanlang.");
+      return;
+    }
 
-  const handleExport = (format: 'pdf' | 'excel') => {
-    toast.success(`Hisobot ${format.toUpperCase()} formatda yuklab olindi`);
+    setExportLoading(true); // Set loading to true
+    const startDateFormatted = format(dateFrom, 'yyyy-MM-dd');
+    const endDateFormatted = format(dateTo, 'yyyy-MM-dd');
+
+    try {
+      let responseBlob: Blob;
+      let filename: string;
+
+      if (formatType === 'pdf') {
+        responseBlob = await reportService.reportStatsPdf({
+          start_date: startDateFormatted,
+          end_date: endDateFormatted,
+        });
+        filename = `hisobot_${startDateFormatted}_${endDateFormatted}.pdf`;
+      } else {
+        responseBlob = await reportService.reportStatsExcel({
+          start_date: startDateFormatted,
+          end_date: endDateFormatted,
+        });
+        filename = `hisobot_${startDateFormatted}_${endDateFormatted}.xlsx`;
+      }
+
+      const url = window.URL.createObjectURL(responseBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`Hisobot ${formatType.toUpperCase()} formatda yuklab olindi`);
+    } catch (error) {
+      toast.error("Hisobotni yuklab olishda xatolik yuz berdi.");
+      console.error("Export error:", error);
+    } finally {
+      setExportLoading(false); // Set loading to false
+    }
   };
 
   return (
@@ -205,16 +253,26 @@ export function ReportsPage() {
                   variant="outline"
                   onClick={() => handleExport('pdf')}
                   className="flex-1"
+                  disabled={exportLoading}
                 >
-                  <Download className="w-4 h-4 mr-2" />
+                  {exportLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
                   PDF
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => handleExport('excel')}
                   className="flex-1"
+                  disabled={exportLoading}
                 >
-                  <Download className="w-4 h-4 mr-2" />
+                  {exportLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
                   Excel
                 </Button>
               </div>
@@ -321,17 +379,19 @@ export function ReportsPage() {
             <CardTitle>Kunlik statistika (oxirgi 7 kun)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dailyPatients}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="bemorlar" stroke="#0088FE" name="Bemorlar" />
-                <Line type="monotone" dataKey="konsultatsiyalar" stroke="#00C49F" name="Konsultatsiyalar" />
-                <Line type="monotone" dataKey="tahlillar" stroke="#FF8042" name="Tahlillar" />
-              </LineChart>
-            </ResponsiveContainer>
+            {lineChartLoading ? <Skeleton className="h-[300px] w-full" /> :
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={lineChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="bemorlar" stroke="#0088FE" name="Bemorlar" />
+                  <Line type="monotone" dataKey="konsultatsiyalar" stroke="#00C49F" name="Konsultatsiyalar" />
+                  <Line type="monotone" dataKey="tahlillar" stroke="#FF8042" name="Tahlillar" />
+                </LineChart>
+              </ResponsiveContainer>
+            }
           </CardContent>
         </Card>
 

@@ -18,4 +18,5 @@ export interface Result {
 export interface AnalysisResult {
   id: number;
   analysis_result: string;
+  patient: number | null;
 }

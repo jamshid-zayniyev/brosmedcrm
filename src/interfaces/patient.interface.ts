@@ -1,3 +1,4 @@
+import { Analysis } from "./analysis.interface";
 import { Consultation } from "./consultation.interface";
 import { DepartmentType } from "./department-type.interface";
 import { User } from "./user.interface";
@@ -25,4 +26,5 @@ export interface Patient {
   patient_status: PatientStatus;
   created_at: string;
   consultations?: Consultation[];
+  analysis: Analysis[];
 }

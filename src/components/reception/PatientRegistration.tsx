@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -13,7 +13,7 @@ import {
 import { Textarea } from "../ui/textarea";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { toast } from "sonner";
-import { UserPlus, Search, Printer } from "lucide-react";
+import { UserPlus, Search, Printer, LoaderCircle, User } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,37 +24,16 @@ import {
 import { patientService } from "../../services/patient.service";
 import { departmentService } from "../../services/department.service";
 import { departmentTypeService } from "../../services/department-type.service";
-
-// Define types locally
-interface PatientHistory {
-  id: number;
-  date: string;
-  type: "registration" | "lab-test" | "consultation" | "payment" | "other";
-  description: string;
-  doctorName?: string;
-  department?: string;
-  amount?: number;
-}
+import { diseaseService } from "../../services/disease.service"; // Import diseaseService
 
 interface Patient {
   id: number;
-  firstName: string;
-  lastName: string;
+  name: string;
+  last_name: string;
   gender: "e" | "a";
-  birthDate: string;
-  phone: string;
+  birth_date: string;
+  phone_number: string;
   address: string;
-  diseaseType: string;
-  department: string;
-  departmentId: number;
-  departmentTypeId?: number;
-  departmentType?: string;
-  doctorId?: number;
-  doctorName?: string;
-  paymentAmount?: number;
-  queueNumber?: number;
-  registrationDate: string;
-  history: PatientHistory[];
 }
 
 interface Doctor {
@@ -80,49 +59,51 @@ interface DepartmentType {
   price: number;
 }
 
-const toPatient = (data: any): Patient => ({
-  id: data.id.toString(),
+interface ReceiptData {
+  queueNumber?: number;
+  firstName: string;
+  lastName: string;
+  department: string;
+  doctorName?: string;
+  registrationDate: string;
+  paymentAmount?: number;
+}
+
+// Updated to handle data from search results
+const toPatientForm = (data: Patient) => ({
+  id: data.id,
   firstName: data.name,
   lastName: data.last_name,
   gender: data.gender,
   birthDate: data.birth_date,
-  phone: data.phone_number,
+  phone: data.phone_number.replace("+998", ""), // Remove country code for form input
   address: data.address,
-  diseaseType: data.disease,
-  department: data.department?.title_uz || "",
-  departmentId: data.department?.id,
-  departmentTypeId: data.department_types,
-  departmentType: "",
-  doctorId: data.user,
-  doctorName: "",
-  paymentAmount: 0,
-  registrationDate: new Date().toISOString(),
-  history: [],
 });
 
 export function PatientRegistration() {
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [searchResults, setSearchResults] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
 
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [mode, setMode] = useState<"types" | "doctors" | null>(null);
   const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
 
+  // Removed initial patient fetching, now only fetches departments
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [patientData, departmentData, departmentTypeData] =
-          await Promise.all([
-            patientService.findAll(),
-            departmentService.findAll(),
-            departmentTypeService.findAll(),
-          ]);
-        setPatients((patientData.results || patientData).map(toPatient));
+        const [departmentData, departmentTypeData] = await Promise.all([
+          departmentService.findAll(),
+          departmentTypeService.findAll(),
+        ]);
         setDepartments(departmentData.results || departmentData);
         setDepartmentTypes(departmentTypeData.results || departmentTypeData);
       } catch (error) {
-        toast.error("Ma'lumotlarni yuklashda xatolik");
+        toast.error("Bo'lim ma'lumotlarini yuklashda xatolik");
       }
     };
 
@@ -132,12 +113,11 @@ export function PatientRegistration() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [receiptData, setReceiptData] = useState<Patient | null>(null);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    middleName: "",
     gender: "e" as "e" | "a",
     birthDate: "",
     phone: "",
@@ -148,35 +128,49 @@ export function PatientRegistration() {
     doctorId: 0,
   });
 
-  const handleSearch = () => {
-    const found = patients.find(
-      (p) =>
-        p.phone.includes(searchQuery) ||
-        `${p.firstName} ${p.lastName}`
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase())
-    );
-
-    if (found) {
-      setSelectedPatient(found);
-      setFormData({
-        ...formData,
-        firstName: found.firstName,
-        lastName: found.lastName,
-        gender: found.gender,
-        birthDate: found.birthDate,
-        phone: found.phone,
-        address: found.address,
-        diseaseType: "",
-        departmentId: 0,
-        departmentTypeId: 0,
-        doctorId: 0,
-      });
-      toast.success("Bemor topildi!");
-    } else {
-      toast.error("Bemor topilmadi");
-      setSelectedPatient(null);
+  const handleSearch = async () => {
+    if (!searchQuery) {
+      toast.info("Qidiruv uchun ma'lumot kiriting");
+      return;
     }
+    setIsSearching(true);
+    setSelectedPatient(null); // Clear previous selection
+    try {
+      const results = await patientService.searchPatient(searchQuery);
+      if (results && results.length > 0) {
+        setSearchResults(results);
+        toast.success(`${results.length} ta bemor topildi`);
+      } else {
+        setSearchResults([]);
+        toast.info("Bemor topilmadi. Yangi bemor sifatida ro'yxatdan o'ting.");
+      }
+    } catch (error) {
+      toast.error("Qidiruvda xatolik yuz berdi");
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectPatient = (patient: Patient) => {
+    setSelectedPatient(patient);
+    const patientFormData = toPatientForm(patient);
+    setFormData({
+      ...formData,
+      firstName: patientFormData.firstName,
+      lastName: patientFormData.lastName,
+      gender: patientFormData.gender,
+      birthDate: patientFormData.birthDate,
+      phone: patientFormData.phone,
+      address: patientFormData.address,
+      // Reset medical info for the new visit
+      diseaseType: "",
+      departmentId: 0,
+      departmentTypeId: 0,
+      doctorId: 0,
+    });
+    setSearchResults([]); // Hide search results after selection
+    toast.success(`${patient.name} ${patient.last_name} tanlandi.`);
   };
 
   const handleDepartmentChange = async (value: string) => {
@@ -228,49 +222,80 @@ export function PatientRegistration() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
-    const doctor = doctors.find((d) => d.id === formData.doctorId);
-    const departmentType = departmentTypes.find(
-      (dt) => dt.id === formData.departmentTypeId
-    );
-
-    let paymentAmount = 0;
-    if (departmentType) {
-      paymentAmount = departmentType.price;
-    } else if (doctor) {
-      paymentAmount = parseInt(doctor.price, 10);
-    }
-
-    const dto = {
-      user: formData.doctorId || undefined, // Assign doctorId if selected, otherwise undefined
-      department: formData.departmentId,
-      department_types: formData.departmentTypeId || undefined,
-      name: formData.firstName,
-      last_name: formData.lastName,
-      middle_name: "",
-      gender: formData.gender,
-      birth_date: formData.birthDate,
-      phone_number: formData.phone,
-      address: formData.address,
-      disease: formData.diseaseType,
-      disease_uz: formData.diseaseType,
-      disease_ru: formData.diseaseType,
-    };
+    let patientId: number;
 
     try {
-      const newPatientData = await patientService.create(dto);
-      const newPatient = toPatient(newPatientData);
+      // Step 1: Ensure we have a patient ID
+      if (selectedPatient) {
+        patientId = selectedPatient.id;
+      } else {
+        // Create a new patient if none is selected
+        const newPatientDto = {
+          name: formData.firstName,
+          last_name: formData.lastName,
+          middle_name: "",
+          gender: formData.gender,
+          birth_date: formData.birthDate,
+          phone_number: `+998${formData.phone}`,
+          address: formData.address,
+          disease: formData.diseaseType,
+          disease_uz: formData.diseaseType,
+          disease_ru: formData.diseaseType,
+          department: formData.departmentId,
+          department_types: formData.departmentTypeId || undefined,
+          user: formData.doctorId || undefined,
+        };
+        const newPatientData = await patientService.create(newPatientDto);
+        patientId = newPatientData.id;
+        toast.success("Yangi bemor muvaffaqiyatli yaratildi!");
+      }
 
-      setPatients((prev) => [...prev, newPatient]);
-      setReceiptData(newPatient);
+      // Step 2: Create a disease/visit record for the patient
+      const diseaseDto = {
+        disease: formData.diseaseType,
+        patient: patientId,
+        department: formData.departmentId,
+        department_types: formData.departmentTypeId || undefined,
+        user: formData.doctorId || undefined,
+      };
+
+      const newDiseaseData = await diseaseService.create(diseaseDto);
+
+      // Step 3: Prepare and show receipt
+      const doctor = doctors.find((d) => d.id === formData.doctorId);
+      const department = departments.find(
+        (d) => d.id === formData.departmentId
+      );
+      const departmentType = departmentTypes.find(
+        (dt) => dt.id === formData.departmentTypeId
+      );
+
+      let paymentAmount = 0;
+      if (departmentType) {
+        paymentAmount = departmentType.price;
+      } else if (doctor) {
+        paymentAmount = parseInt(doctor.price, 10);
+      }
+
+      setReceiptData({
+        firstName: selectedPatient?.name || formData.firstName,
+        lastName: selectedPatient?.last_name || formData.lastName,
+        department: department?.title_uz || "",
+        doctorName: doctor?.full_name,
+        queueNumber: newDiseaseData.queue_number, // Assuming disease create returns queue_number
+        registrationDate: new Date().toISOString(),
+        paymentAmount,
+      });
+
       setShowReceipt(true);
-      toast.success("Bemor muvaffaqiyatli ro'yxatga olindi!");
+      toast.success("Bemor tashrifi muvaffaqiyatli ro'yxatga olindi!");
 
-      // Reset form
+      // Reset form completely
       setFormData({
         firstName: "",
         lastName: "",
-        middleName: "",
         gender: "e",
         birthDate: "",
         phone: "",
@@ -282,8 +307,11 @@ export function PatientRegistration() {
       });
       setSelectedPatient(null);
       setSearchQuery("");
+      setSearchResults([]);
     } catch (error) {
-      toast.error("Bemor ro'yxatga olishda xatolik");
+      toast.error("Ro'yxatga olishda xatolik yuz berdi");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -315,21 +343,49 @@ export function PatientRegistration() {
               placeholder="Telefon raqam yoki ism-familiya"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             />
-            <Button onClick={handleSearch}>
-              <Search className="w-4 h-4 mr-2" />
+            <Button onClick={handleSearch} disabled={isSearching}>
+              {isSearching ? (
+                <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Search className="w-4 h-4 mr-2" />
+              )}
               Qidirish
             </Button>
           </div>
+          {searchResults.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <h4 className="text-sm font-medium">Qidiruv natijalari:</h4>
+              <div className="max-h-48 overflow-y-auto rounded-md border">
+                {searchResults.map((patient) => (
+                  <button
+                    key={patient.id}
+                    onClick={() => handleSelectPatient(patient)}
+                    className="flex w-full items-center gap-3 p-3 text-left hover:bg-muted/50"
+                  >
+                    <User className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="font-semibold">
+                        {patient.name} {patient.last_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {patient.phone_number}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {selectedPatient && (
             <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
               <p>
-                ✓ Bemor topildi: {selectedPatient.firstName}{" "}
-                {selectedPatient.lastName}
+                ✓ Bemor tanlandi: {selectedPatient.name}{" "}
+                {selectedPatient.last_name}
               </p>
               <p className="text-sm text-muted-foreground">
-                Kasallik tarixi: {selectedPatient.history?.length || 0} ta
-                tashriflar
+                ID: {selectedPatient.id}
               </p>
             </div>
           )}
@@ -349,256 +405,278 @@ export function PatientRegistration() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Personal Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">Ism *</Label>
-                <Input
-                  id="firstName"
-                  value={formData.firstName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, firstName: e.target.value })
-                  }
-                  required
-                  disabled={!!selectedPatient}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Familiya *</Label>
-                <Input
-                  id="lastName"
-                  value={formData.lastName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, lastName: e.target.value })
-                  }
-                  required
-                  disabled={!!selectedPatient}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Jinsi *</Label>
-              <RadioGroup
-                value={formData.gender}
-                onValueChange={(value: "e" | "a") =>
-                  setFormData({ ...formData, gender: value })
-                }
-                disabled={!!selectedPatient}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="e" id="e" />
-                  <Label htmlFor="e">Erkak</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="a" id="a" />
-                  <Label htmlFor="a">Ayol</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="birthDate">Tug'ilgan sana *</Label>
-                <Input
-                  id="birthDate"
-                  type="date"
-                  value={formData.birthDate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, birthDate: e.target.value })
-                  }
-                  required
-                  disabled={!!selectedPatient}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Telefon raqami *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+998 90 123 45 67"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  required
-                  disabled={!!selectedPatient}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Manzil *</Label>
-              <Textarea
-                id="address"
-                value={formData.address}
-                onChange={(e) =>
-                  setFormData({ ...formData, address: e.target.value })
-                }
-                required
-                disabled={!!selectedPatient}
-              />
-            </div>
-
-            {/* Medical Information */}
-            <div className="border-t pt-6">
-              <h3 className="mb-4">Tibbiy ma'lumotlar</h3>
-
-              <div className="space-y-4">
+            <fieldset disabled={isSubmitting} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="diseaseType">
-                    Kasallik turi / Shikoyat *
-                  </Label>
-                  <Textarea
-                    id="diseaseType"
-                    value={formData.diseaseType}
+                  <Label htmlFor="firstName">Ism *</Label>
+                  <Input
+                    id="firstName"
+                    value={formData.firstName}
                     onChange={(e) =>
-                      setFormData({ ...formData, diseaseType: e.target.value })
+                      setFormData({ ...formData, firstName: e.target.value })
                     }
                     required
+                    disabled={!!selectedPatient}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Familiya *</Label>
+                  <Input
+                    id="lastName"
+                    value={formData.lastName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, lastName: e.target.value })
+                    }
+                    required
+                    disabled={!!selectedPatient}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Jinsi *</Label>
+                <RadioGroup
+                  value={formData.gender}
+                  onValueChange={(value: "e" | "a") =>
+                    setFormData({ ...formData, gender: value })
+                  }
+                  disabled={!!selectedPatient}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="e" id="e" />
+                    <Label htmlFor="e">Erkak</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="a" id="a" />
+                    <Label htmlFor="a">Ayol</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="birthDate">Tug'ilgan sana *</Label>
+                  <Input
+                    id="birthDate"
+                    type="date"
+                    value={formData.birthDate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, birthDate: e.target.value })
+                    }
+                    required
+                    disabled={!!selectedPatient}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefon raqami *</Label>
+                  <div className="flex h-9 w-full items-center rounded-md border border-input bg-transparent text-sm shadow-sm">
+                    <span className="px-3 text-muted-foreground">+998</span>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="901234567"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      required
+                      disabled={!!selectedPatient}
+                      maxLength={9}
+                      className="h-auto flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address">Manzil *</Label>
+                <Textarea
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                  required
+                  disabled={!!selectedPatient}
+                />
+              </div>
+
+              {/* Medical Information */}
+              <div className="border-t pt-6">
+                <h3 className="mb-4">Tibbiy ma'lumotlar</h3>
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="department">Bo'lim *</Label>
-                    <Select
-                      value={
-                        formData.departmentId === 0
-                          ? ""
-                          : formData.departmentId.toString()
+                    <Label htmlFor="diseaseType">
+                      Kasallik turi / Shikoyat *
+                    </Label>
+                    <Textarea
+                      id="diseaseType"
+                      value={formData.diseaseType}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          diseaseType: e.target.value,
+                        })
                       }
-                      onValueChange={handleDepartmentChange}
                       required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Bo'limni tanlang" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.id.toString()}>
-                            {dept.title_uz}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   </div>
 
-                  {mode === "types" && (
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="departmentType">Bo'lim turi *</Label>
+                      <Label htmlFor="department">Bo'lim *</Label>
                       <Select
                         value={
-                          formData.departmentTypeId === 0
+                          formData.departmentId === 0
                             ? ""
-                            : formData.departmentTypeId.toString()
+                            : formData.departmentId.toString()
                         }
-                        onValueChange={handleDepartmentTypeChange}
+                        onValueChange={handleDepartmentChange}
                         required
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Bo'lim turini tanlang" />
+                          <SelectValue placeholder="Bo'limni tanlang" />
                         </SelectTrigger>
                         <SelectContent>
-                          {filteredDepartmentTypes.map((type) => (
+                          {departments.map((dept) => (
                             <SelectItem
-                              key={type.id}
-                              value={type.id.toString()}
+                              key={dept.id}
+                              value={dept.id.toString()}
                             >
-                              {type.title_uz} -{" "}
-                              {Number(type.price).toLocaleString()} so'm
+                              {dept.title_uz}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      {formData.departmentTypeId && (
-                        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                          <p className="text-sm">
-                            <span className="text-muted-foreground">
-                              Tanlangan bo'lim turi:
-                            </span>{" "}
-                            <span className="font-medium">
-                              {
-                                filteredDepartmentTypes.find(
-                                  (t) => t.id === formData.departmentTypeId
-                                )?.title_uz
-                              }
-                            </span>
-                          </p>
-                          <p className="text-sm">
-                            <span className="text-muted-foreground">Narx:</span>{" "}
-                            <span className="font-medium">
-                              {filteredDepartmentTypes
-                                .find((t) => t.id === formData.departmentTypeId)
-                                ?.price.toLocaleString()}{" "}
-                              so'm
-                            </span>
-                          </p>
-                        </div>
-                      )}
                     </div>
-                  )}
 
-                  {mode === "doctors" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="doctor">Shifokor *</Label>
-                      <Select
-                        value={
-                          formData.doctorId === 0
-                            ? ""
-                            : formData.doctorId.toString()
-                        }
-                        onValueChange={handleDoctorChange}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Shifokorni tanlang" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {doctors.map((doctor) => (
-                            <SelectItem
-                              key={doctor.id}
-                              value={doctor.id.toString()}
-                            >
-                              {doctor.full_name} - {doctor.price} so'm
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {formData.doctorId && (
-                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                          <p className="text-sm">
-                            <span className="text-muted-foreground">
-                              Tanlangan shifokor:
-                            </span>{" "}
-                            <span className="font-medium">
-                              {
-                                doctors.find((d) => d.id === formData.doctorId)
-                                  ?.full_name
-                              }
-                            </span>
-                          </p>
-                          <p className="text-sm">
-                            <span className="text-muted-foreground">
-                              Ko'rik narxi:
-                            </span>{" "}
-                            <span className="font-medium">
-                              {
-                                doctors.find((d) => d.id === formData.doctorId)
-                                  ?.price
-                              }{" "}
-                              so'm
-                            </span>
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    {mode === "types" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="departmentType">Bo'lim turi *</Label>
+                        <Select
+                          value={
+                            formData.departmentTypeId === 0
+                              ? ""
+                              : formData.departmentTypeId.toString()
+                          }
+                          onValueChange={handleDepartmentTypeChange}
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Bo'lim turini tanlang" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredDepartmentTypes.map((type) => (
+                              <SelectItem
+                                key={type.id}
+                                value={type.id.toString()}
+                              >
+                                {type.title_uz} -{" "}
+                                {Number(type.price).toLocaleString()} so'm
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {formData.departmentTypeId && (
+                          <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">
+                                Tanlangan bo'lim turi:
+                              </span>{" "}
+                              <span className="font-medium">
+                                {
+                                  filteredDepartmentTypes.find(
+                                    (t) => t.id === formData.departmentTypeId
+                                  )?.title_uz
+                                }
+                              </span>
+                            </p>
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">
+                                Narx:
+                              </span>{" "}
+                              <span className="font-medium">
+                                {filteredDepartmentTypes
+                                  .find(
+                                    (t) => t.id === formData.departmentTypeId
+                                  )
+                                  ?.price.toLocaleString()}{" "}
+                                so'm
+                              </span>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {mode === "doctors" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="doctor">Shifokor *</Label>
+                        <Select
+                          value={
+                            formData.doctorId === 0
+                              ? ""
+                              : formData.doctorId.toString()
+                          }
+                          onValueChange={handleDoctorChange}
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Shifokorni tanlang" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {doctors.map((doctor) => (
+                              <SelectItem
+                                key={doctor.id}
+                                value={doctor.id.toString()}
+                              >
+                                {doctor.full_name} - {doctor.price} so'm
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {formData.doctorId && (
+                          <div className="mt-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">
+                                Tanlangan shifokor:
+                              </span>{" "}
+                              <span className="font-medium">
+                                {
+                                  doctors.find(
+                                    (d) => d.id === formData.doctorId
+                                  )?.full_name
+                                }
+                              </span>
+                            </p>
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">
+                                Ko'rik narxi:
+                              </span>{" "}
+                              <span className="font-medium">
+                                {
+                                  doctors.find(
+                                    (d) => d.id === formData.doctorId
+                                  )?.price
+                                }{" "}
+                                so'm
+                              </span>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <Button type="submit" className="w-full">
-              <UserPlus className="w-4 h-4 mr-2" />
+            </fieldset>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <UserPlus className="w-4 h-4 mr-2" />
+              )}
               Ro'yxatga olish va check chiqarish
             </Button>
           </form>
