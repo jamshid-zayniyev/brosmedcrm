@@ -173,7 +173,7 @@ export function TestResults() {
         className: "bg-green-50 text-green-700 border border-green-200",
       },
       r: {
-        label: "Ro'yxatdan o'tgan",
+        label: "Kutmoqda",
         className: "bg-gray-50 text-gray-700 border border-gray-200",
       },
       l: {
@@ -264,8 +264,20 @@ export function TestResults() {
 
       <Tabs defaultValue="list" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 p-1">
-          <TabsTrigger value="list">Barcha bemorlar</TabsTrigger>
-          <TabsTrigger value="new">
+          <TabsTrigger
+            style={{
+              height: "120px",
+            }}
+            value="list"
+          >
+            Barcha bemorlar
+          </TabsTrigger>
+          <TabsTrigger
+            style={{
+              height: "120px",
+            }}
+            value="new"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Yangi tahlil
           </TabsTrigger>

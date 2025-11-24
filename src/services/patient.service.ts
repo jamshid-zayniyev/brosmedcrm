@@ -155,7 +155,7 @@ class PatientService {
           /filename\*?=['"]?([^'"]+)['"]?/
         );
         if (filenameMatch && filenameMatch.length > 1) {
-          filename = filenameMatch[1].replace(/['"]/g, ''); // Clean up any quotes
+          filename = filenameMatch[1].replace(/['"]/g, ""); // Clean up any quotes
         }
       }
 
@@ -167,6 +167,18 @@ class PatientService {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async searchPatient(search: string) {
+    try {
+      const res = await apiInstance.post(API_ENDPOINTS.PATIENT.search, {
+        search,
+      });
       return res.data;
     } catch (error) {
       console.error(error);

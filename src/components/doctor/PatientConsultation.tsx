@@ -31,16 +31,34 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Separator } from "../ui/separator";
 import { LabResult } from "../../interfaces/lab.interface";
-import { Patient, PatientStatus } from "../../interfaces/patient.interface";
+import { PatientStatus } from "../../interfaces/patient.interface";
 import { patientService } from "../../services/patient.service";
 import { useUserStore } from "../../stores/user.store";
 import { consultationService } from "../../services/consultation.service";
 import { CreateConsultationDto } from "../../interfaces/consultation.dto";
 
+// Assuming a structure for the patient record from the 'diseases' array
+interface PatientRecord {
+  id: number; // ID of the disease record itself
+  patient: {
+    // Nested patient object
+    id: number;
+    name: string;
+    last_name: string;
+    gender: "e" | "a"; // 'e' for erkak (male), 'a' for ayol (female)
+    birth_date: string;
+    phone_number: string;
+    patient_status: PatientStatus;
+    // ... other patient fields
+  };
+  disease: string; // The complaint/disease is directly on the record
+  // ... other fields from the disease record
+}
+
 export function PatientConsultation() {
   const { user } = useUserStore();
 
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientRecords, setPatientRecords] = useState<PatientRecord[]>([]); // Renamed from 'patients'
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,11 +66,20 @@ export function PatientConsultation() {
   const fetchPatients = useCallback(async () => {
     try {
       setLoading(true);
-      const data: Patient[] = await patientService.findAllForDoctor();
-      setPatients(data);
+      const responseData = await patientService.findAllForDoctor(); // No longer assuming Patient[] directly
+      if (responseData && Array.isArray(responseData.diseases)) {
+        setPatientRecords(responseData.diseases);
+      } else {
+        console.error(
+          "Xatolik: 'diseases' ma'lumoti massiv emas yoki topilmadi!",
+          responseData
+        );
+        setPatientRecords([]); // Fallback to empty array
+      }
     } catch (err) {
       setError("Bemorlarni yuklashda xatolik yuz berdi.");
       console.error(err);
+      setPatientRecords([]); // Clear on error
     } finally {
       setLoading(false);
     }
@@ -62,18 +89,23 @@ export function PatientConsultation() {
     fetchPatients();
   }, [fetchPatients]);
 
-  const [labResults, setLabResults] = useState<LabResult[]>([]);
+  const [labResults, setLabResults] = useState<LabResult[]>([]); // This might need review later if patientId changes
 
-  const updatePatient = (id: number, data: Partial<Patient>) => {
-    setPatients((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...data } : p))
+  // Update function adapted for nested patient object
+  const updatePatient = (id: number, data: Partial<PatientRecord['patient']>) => {
+    setPatientRecords((prev) =>
+      prev.map((record) =>
+        record.patient?.id === id
+          ? { ...record, patient: { ...record.patient, ...data } }
+          : record
+      )
     );
   };
 
   const [selectedPatient, setSelectedPatient] = useState("");
   const [viewingPatient, setViewingPatient] = useState<number | null>(null);
   const [editingPatientId, setEditingPatientId] = useState<number | null>(null);
-  const [detailedPatient, setDetailedPatient] = useState<Patient | null>(null);
+  const [detailedPatient, setDetailedPatient] = useState<any | null>(null); // detailedPatient likely fetches a full Patient object
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -88,12 +120,13 @@ export function PatientConsultation() {
     recipe_ru: "",
   });
 
-  const availablePatients = patients.filter(
-    (p) =>
-      p.patient_status === "r" ||
-      p.patient_status === "l" ||
-      p.patient_status === "d" ||
-      p.patient_status === "t"
+  const availablePatients = patientRecords.filter(
+    (record) =>
+      record.patient &&
+      (record.patient.patient_status === "r" ||
+        record.patient.patient_status === "l" ||
+        record.patient.patient_status === "d" ||
+        record.patient.patient_status === "t")
   );
 
   const handleViewPatientHistory = async (patientId: number) => {
@@ -101,6 +134,7 @@ export function PatientConsultation() {
     setIsHistoryLoading(true);
     setDetailedPatient(null);
     try {
+      // Assuming patientService.findById returns a full Patient object
       const data = await patientService.findById(patientId);
       setDetailedPatient(data);
     } catch (error) {
@@ -120,7 +154,7 @@ export function PatientConsultation() {
       });
       toast.success("Konsultatsiya boshlandi");
       setSelectedPatient(patientId.toString());
-      await fetchPatients();
+      await fetchPatients(); // Refetch to get updated status
     } catch (error) {
       toast.error("Qabulni boshlashda xatolik yuz berdi.");
       console.error(error);
@@ -187,7 +221,7 @@ export function PatientConsultation() {
         recipe_ru: "",
       });
       setSelectedPatient("");
-      await fetchPatients();
+      await fetchPatients(); // Refetch to get updated queue
     } catch (error) {
       toast.error("Konsultatsiya yaratishda xatolik yuz berdi.");
       console.error(error);
@@ -197,6 +231,8 @@ export function PatientConsultation() {
   };
 
   const getPatientLabResults = (patientId: number) => {
+    // This function might need adaptation if labResults also changes structure or patientId.
+    // For now, assuming it expects a simple patientId.
     return labResults.filter((r) => r.patientId === patientId.toString());
   };
 
@@ -210,9 +246,10 @@ export function PatientConsultation() {
         id: patientId,
         patient_status: newStatus || "f",
       });
+      // Update local state for immediate feedback
       updatePatient(patientId, { patient_status: newStatus });
       toast.success("Bemor statusi muvaffaqiyatli yangilandi.");
-      await fetchPatients();
+      await fetchPatients(); // Refetch to ensure consistency
     } catch (error) {
       toast.error("Bemor statusini yangilashda xatolik.");
       console.error(error);
@@ -222,7 +259,7 @@ export function PatientConsultation() {
     }
   };
 
-  const getStatusLabel = (status: PatientStatus) => {
+  const getStatusLabel = (status: PatientStatus | undefined) => { // status can be undefined now
     const statusLabels = {
       r: "Ro'yxatdan o'tgan",
       l: "Laboratoriyada",
@@ -234,14 +271,15 @@ export function PatientConsultation() {
     return status ? statusLabels[status] || status : "Noma'lum";
   };
 
+  // Find selected patient record and extract the nested patient object
   const selectedPatientData = selectedPatient
-    ? patients.find((p) => p.id.toString() === selectedPatient)
+    ? patientRecords.find((record) => record.patient?.id.toString() === selectedPatient)?.patient
     : null;
   const viewingPatientData = viewingPatient
-    ? patients.find((p) => p.id === viewingPatient)
+    ? patientRecords.find((record) => record.patient?.id === viewingPatient)?.patient
     : null;
   const editingPatientData = editingPatientId
-    ? patients.find((p) => p.id === editingPatientId)
+    ? patientRecords.find((record) => record.patient?.id === editingPatientId)?.patient
     : null;
 
   return (
@@ -280,12 +318,12 @@ export function PatientConsultation() {
                       <SelectValue placeholder="Bemorni tanlang" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availablePatients.map((patient, index) => (
+                      {availablePatients.map((record, index) => ( // Changed 'patient' to 'record'
                         <SelectItem
-                          key={patient.id}
-                          value={patient.id.toString()}
+                          key={record.patient?.id} // Access patient.id
+                          value={record.patient?.id.toString()} // Access patient.id
                         >
-                          №{index + 1} - {patient.name} {patient.last_name}
+                          №{index + 1} - {record.patient?.name} {record.patient?.last_name} {/* Access patient.name/last_name */}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -332,7 +370,8 @@ export function PatientConsultation() {
                     <div>
                       <h4 className="font-medium">Shikoyat</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {selectedPatientData.disease}
+                        {/* Assuming disease is available on the selectedPatientData if it was extracted correctly or from original patient record */}
+                        {patientRecords.find(pr => pr.patient?.id === selectedPatientData.id)?.disease || 'Noma\'lum'}
                       </p>
                     </div>
                   </div>
@@ -567,9 +606,9 @@ export function PatientConsultation() {
                 </CardContent>
               </Card>
             ) : (
-              availablePatients.map((patient, index) => (
+              availablePatients.map((record, index) => ( // Changed 'patient' to 'record'
                 <Card
-                  key={patient.id}
+                  key={record.patient?.id} // Access patient.id for key
                   className="hover:shadow-md transition-shadow"
                 >
                   <CardContent className="p-6">
@@ -582,30 +621,30 @@ export function PatientConsultation() {
                         </div>
                         <div className="space-y-1.5">
                           <h3 className="font-semibold">
-                            {patient.name} {patient.last_name}
+                            {record.patient?.name} {record.patient?.last_name} {/* Access patient.name/last_name */}
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            {patient.gender === "e" ? "Erkak" : "Ayol"} •{" "}
+                            {record.patient?.gender === "e" ? "Erkak" : "Ayol"} •{" "}
                             {new Date().getFullYear() -
-                              new Date(patient.birth_date).getFullYear()}{" "}
+                              new Date(record.patient?.birth_date || "").getFullYear()}{" "} {/* Access patient.birth_date */}
                             yosh
                           </p>
                           <p className="text-sm">
                             <span className="text-muted-foreground">
                               Shikoyat:
                             </span>{" "}
-                            {patient.disease}
+                            {record.disease} {/* Access disease directly from record */}
                           </p>
                           <div className="flex flex-wrap gap-2 pt-1">
                             <Badge>
-                              {getStatusLabel(patient.patient_status)}
+                              {getStatusLabel(record.patient?.patient_status)} {/* Access patient.patient_status */}
                             </Badge>
                           </div>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2 self-start md:self-center">
                         <Dialog
-                          open={editingPatientId === patient.id}
+                          open={editingPatientId === record.patient?.id} // Access patient.id
                           onOpenChange={(open: boolean) =>
                             !open && setEditingPatientId(null)
                           }
@@ -614,7 +653,7 @@ export function PatientConsultation() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setEditingPatientId(patient.id)}
+                              onClick={() => setEditingPatientId(record.patient?.id || null)} // Access patient.id
                             >
                               <Edit className="w-4 h-4 mr-2" />
                               Statusni tahrirlash
@@ -643,7 +682,7 @@ export function PatientConsultation() {
                                       }
                                       className="justify-start"
                                       onClick={() =>
-                                        handleEditPatientStatus(patient.id, "d")
+                                        handleEditPatientStatus(record.patient?.id || 0, "d") // Access patient.id
                                       }
                                       disabled={isSubmitting}
                                     >
@@ -658,7 +697,7 @@ export function PatientConsultation() {
                                       }
                                       className="justify-start"
                                       onClick={() =>
-                                        handleEditPatientStatus(patient.id, "t")
+                                        handleEditPatientStatus(record.patient?.id || 0, "t") // Access patient.id
                                       }
                                       disabled={isSubmitting}
                                     >
@@ -673,7 +712,7 @@ export function PatientConsultation() {
                                       }
                                       className="justify-start"
                                       onClick={() =>
-                                        handleEditPatientStatus(patient.id, "f")
+                                        handleEditPatientStatus(record.patient?.id || 0, "f") // Access patient.id
                                       }
                                       disabled={isSubmitting}
                                     >
@@ -688,7 +727,7 @@ export function PatientConsultation() {
                                       }
                                       className="justify-start"
                                       onClick={() =>
-                                        handleEditPatientStatus(patient.id, "l")
+                                        handleEditPatientStatus(record.patient?.id || 0, "l") // Access patient.id
                                       }
                                       disabled={isSubmitting}
                                     >
@@ -701,7 +740,7 @@ export function PatientConsultation() {
                           </DialogContent>
                         </Dialog>
                         <Dialog
-                          open={viewingPatient === patient.id}
+                          open={viewingPatient === record.patient?.id} // Access patient.id
                           onOpenChange={(open: boolean) =>
                             !open && setViewingPatient(null)
                           }
@@ -711,7 +750,7 @@ export function PatientConsultation() {
                               variant="outline"
                               size="sm"
                               onClick={() =>
-                                handleViewPatientHistory(patient.id)
+                                handleViewPatientHistory(record.patient?.id || 0) // Access patient.id
                               }
                             >
                               <History className="w-4 h-4 mr-2" />
@@ -721,7 +760,7 @@ export function PatientConsultation() {
                           <DialogContent className="max-w-2xl">
                             <DialogHeader>
                               <DialogTitle>
-                                Bemor tarixi: {patient.name} {patient.last_name}
+                                Bemor tarixi: {record.patient?.name} {record.patient?.last_name} {/* Access patient.name/last_name */}
                               </DialogTitle>
                               <DialogDescription>
                                 Bemorning o'tgan konsultatsiyalari va
@@ -741,7 +780,7 @@ export function PatientConsultation() {
                                   {detailedPatient.consultations &&
                                   detailedPatient.consultations.length > 0 ? (
                                     detailedPatient.consultations.map(
-                                      (consult) => (
+                                      (consult: any) => ( // Type can be more specific if available
                                         <div
                                           key={consult.id}
                                           className="p-3 border rounded-md"
@@ -790,10 +829,10 @@ export function PatientConsultation() {
                             )}
                           </DialogContent>
                         </Dialog>
-                        {patient.patient_status !== "d" && (
+                        {record.patient?.patient_status !== "d" && ( // Access patient.patient_status
                           <Button
                             size="sm"
-                            onClick={() => handleStartConsultation(patient.id)}
+                            onClick={() => handleStartConsultation(record.patient?.id || 0)} // Access patient.id
                           >
                             <Stethoscope className="w-4 h-4 mr-2" />
                             Qabul boshlash
