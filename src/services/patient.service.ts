@@ -102,7 +102,7 @@ class PatientService {
   async updatePatientStatus(dto: { id: number; patient_status: string }) {
     try {
       const res = await apiInstance.put(
-        `${API_ENDPOINTS.PATIENT.base}/${dto.id}/`,
+        `${API_ENDPOINTS.PATIENT.base}${dto.id}/`,
         dto
       );
       return res.data;

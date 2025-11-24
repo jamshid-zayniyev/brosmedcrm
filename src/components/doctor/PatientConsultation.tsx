@@ -37,7 +37,14 @@ import { useUserStore } from "../../stores/user.store";
 import { consultationService } from "../../services/consultation.service";
 import { CreateConsultationDto } from "../../interfaces/consultation.dto";
 import { diseaseService } from "../../services/disease.service";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
 
 // Assuming a structure for the patient record from the 'diseases' array
 interface PatientRecord {
@@ -77,6 +84,11 @@ export function PatientConsultation() {
   const [patientDiseases, setPatientDiseases] = useState<Disease[]>([]); // New state for disease history
   const [loadingDiseaseHistory, setLoadingDiseaseHistory] = useState(false); // New state for disease history loading
 
+  const [selectedPatient, setSelectedPatient] = useState("");
+  const [viewingPatient, setViewingPatient] = useState<number | null>(null);
+  const [editingPatientId, setEditingPatientId] = useState<number | null>(null);
+  const [detailedPatient, setDetailedPatient] = useState<any | null>(null); // detailedPatient likely fetches a full Patient object
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   const fetchPatients = useCallback(async () => {
     try {
@@ -113,7 +125,9 @@ export function PatientConsultation() {
       setLoadingDiseaseHistory(true);
       try {
         const patientId = parseInt(selectedPatient, 10);
-        const diseasesRes = await diseaseService.findDiseaseForPatient(patientId);
+        const diseasesRes = await diseaseService.findDiseaseForPatient(
+          patientId
+        );
         setPatientDiseases(diseasesRes.results || diseasesRes);
       } catch (err) {
         toast.error("Bemor kasallik tarixini yuklashda xatolik yuz berdi.");
@@ -130,7 +144,10 @@ export function PatientConsultation() {
   const [labResults, setLabResults] = useState<LabResult[]>([]); // This might need review later if patientId changes
 
   // Update function adapted for nested patient object
-  const updatePatient = (id: number, data: Partial<PatientRecord['patient']>) => {
+  const updatePatient = (
+    id: number,
+    data: Partial<PatientRecord["patient"]>
+  ) => {
     setPatientRecords((prev) =>
       prev.map((record) =>
         record.patient?.id === id
@@ -139,12 +156,6 @@ export function PatientConsultation() {
       )
     );
   };
-
-  const [selectedPatient, setSelectedPatient] = useState("");
-  const [viewingPatient, setViewingPatient] = useState<number | null>(null);
-  const [editingPatientId, setEditingPatientId] = useState<number | null>(null);
-  const [detailedPatient, setDetailedPatient] = useState<any | null>(null); // detailedPatient likely fetches a full Patient object
-  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     diagnosis: "",
@@ -297,7 +308,8 @@ export function PatientConsultation() {
     }
   };
 
-  const getStatusLabel = (status: PatientStatus | undefined) => { // status can be undefined now
+  const getStatusLabel = (status: PatientStatus | undefined) => {
+    // status can be undefined now
     const statusLabels = {
       r: "Ro'yxatdan o'tgan",
       l: "Laboratoriyada",
@@ -311,13 +323,17 @@ export function PatientConsultation() {
 
   // Find selected patient record and extract the nested patient object
   const selectedPatientData = selectedPatient
-    ? patientRecords.find((record) => record.patient?.id.toString() === selectedPatient)?.patient
+    ? patientRecords.find(
+        (record) => record.patient?.id.toString() === selectedPatient
+      )?.patient
     : null;
   const viewingPatientData = viewingPatient
-    ? patientRecords.find((record) => record.patient?.id === viewingPatient)?.patient
+    ? patientRecords.find((record) => record.patient?.id === viewingPatient)
+        ?.patient
     : null;
   const editingPatientData = editingPatientId
-    ? patientRecords.find((record) => record.patient?.id === editingPatientId)?.patient
+    ? patientRecords.find((record) => record.patient?.id === editingPatientId)
+        ?.patient
     : null;
 
   return (
@@ -356,14 +372,21 @@ export function PatientConsultation() {
                       <SelectValue placeholder="Bemorni tanlang" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availablePatients.map((record, index) => ( // Changed 'patient' to 'record'
-                        <SelectItem
-                          key={record.patient?.id} // Access patient.id
-                          value={record.patient?.id.toString()} // Access patient.id
-                        >
-                          №{index + 1} - {record.patient?.name} {record.patient?.last_name} {/* Access patient.name/last_name */}
-                        </SelectItem>
-                      ))}
+                      {availablePatients.map(
+                        (
+                          record,
+                          index // Changed 'patient' to 'record'
+                        ) => (
+                          <SelectItem
+                            key={record.patient?.id} // Access patient.id
+                            value={record.patient?.id.toString()} // Access patient.id
+                          >
+                            №{index + 1} - {record.patient?.name}{" "}
+                            {record.patient?.last_name}{" "}
+                            {/* Access patient.name/last_name */}
+                          </SelectItem>
+                        )
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -409,48 +432,11 @@ export function PatientConsultation() {
                       <h4 className="font-medium">Shikoyat</h4>
                       <p className="text-sm text-muted-foreground mt-1">
                         {/* Assuming disease is available on the selectedPatientData if it was extracted correctly or from original patient record */}
-                        {patientRecords.find(pr => pr.patient?.id === selectedPatientData.id)?.disease || 'Noma\'lum'}
+                        {patientRecords.find(
+                          (pr) => pr.patient?.id === selectedPatientData.id
+                        )?.disease || "Noma'lum"}
                       </p>
                     </div>
-
-                    {/* New Disease History Section */}
-                    <Separator />
-                    <h3 className="font-semibold flex items-center gap-2">
-                      <History size={16} /> Kasallik Tarixi
-                    </h3>
-                    {loadingDiseaseHistory ? (
-                      <div className="flex justify-center items-center py-4">
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        <p className="ml-2 text-muted-foreground">Yuklanmoqda...</p>
-                      </div>
-                    ) : patientDiseases.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>ID</TableHead>
-                            <TableHead>Kasallik / Shikoyat</TableHead>
-                            <TableHead>Bo'lim ID</TableHead>
-                            <TableHead>Bo'lim Turi ID</TableHead>
-                            <TableHead>Shifokor ID</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {patientDiseases.map((diseaseItem) => (
-                            <TableRow key={diseaseItem.id}>
-                              <TableCell>{diseaseItem.id}</TableCell>
-                              <TableCell>{diseaseItem.disease}</TableCell>
-                              <TableCell>{diseaseItem.department || "-"}</TableCell>
-                              <TableCell>{diseaseItem.department_types || "-"}</TableCell>
-                              <TableCell>{diseaseItem.user || "-"}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Bemorning kasallik tarixi mavjud emas.
-                      </p>
-                    )}
                   </div>
                 )}
               </CardContent>
@@ -627,34 +613,58 @@ export function PatientConsultation() {
                       </div>
                     </TabsContent>
                   </Tabs>
-                  <div className="grid grid-cols-2 gap-2 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={(e: FormEvent) => handleSubmit(e, "t")}
-                      disabled={!selectedPatient || isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Pill className="w-4 h-4 mr-2" />
-                      )}
-                      Davolash davom etsin
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={!selectedPatient || isSubmitting}
-                    >
-                      {isSubmitting && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      Yakunlash
-                    </Button>
-                  </div>
+                  <Button
+                    type="submit"
+                    disabled={!selectedPatient || isSubmitting}
+                    className="w-full"
+                  >
+                    {isSubmitting && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Yakunlash
+                  </Button>
                 </form>
               </CardContent>
             </Card>
           </div>
+          {/* New Disease History Section */}
+          <Separator />
+          <h3 className="font-semibold flex items-center gap-2">
+            <History size={16} /> Kasallik Tarixi
+          </h3>
+          {loadingDiseaseHistory ? (
+            <div className="flex justify-center items-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <p className="ml-2 text-muted-foreground">Yuklanmoqda...</p>
+            </div>
+          ) : patientDiseases.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Kasallik / Shikoyat</TableHead>
+                  <TableHead>Bo'lim ID</TableHead>
+                  <TableHead>Bo'lim Turi ID</TableHead>
+                  <TableHead>Shifokor ID</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {patientDiseases.map((diseaseItem) => (
+                  <TableRow key={diseaseItem.id}>
+                    <TableCell>{diseaseItem.id}</TableCell>
+                    <TableCell>{diseaseItem.disease}</TableCell>
+                    <TableCell>{diseaseItem.department || "-"}</TableCell>
+                    <TableCell>{diseaseItem.department_types || "-"}</TableCell>
+                    <TableCell>{diseaseItem.user || "-"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Bemorning kasallik tarixi mavjud emas.
+            </p>
+          )}
         </TabsContent>
 
         <TabsContent value="queue" className="space-y-6">
@@ -683,243 +693,286 @@ export function PatientConsultation() {
                 </CardContent>
               </Card>
             ) : (
-              availablePatients.map((record, index) => ( // Changed 'patient' to 'record'
-                <Card
-                  key={record.patient?.id} // Access patient.id for key
-                  className="hover:shadow-md transition-shadow"
-                >
-                  <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-primary text-lg font-bold">
-                            №{index + 1}
-                          </span>
-                        </div>
-                        <div className="space-y-1.5">
-                          <h3 className="font-semibold">
-                            {record.patient?.name} {record.patient?.last_name} {/* Access patient.name/last_name */}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {record.patient?.gender === "e" ? "Erkak" : "Ayol"} •{" "}
-                            {new Date().getFullYear() -
-                              new Date(record.patient?.birth_date || "").getFullYear()}{" "} {/* Access patient.birth_date */}
-                            yosh
-                          </p>
-                          <p className="text-sm">
-                            <span className="text-muted-foreground">
-                              Shikoyat:
-                            </span>{" "}
-                            {record.disease} {/* Access disease directly from record */}
-                          </p>
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <Badge>
-                              {getStatusLabel(record.patient?.patient_status)} {/* Access patient.patient_status */}
-                            </Badge>
+              availablePatients.map(
+                (
+                  record,
+                  index // Changed 'patient' to 'record'
+                ) => (
+                  <Card
+                    key={record.patient?.id} // Access patient.id for key
+                    className="hover:shadow-md transition-shadow"
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary text-lg font-bold">
+                              №{index + 1}
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            <h3 className="font-semibold">
+                              {record.patient?.name} {record.patient?.last_name}{" "}
+                              {/* Access patient.name/last_name */}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {record.patient?.gender === "e"
+                                ? "Erkak"
+                                : "Ayol"}{" "}
+                              •{" "}
+                              {new Date().getFullYear() -
+                                new Date(
+                                  record.patient?.birth_date || ""
+                                ).getFullYear()}{" "}
+                              {/* Access patient.birth_date */}
+                              yosh
+                            </p>
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">
+                                Shikoyat:
+                              </span>{" "}
+                              {record.disease}{" "}
+                              {/* Access disease directly from record */}
+                            </p>
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              <Badge>
+                                {getStatusLabel(record.patient?.patient_status)}{" "}
+                                {/* Access patient.patient_status */}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex flex-col gap-2 self-start md:self-center">
-                        <Dialog
-                          open={editingPatientId === record.patient?.id} // Access patient.id
-                          onOpenChange={(open: boolean) =>
-                            !open && setEditingPatientId(null)
-                          }
-                        >
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingPatientId(record.patient?.id || null)} // Access patient.id
-                            >
-                              <Edit className="w-4 h-4 mr-2" />
-                              Statusni tahrirlash
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-md">
-                            <DialogHeader>
-                              <DialogTitle>
-                                Bemor statusini tahrirlash
-                              </DialogTitle>
-                              <DialogDescription>
-                                Bemor holatini yangilash
-                              </DialogDescription>
-                            </DialogHeader>
-                            {editingPatientData && (
-                              <div className="space-y-4 py-4">
-                                <div className="space-y-2">
-                                  <Label>Yangi statusni tanlang</Label>
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Button
-                                      variant={
-                                        editingPatientData.patient_status ===
-                                        "d"
-                                          ? "default"
-                                          : "outline"
-                                      }
-                                      className="justify-start"
-                                      onClick={() =>
-                                        handleEditPatientStatus(record.patient?.id || 0, "d") // Access patient.id
-                                      }
-                                      disabled={isSubmitting}
-                                    >
-                                      Qabulda
-                                    </Button>
-                                    <Button
-                                      variant={
-                                        editingPatientData.patient_status ===
-                                        "t"
-                                          ? "default"
-                                          : "outline"
-                                      }
-                                      className="justify-start"
-                                      onClick={() =>
-                                        handleEditPatientStatus(record.patient?.id || 0, "t") // Access patient.id
-                                      }
-                                      disabled={isSubmitting}
-                                    >
-                                      Davolanmoqda
-                                    </Button>
-                                    <Button
-                                      variant={
-                                        editingPatientData.patient_status ===
-                                        "f"
-                                          ? "default"
-                                          : "outline"
-                                      }
-                                      className="justify-start"
-                                      onClick={() =>
-                                        handleEditPatientStatus(record.patient?.id || 0, "f") // Access patient.id
-                                      }
-                                      disabled={isSubmitting}
-                                    >
-                                      Yakunlangan
-                                    </Button>
-                                    <Button
-                                      variant={
-                                        editingPatientData.patient_status ===
-                                        "l"
-                                          ? "default"
-                                          : "outline"
-                                      }
-                                      className="justify-start"
-                                      onClick={() =>
-                                        handleEditPatientStatus(record.patient?.id || 0, "l") // Access patient.id
-                                      }
-                                      disabled={isSubmitting}
-                                    >
-                                      Laboratoriyaga qaytarish
-                                    </Button>
+                        <div className="flex flex-col gap-2 self-start md:self-center">
+                          <Dialog
+                            open={editingPatientId === record.patient?.id} // Access patient.id
+                            onOpenChange={(open: boolean) =>
+                              !open && setEditingPatientId(null)
+                            }
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setEditingPatientId(
+                                    record.patient?.id || null
+                                  )
+                                } // Access patient.id
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Statusni tahrirlash
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>
+                                  Bemor statusini tahrirlash
+                                </DialogTitle>
+                                <DialogDescription>
+                                  Bemor holatini yangilash
+                                </DialogDescription>
+                              </DialogHeader>
+                              {editingPatientData && (
+                                <div className="space-y-4 py-4">
+                                  <div className="space-y-2">
+                                    <Label>Yangi statusni tanlang</Label>
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Button
+                                        variant={
+                                          editingPatientData.patient_status ===
+                                          "d"
+                                            ? "default"
+                                            : "outline"
+                                        }
+                                        className="justify-start"
+                                        onClick={
+                                          () =>
+                                            handleEditPatientStatus(
+                                              record.patient?.id || 0,
+                                              "d"
+                                            ) // Access patient.id
+                                        }
+                                        disabled={isSubmitting}
+                                      >
+                                        Qabulda
+                                      </Button>
+                                      <Button
+                                        variant={
+                                          editingPatientData.patient_status ===
+                                          "t"
+                                            ? "default"
+                                            : "outline"
+                                        }
+                                        className="justify-start"
+                                        onClick={
+                                          () =>
+                                            handleEditPatientStatus(
+                                              record.patient?.id || 0,
+                                              "t"
+                                            ) // Access patient.id
+                                        }
+                                        disabled={isSubmitting}
+                                      >
+                                        Davolanmoqda
+                                      </Button>
+                                      <Button
+                                        variant={
+                                          editingPatientData.patient_status ===
+                                          "f"
+                                            ? "default"
+                                            : "outline"
+                                        }
+                                        className="justify-start"
+                                        onClick={
+                                          () =>
+                                            handleEditPatientStatus(
+                                              record.patient?.id || 0,
+                                              "f"
+                                            ) // Access patient.id
+                                        }
+                                        disabled={isSubmitting}
+                                      >
+                                        Yakunlangan
+                                      </Button>
+                                      <Button
+                                        variant={
+                                          editingPatientData.patient_status ===
+                                          "l"
+                                            ? "default"
+                                            : "outline"
+                                        }
+                                        className="justify-start"
+                                        onClick={
+                                          () =>
+                                            handleEditPatientStatus(
+                                              record.patient?.id || 0,
+                                              "l"
+                                            ) // Access patient.id
+                                        }
+                                        disabled={isSubmitting}
+                                      >
+                                        Laboratoriyaga qaytarish
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
-                        <Dialog
-                          open={viewingPatient === record.patient?.id} // Access patient.id
-                          onOpenChange={(open: boolean) =>
-                            !open && setViewingPatient(null)
-                          }
-                        >
-                          <DialogTrigger asChild>
+                              )}
+                            </DialogContent>
+                          </Dialog>
+                          <Dialog
+                            open={viewingPatient === record.patient?.id} // Access patient.id
+                            onOpenChange={(open: boolean) =>
+                              !open && setViewingPatient(null)
+                            }
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={
+                                  () =>
+                                    handleViewPatientHistory(
+                                      record.patient?.id || 0
+                                    ) // Access patient.id
+                                }
+                              >
+                                <History className="w-4 h-4 mr-2" />
+                                Ma'lumotlar
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle>
+                                  Bemor tarixi: {record.patient?.name}{" "}
+                                  {record.patient?.last_name}{" "}
+                                  {/* Access patient.name/last_name */}
+                                </DialogTitle>
+                                <DialogDescription>
+                                  Bemorning o'tgan konsultatsiyalari va
+                                  ma'lumotlari.
+                                </DialogDescription>
+                              </DialogHeader>
+                              {isHistoryLoading ? (
+                                <div className="flex items-center justify-center p-8">
+                                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                </div>
+                              ) : detailedPatient ? (
+                                <div className="py-4 space-y-4">
+                                  <h4 className="font-semibold">
+                                    O'tgan konsultatsiyalar
+                                  </h4>
+                                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-4">
+                                    {detailedPatient.consultations &&
+                                    detailedPatient.consultations.length > 0 ? (
+                                      detailedPatient.consultations.map(
+                                        (
+                                          consult: any // Type can be more specific if available
+                                        ) => (
+                                          <div
+                                            key={consult.id}
+                                            className="p-3 border rounded-md"
+                                          >
+                                            <p className="font-semibold text-sm">
+                                              Sana:{" "}
+                                              {consult.created_at
+                                                ? new Date(
+                                                    consult.created_at
+                                                  ).toLocaleString()
+                                                : "Noma'lum"}
+                                            </p>
+                                            <p className="text-sm mt-1">
+                                              <span className="font-medium">
+                                                Diagnoz:
+                                              </span>{" "}
+                                              {consult.diagnosis}
+                                            </p>
+                                            <p className="text-sm mt-1">
+                                              <span className="font-medium">
+                                                Tavsiyalar:
+                                              </span>{" "}
+                                              {consult.recommendation}
+                                            </p>
+                                            <p className="text-sm mt-1">
+                                              <span className="font-medium">
+                                                Retsept:
+                                              </span>{" "}
+                                              {consult.recipe}
+                                            </p>
+                                          </div>
+                                        )
+                                      )
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground">
+                                        Bu bemor uchun o'tgan konsultatsiyalar
+                                        topilmadi.
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-center text-muted-foreground p-8">
+                                  Ma'lumotlar topilmadi.
+                                </p>
+                              )}
+                            </DialogContent>
+                          </Dialog>
+                          {record.patient?.patient_status !== "d" && ( // Access patient.patient_status
                             <Button
-                              variant="outline"
                               size="sm"
                               onClick={() =>
-                                handleViewPatientHistory(record.patient?.id || 0) // Access patient.id
-                              }
+                                handleStartConsultation(record.patient?.id || 0)
+                              } // Access patient.id
                             >
-                              <History className="w-4 h-4 mr-2" />
-                              Ma'lumotlar
+                              <Stethoscope className="w-4 h-4 mr-2" />
+                              Qabul boshlash
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>
-                                Bemor tarixi: {record.patient?.name} {record.patient?.last_name} {/* Access patient.name/last_name */}
-                              </DialogTitle>
-                              <DialogDescription>
-                                Bemorning o'tgan konsultatsiyalari va
-                                ma'lumotlari.
-                              </DialogDescription>
-                            </DialogHeader>
-                            {isHistoryLoading ? (
-                              <div className="flex items-center justify-center p-8">
-                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                              </div>
-                            ) : detailedPatient ? (
-                              <div className="py-4 space-y-4">
-                                <h4 className="font-semibold">
-                                  O'tgan konsultatsiyalar
-                                </h4>
-                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-4">
-                                  {detailedPatient.consultations &&
-                                  detailedPatient.consultations.length > 0 ? (
-                                    detailedPatient.consultations.map(
-                                      (consult: any) => ( // Type can be more specific if available
-                                        <div
-                                          key={consult.id}
-                                          className="p-3 border rounded-md"
-                                        >
-                                          <p className="font-semibold text-sm">
-                                            Sana:{" "}
-                                            {consult.created_at
-                                              ? new Date(
-                                                  consult.created_at
-                                                ).toLocaleString()
-                                              : "Noma'lum"}
-                                          </p>
-                                          <p className="text-sm mt-1">
-                                            <span className="font-medium">
-                                              Diagnoz:
-                                            </span>{" "}
-                                            {consult.diagnosis}
-                                          </p>
-                                          <p className="text-sm mt-1">
-                                            <span className="font-medium">
-                                              Tavsiyalar:
-                                            </span>{" "}
-                                            {consult.recommendation}
-                                          </p>
-                                          <p className="text-sm mt-1">
-                                            <span className="font-medium">
-                                              Retsept:
-                                            </span>{" "}
-                                            {consult.recipe}
-                                          </p>
-                                        </div>
-                                      )
-                                    )
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground">
-                                      Bu bemor uchun o'tgan konsultatsiyalar
-                                      topilmadi.
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <p className="text-sm text-center text-muted-foreground p-8">
-                                Ma'lumotlar topilmadi.
-                              </p>
-                            )}
-                          </DialogContent>
-                        </Dialog>
-                        {record.patient?.patient_status !== "d" && ( // Access patient.patient_status
-                          <Button
-                            size="sm"
-                            onClick={() => handleStartConsultation(record.patient?.id || 0)} // Access patient.id
-                          >
-                            <Stethoscope className="w-4 h-4 mr-2" />
-                            Qabul boshlash
-                          </Button>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardContent>
+                  </Card>
+                )
+              )
             )}
           </div>
         </TabsContent>
