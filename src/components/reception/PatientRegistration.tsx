@@ -405,261 +405,278 @@ export function PatientRegistration() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Personal Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">Ism *</Label>
-                <Input
-                  id="firstName"
-                  value={formData.firstName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, firstName: e.target.value })
-                  }
-                  required
-                  disabled={!!selectedPatient}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Familiya *</Label>
-                <Input
-                  id="lastName"
-                  value={formData.lastName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, lastName: e.target.value })
-                  }
-                  required
-                  disabled={!!selectedPatient}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Jinsi *</Label>
-              <RadioGroup
-                value={formData.gender}
-                onValueChange={(value: "e" | "a") =>
-                  setFormData({ ...formData, gender: value })
-                }
-                disabled={!!selectedPatient}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="e" id="e" />
-                  <Label htmlFor="e">Erkak</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="a" id="a" />
-                  <Label htmlFor="a">Ayol</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="birthDate">Tug'ilgan sana *</Label>
-                <Input
-                  id="birthDate"
-                  type="date"
-                  value={formData.birthDate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, birthDate: e.target.value })
-                  }
-                  required
-                  disabled={!!selectedPatient}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Telefon raqami *</Label>
-                <div className="flex h-9 w-full items-center rounded-md border border-input bg-transparent text-sm shadow-sm">
-                  <span className="px-3 text-muted-foreground">+998</span>
+            <fieldset disabled={isSubmitting} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Ism *</Label>
                   <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="901234567"
-                    value={formData.phone}
+                    id="firstName"
+                    value={formData.firstName}
                     onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
+                      setFormData({ ...formData, firstName: e.target.value })
                     }
                     required
                     disabled={!!selectedPatient}
-                    maxLength={9}
-                    className="h-auto flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Familiya *</Label>
+                  <Input
+                    id="lastName"
+                    value={formData.lastName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, lastName: e.target.value })
+                    }
+                    required
+                    disabled={!!selectedPatient}
                   />
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="address">Manzil *</Label>
-              <Textarea
-                id="address"
-                value={formData.address}
-                onChange={(e) =>
-                  setFormData({ ...formData, address: e.target.value })
-                }
-                required
-                disabled={!!selectedPatient}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>Jinsi *</Label>
+                <RadioGroup
+                  value={formData.gender}
+                  onValueChange={(value: "e" | "a") =>
+                    setFormData({ ...formData, gender: value })
+                  }
+                  disabled={!!selectedPatient}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="e" id="e" />
+                    <Label htmlFor="e">Erkak</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="a" id="a" />
+                    <Label htmlFor="a">Ayol</Label>
+                  </div>
+                </RadioGroup>
+              </div>
 
-            {/* Medical Information */}
-            <div className="border-t pt-6">
-              <h3 className="mb-4">Tibbiy ma'lumotlar</h3>
-
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="diseaseType">
-                    Kasallik turi / Shikoyat *
-                  </Label>
-                  <Textarea
-                    id="diseaseType"
-                    value={formData.diseaseType}
+                  <Label htmlFor="birthDate">Tug'ilgan sana *</Label>
+                  <Input
+                    id="birthDate"
+                    type="date"
+                    value={formData.birthDate}
                     onChange={(e) =>
-                      setFormData({ ...formData, diseaseType: e.target.value })
+                      setFormData({ ...formData, birthDate: e.target.value })
                     }
                     required
+                    disabled={!!selectedPatient}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefon raqami *</Label>
+                  <div className="flex h-9 w-full items-center rounded-md border border-input bg-transparent text-sm shadow-sm">
+                    <span className="px-3 text-muted-foreground">+998</span>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="901234567"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      required
+                      disabled={!!selectedPatient}
+                      maxLength={9}
+                      className="h-auto flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address">Manzil *</Label>
+                <Textarea
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                  required
+                  disabled={!!selectedPatient}
+                />
+              </div>
+
+              {/* Medical Information */}
+              <div className="border-t pt-6">
+                <h3 className="mb-4">Tibbiy ma'lumotlar</h3>
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="department">Bo'lim *</Label>
-                    <Select
-                      value={
-                        formData.departmentId === 0
-                          ? ""
-                          : formData.departmentId.toString()
+                    <Label htmlFor="diseaseType">
+                      Kasallik turi / Shikoyat *
+                    </Label>
+                    <Textarea
+                      id="diseaseType"
+                      value={formData.diseaseType}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          diseaseType: e.target.value,
+                        })
                       }
-                      onValueChange={handleDepartmentChange}
                       required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Bo'limni tanlang" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.id.toString()}>
-                            {dept.title_uz}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   </div>
 
-                  {mode === "types" && (
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="departmentType">Bo'lim turi *</Label>
+                      <Label htmlFor="department">Bo'lim *</Label>
                       <Select
                         value={
-                          formData.departmentTypeId === 0
+                          formData.departmentId === 0
                             ? ""
-                            : formData.departmentTypeId.toString()
+                            : formData.departmentId.toString()
                         }
-                        onValueChange={handleDepartmentTypeChange}
+                        onValueChange={handleDepartmentChange}
                         required
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Bo'lim turini tanlang" />
+                          <SelectValue placeholder="Bo'limni tanlang" />
                         </SelectTrigger>
                         <SelectContent>
-                          {filteredDepartmentTypes.map((type) => (
+                          {departments.map((dept) => (
                             <SelectItem
-                              key={type.id}
-                              value={type.id.toString()}
+                              key={dept.id}
+                              value={dept.id.toString()}
                             >
-                              {type.title_uz} -{" "}
-                              {Number(type.price).toLocaleString()} so'm
+                              {dept.title_uz}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      {formData.departmentTypeId && (
-                        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                          <p className="text-sm">
-                            <span className="text-muted-foreground">
-                              Tanlangan bo'lim turi:
-                            </span>{" "}
-                            <span className="font-medium">
-                              {
-                                filteredDepartmentTypes.find(
-                                  (t) => t.id === formData.departmentTypeId
-                                )?.title_uz
-                              }
-                            </span>
-                          </p>
-                          <p className="text-sm">
-                            <span className="text-muted-foreground">Narx:</span>{" "}
-                            <span className="font-medium">
-                              {filteredDepartmentTypes
-                                .find((t) => t.id === formData.departmentTypeId)
-                                ?.price.toLocaleString()}{" "}
-                              so'm
-                            </span>
-                          </p>
-                        </div>
-                      )}
                     </div>
-                  )}
 
-                  {mode === "doctors" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="doctor">Shifokor *</Label>
-                      <Select
-                        value={
-                          formData.doctorId === 0
-                            ? ""
-                            : formData.doctorId.toString()
-                        }
-                        onValueChange={handleDoctorChange}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Shifokorni tanlang" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {doctors.map((doctor) => (
-                            <SelectItem
-                              key={doctor.id}
-                              value={doctor.id.toString()}
-                            >
-                              {doctor.full_name} - {doctor.price} so'm
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {formData.doctorId && (
-                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                          <p className="text-sm">
-                            <span className="text-muted-foreground">
-                              Tanlangan shifokor:
-                            </span>{" "}
-                            <span className="font-medium">
-                              {
-                                doctors.find((d) => d.id === formData.doctorId)
-                                  ?.full_name
-                              }
-                            </span>
-                          </p>
-                          <p className="text-sm">
-                            <span className="text-muted-foreground">
-                              Ko'rik narxi:
-                            </span>{" "}
-                            <span className="font-medium">
-                              {
-                                doctors.find((d) => d.id === formData.doctorId)
-                                  ?.price
-                              }{" "}
-                              so'm
-                            </span>
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    {mode === "types" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="departmentType">Bo'lim turi *</Label>
+                        <Select
+                          value={
+                            formData.departmentTypeId === 0
+                              ? ""
+                              : formData.departmentTypeId.toString()
+                          }
+                          onValueChange={handleDepartmentTypeChange}
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Bo'lim turini tanlang" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredDepartmentTypes.map((type) => (
+                              <SelectItem
+                                key={type.id}
+                                value={type.id.toString()}
+                              >
+                                {type.title_uz} -{" "}
+                                {Number(type.price).toLocaleString()} so'm
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {formData.departmentTypeId && (
+                          <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">
+                                Tanlangan bo'lim turi:
+                              </span>{" "}
+                              <span className="font-medium">
+                                {
+                                  filteredDepartmentTypes.find(
+                                    (t) => t.id === formData.departmentTypeId
+                                  )?.title_uz
+                                }
+                              </span>
+                            </p>
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">
+                                Narx:
+                              </span>{" "}
+                              <span className="font-medium">
+                                {filteredDepartmentTypes
+                                  .find(
+                                    (t) => t.id === formData.departmentTypeId
+                                  )
+                                  ?.price.toLocaleString()}{" "}
+                                so'm
+                              </span>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {mode === "doctors" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="doctor">Shifokor *</Label>
+                        <Select
+                          value={
+                            formData.doctorId === 0
+                              ? ""
+                              : formData.doctorId.toString()
+                          }
+                          onValueChange={handleDoctorChange}
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Shifokorni tanlang" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {doctors.map((doctor) => (
+                              <SelectItem
+                                key={doctor.id}
+                                value={doctor.id.toString()}
+                              >
+                                {doctor.full_name} - {doctor.price} so'm
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {formData.doctorId && (
+                          <div className="mt-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">
+                                Tanlangan shifokor:
+                              </span>{" "}
+                              <span className="font-medium">
+                                {
+                                  doctors.find(
+                                    (d) => d.id === formData.doctorId
+                                  )?.full_name
+                                }
+                              </span>
+                            </p>
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">
+                                Ko'rik narxi:
+                              </span>{" "}
+                              <span className="font-medium">
+                                {
+                                  doctors.find(
+                                    (d) => d.id === formData.doctorId
+                                  )?.price
+                                }{" "}
+                                so'm
+                              </span>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <Button type="submit" className="w-full">
-              <UserPlus className="w-4 h-4 mr-2" />
+            </fieldset>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <UserPlus className="w-4 h-4 mr-2" />
+              )}
               Ro'yxatga olish va check chiqarish
             </Button>
           </form>
