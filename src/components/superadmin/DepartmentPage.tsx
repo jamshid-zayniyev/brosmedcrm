@@ -1,17 +1,12 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { departmentService } from "@/services/department.service";
+import { departmentService } from "../../services/department.service";
 import {
   Table,
   TableBody,
@@ -19,7 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "../ui/table";
 import { Skeleton } from "../ui/skeleton";
 
 interface Department {
@@ -209,7 +204,12 @@ export function DepartmentPage() {
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={handleModalClose}>
-        <DialogContent>
+        <DialogContent
+          style={{
+            maxWidth: "600px",
+            width: "100%",
+          }}
+        >
           <DialogHeader>
             <DialogTitle>
               {editingDepartment
