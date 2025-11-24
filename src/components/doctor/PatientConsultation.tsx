@@ -36,6 +36,8 @@ import { patientService } from "../../services/patient.service";
 import { useUserStore } from "../../stores/user.store";
 import { consultationService } from "../../services/consultation.service";
 import { CreateConsultationDto } from "../../interfaces/consultation.dto";
+import { diseaseService } from "../../services/disease.service";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 
 // Assuming a structure for the patient record from the 'diseases' array
 interface PatientRecord {
@@ -55,6 +57,16 @@ interface PatientRecord {
   // ... other fields from the disease record
 }
 
+// Added interface for Disease from patient-analysis.tsx
+interface Disease {
+  id: number;
+  disease: string;
+  patient: number;
+  department: number;
+  department_types: number;
+  user: number;
+}
+
 export function PatientConsultation() {
   const { user } = useUserStore();
 
@@ -62,6 +74,9 @@ export function PatientConsultation() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [patientDiseases, setPatientDiseases] = useState<Disease[]>([]); // New state for disease history
+  const [loadingDiseaseHistory, setLoadingDiseaseHistory] = useState(false); // New state for disease history loading
+
 
   const fetchPatients = useCallback(async () => {
     try {
@@ -88,6 +103,29 @@ export function PatientConsultation() {
   useEffect(() => {
     fetchPatients();
   }, [fetchPatients]);
+
+  useEffect(() => {
+    const fetchDiseaseHistory = async () => {
+      if (!selectedPatient) {
+        setPatientDiseases([]);
+        return;
+      }
+      setLoadingDiseaseHistory(true);
+      try {
+        const patientId = parseInt(selectedPatient, 10);
+        const diseasesRes = await diseaseService.findDiseaseForPatient(patientId);
+        setPatientDiseases(diseasesRes.results || diseasesRes);
+      } catch (err) {
+        toast.error("Bemor kasallik tarixini yuklashda xatolik yuz berdi.");
+        console.error(err);
+        setPatientDiseases([]);
+      } finally {
+        setLoadingDiseaseHistory(false);
+      }
+    };
+
+    fetchDiseaseHistory();
+  }, [selectedPatient]);
 
   const [labResults, setLabResults] = useState<LabResult[]>([]); // This might need review later if patientId changes
 
@@ -374,6 +412,45 @@ export function PatientConsultation() {
                         {patientRecords.find(pr => pr.patient?.id === selectedPatientData.id)?.disease || 'Noma\'lum'}
                       </p>
                     </div>
+
+                    {/* New Disease History Section */}
+                    <Separator />
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <History size={16} /> Kasallik Tarixi
+                    </h3>
+                    {loadingDiseaseHistory ? (
+                      <div className="flex justify-center items-center py-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <p className="ml-2 text-muted-foreground">Yuklanmoqda...</p>
+                      </div>
+                    ) : patientDiseases.length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>ID</TableHead>
+                            <TableHead>Kasallik / Shikoyat</TableHead>
+                            <TableHead>Bo'lim ID</TableHead>
+                            <TableHead>Bo'lim Turi ID</TableHead>
+                            <TableHead>Shifokor ID</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {patientDiseases.map((diseaseItem) => (
+                            <TableRow key={diseaseItem.id}>
+                              <TableCell>{diseaseItem.id}</TableCell>
+                              <TableCell>{diseaseItem.disease}</TableCell>
+                              <TableCell>{diseaseItem.department || "-"}</TableCell>
+                              <TableCell>{diseaseItem.department_types || "-"}</TableCell>
+                              <TableCell>{diseaseItem.user || "-"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Bemorning kasallik tarixi mavjud emas.
+                      </p>
+                    )}
                   </div>
                 )}
               </CardContent>

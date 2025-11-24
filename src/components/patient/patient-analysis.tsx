@@ -46,12 +46,12 @@ import { labService } from "../../services/lab.service";
 import { patientService } from "../../services/patient.service";
 import { analysisResultService } from "../../services/analysis-result.service";
 import { Analysis } from "../../interfaces/analysis.interface";
+import { diseaseService } from "../../services/disease.service";
 
 // This EditAnalysisDialog component is directly copied from the old TestResults.tsx
 // It's a sub-component used within PatientAnalysis.
 function EditAnalysisDialog({
   analysis,
-  onClose,
   onSave,
   onStatusUpdate,
 }: {
@@ -231,12 +231,22 @@ function EditAnalysisDialog({
   );
 }
 
+interface Disease {
+  id: number;
+  disease: string;
+  patient: number;
+  department: number;
+  department_types: number;
+  user: number;
+}
+
 export default function PatientAnalysis() {
   const { id } = useParams<{ id: string }>();
   const patientId = Number(id);
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
+  const [diseases, setDiseases] = useState<Disease[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
 
   // State for the on-demand analysis view
@@ -257,10 +267,14 @@ export default function PatientAnalysis() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const patientRes = await patientService.findById(patientId);
-        const analysesRes = await patientService.findPatientAnalysis(patientId);
+        const [patientRes, analysesRes, diseasesRes] = await Promise.all([
+          patientService.findById(patientId),
+          patientService.findPatientAnalysis(patientId),
+          diseaseService.findDiseaseForPatient(patientId),
+        ]);
         setPatient(patientRes);
         setAnalyses(analysesRes);
+        setDiseases(diseasesRes.results || diseasesRes);
       } catch (error) {
         console.error("Ma'lumotlarni yuklashda xatolik:", error);
         toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
@@ -707,6 +721,46 @@ export default function PatientAnalysis() {
           </div>
         )}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Kasallik Tarixi</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Kasallik / Shikoyat</TableHead>
+                <TableHead>Bo'lim ID</TableHead>
+                <TableHead>Bo'lim Turi ID</TableHead>
+                <TableHead>Shifokor ID</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {diseases.length > 0 ? (
+                diseases.map((diseaseItem) => (
+                  <TableRow key={diseaseItem.id}>
+                    <TableCell>{diseaseItem.id}</TableCell>
+                    <TableCell>{diseaseItem.disease}</TableCell>
+                    <TableCell>{diseaseItem.department || "-"}</TableCell>
+                    <TableCell>
+                      {diseaseItem.department_types || "-"}
+                    </TableCell>
+                    <TableCell>{diseaseItem.user || "-"}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    Kasallik tarixi mavjud emas.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
