@@ -355,8 +355,22 @@ export function PatientConsultation() {
 
       <Tabs defaultValue="queue">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="queue">Navbatdagi bemorlar</TabsTrigger>
-          <TabsTrigger value="consultation">Yangi konsultatsiya</TabsTrigger>
+          <TabsTrigger
+            style={{
+              height: "120px",
+            }}
+            value="queue"
+          >
+            Navbatdagi bemorlar
+          </TabsTrigger>
+          <TabsTrigger
+            style={{
+              height: "120px",
+            }}
+            value="consultation"
+          >
+            Yangi konsultatsiya
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="consultation" className="space-y-6">
