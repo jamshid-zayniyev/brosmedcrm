@@ -69,9 +69,15 @@ interface Disease {
   id: number;
   disease: string;
   patient: number;
-  department: number;
-  department_types: number;
-  user: number;
+  department: {
+    title?: string;
+  };
+  department_types?: {
+    title?: string;
+  };
+  user?: {
+    full_name: string;
+  };
 }
 
 export function PatientConsultation() {
@@ -349,8 +355,22 @@ export function PatientConsultation() {
 
       <Tabs defaultValue="queue">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="queue">Navbatdagi bemorlar</TabsTrigger>
-          <TabsTrigger value="consultation">Yangi konsultatsiya</TabsTrigger>
+          <TabsTrigger
+            style={{
+              height: "120px",
+            }}
+            value="queue"
+          >
+            Navbatdagi bemorlar
+          </TabsTrigger>
+          <TabsTrigger
+            style={{
+              height: "120px",
+            }}
+            value="consultation"
+          >
+            Yangi konsultatsiya
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="consultation" className="space-y-6">
@@ -653,9 +673,13 @@ export function PatientConsultation() {
                   <TableRow key={diseaseItem.id}>
                     <TableCell>{diseaseItem.id}</TableCell>
                     <TableCell>{diseaseItem.disease}</TableCell>
-                    <TableCell>{diseaseItem.department || "-"}</TableCell>
-                    <TableCell>{diseaseItem.department_types || "-"}</TableCell>
-                    <TableCell>{diseaseItem.user || "-"}</TableCell>
+                    <TableCell>
+                      {diseaseItem.department?.title || "-"}
+                    </TableCell>
+                    <TableCell>
+                      {diseaseItem?.department_types?.title || "-"}
+                    </TableCell>
+                    <TableCell>{diseaseItem.user?.full_name || "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

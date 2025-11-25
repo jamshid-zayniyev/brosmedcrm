@@ -235,9 +235,15 @@ interface Disease {
   id: number;
   disease: string;
   patient: number;
-  department: number;
-  department_types: number;
-  user: number;
+  department: {
+    title?: string;
+  };
+  department_types?: {
+    title?: string;
+  };
+  user?: {
+    full_name: string;
+  };
 }
 
 export default function PatientAnalysis() {
@@ -259,9 +265,8 @@ export default function PatientAnalysis() {
   const [isDialogLoading, setIsDialogLoading] = useState(false);
 
   // State for the on-demand analysis edit
-  const [editingAnalysis, setEditingAnalysis] = useState<Partial<Analysis> | null>(
-    null
-  );
+  const [editingAnalysis, setEditingAnalysis] =
+    useState<Partial<Analysis> | null>(null);
   const [isEditLoading, setIsEditLoading] = useState(false);
 
   useEffect(() => {
@@ -371,7 +376,7 @@ export default function PatientAnalysis() {
     const statusConfig: Record<string, { label: string; className: string }> = {
       n: {
         label: "Yangi",
-        className: "bg-blue-50 text-blue-700 border border-blue-200",
+        className: "",
       },
       ip: {
         label: "Jarayonda",
@@ -475,7 +480,7 @@ export default function PatientAnalysis() {
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 mb-4">
         {analyses.length > 0 ? (
           analyses.map((analysisItem) => (
             <Card key={analysisItem.id} className="border rounded-lg p-4">
@@ -743,11 +748,11 @@ export default function PatientAnalysis() {
                   <TableRow key={diseaseItem.id}>
                     <TableCell>{diseaseItem.id}</TableCell>
                     <TableCell>{diseaseItem.disease}</TableCell>
-                    <TableCell>{diseaseItem.department || "-"}</TableCell>
+                    <TableCell>{diseaseItem?.department?.title || "-"}</TableCell>
                     <TableCell>
-                      {diseaseItem.department_types || "-"}
+                      {diseaseItem?.department_types?.title || "-"}
                     </TableCell>
-                    <TableCell>{diseaseItem.user || "-"}</TableCell>
+                    <TableCell>{diseaseItem.user?.full_name || "-"}</TableCell>
                   </TableRow>
                 ))
               ) : (
