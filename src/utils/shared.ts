@@ -57,4 +57,4 @@ export const API_ENDPOINTS = {
 };
 
 export const serverUrl =
-  import.meta.env.VITE_API_URL || "https://brosmed.pythonanywhere.com";
+  import.meta.env.VITE_API_URL || "https://api.brosmed.uz";

@@ -47,6 +47,7 @@ import { patientService } from "../../services/patient.service";
 import { analysisResultService } from "../../services/analysis-result.service";
 import { Analysis } from "../../interfaces/analysis.interface";
 import { diseaseService } from "../../services/disease.service";
+import { formattedDate } from "../../utils/formatted-date";
 
 // This EditAnalysisDialog component is directly copied from the old TestResults.tsx
 // It's a sub-component used within PatientAnalysis.
@@ -384,7 +385,7 @@ export default function PatientAnalysis() {
       },
       f: {
         label: "Yakunlangan",
-        className: "bg-green-50 text-green-700 border border-green-200",
+        className: "",
       },
       r: {
         label: "Ro'yxatdan o'tgan",
@@ -489,13 +490,24 @@ export default function PatientAnalysis() {
                   <p className="font-semibold text-gray-900 text-base">
                     {analysisItem.department_types?.title}
                   </p>
-                  <Badge
-                    className={`${
-                      getStatusBadge(analysisItem.status).className
-                    } mt-2`}
-                  >
-                    {getStatusBadge(analysisItem.status).label}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      className={`${
+                        getStatusBadge(analysisItem.status).className
+                      }`}
+                    >
+                      {getStatusBadge(analysisItem.status).label}
+                    </Badge>
+                    <p
+                      className="border px-2 py-1 rounded-md"
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {formattedDate(analysisItem.created_at)}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Dialog
@@ -748,7 +760,9 @@ export default function PatientAnalysis() {
                   <TableRow key={diseaseItem.id}>
                     <TableCell>{diseaseItem.id}</TableCell>
                     <TableCell>{diseaseItem.disease}</TableCell>
-                    <TableCell>{diseaseItem?.department?.title || "-"}</TableCell>
+                    <TableCell>
+                      {diseaseItem?.department?.title || "-"}
+                    </TableCell>
                     <TableCell>
                       {diseaseItem?.department_types?.title || "-"}
                     </TableCell>

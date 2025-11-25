@@ -13,4 +13,5 @@ export interface Analysis {
     id: number;
     file: string;
   }[];
+  created_at: string;
 }
