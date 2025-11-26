@@ -317,8 +317,7 @@ export function TestResults() {
                             key={patient.id}
                             value={patient.id.toString()}
                           >
-                            {patient.name} {patient.last_name} —{" "}
-                            {patient.disease}
+                            {patient.name} {patient.last_name}
                           </SelectItem>
                         ))}
                       </SelectContent>

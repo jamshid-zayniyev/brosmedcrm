@@ -25,6 +25,7 @@ import { patientService } from "../../services/patient.service";
 import { departmentService } from "../../services/department.service";
 import { departmentTypeService } from "../../services/department-type.service";
 import { diseaseService } from "../../services/disease.service"; // Import diseaseService
+import { useUserStore } from "../../stores/user.store";
 
 interface Patient {
   id: number;
@@ -85,6 +86,7 @@ export function PatientRegistration() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
+  const { user } = useUserStore();
 
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -123,7 +125,7 @@ export function PatientRegistration() {
     phone: "",
     address: "",
     diseaseType: "",
-    departmentId: 0,
+    departmentId: user?.department,
     departmentTypeId: 0,
     doctorId: 0,
   });
@@ -173,38 +175,43 @@ export function PatientRegistration() {
     toast.success(`${patient.name} ${patient.last_name} tanlandi.`);
   };
 
-  const handleDepartmentChange = async (value: string) => {
-    const departmentId = parseInt(value, 10);
-    const department = departments.find((d) => d.id === departmentId);
+  useEffect(() => {
+    const setupDepartmentData = async () => {
+      if (user?.department && departments.length > 0) {
+        const department = departments.find((d) => d.id === user.department);
+        if (!department) return;
 
-    setFormData({
-      ...formData,
-      departmentId: departmentId,
-      departmentTypeId: 0,
-      doctorId: 0,
-    });
-    setDoctors([]);
-    setMode(null);
+        setFormData((fd) => ({ ...fd, departmentId: user.department }));
 
-    if (!department) return;
-
-    if (department.department_types && department.department_types.length > 0) {
-      setMode("types");
-    } else {
-      setMode("doctors");
-      setIsLoadingDoctors(true);
-      try {
-        const doctorsData = await departmentService.findDoctorsByDepartment(
-          departmentId
-        );
-        setDoctors(doctorsData.results || doctorsData || []);
-      } catch (error) {
-        toast.error("Shifokorlarni yuklashda xatolik");
-      } finally {
-        setIsLoadingDoctors(false);
+        if (
+          department.department_types &&
+          department.department_types.length > 0
+        ) {
+          setMode("types");
+        } else {
+          setMode("doctors");
+          setIsLoadingDoctors(true);
+          try {
+            if (!user?.department) {
+              toast.error("Error", {
+                description: "Tizimga Labarant sifatida qayta kiring!",
+              });
+              return;
+            }
+            const doctorsData = await departmentService.findDoctorsByDepartment(
+              user?.department
+            );
+            setDoctors(doctorsData.results || doctorsData || []);
+          } catch (error) {
+            toast.error("Shifokorlarni yuklashda xatolik");
+          } finally {
+            setIsLoadingDoctors(false);
+          }
+        }
       }
-    }
-  };
+    };
+    setupDepartmentData();
+  }, [user, departments]);
 
   const handleDepartmentTypeChange = (value: string) => {
     setFormData({
@@ -231,7 +238,12 @@ export function PatientRegistration() {
       if (selectedPatient) {
         patientId = selectedPatient.id;
       } else {
-        // Create a new patient if none is selected
+        if (!user?.department) {
+          toast.error("Error", {
+            description: "Tizimga Labarant sifatida qayta kiring!",
+          });
+          return;
+        }
         const newPatientDto = {
           name: formData.firstName,
           last_name: formData.lastName,
@@ -243,7 +255,7 @@ export function PatientRegistration() {
           disease: formData.diseaseType,
           disease_uz: formData.diseaseType,
           disease_ru: formData.diseaseType,
-          department: formData.departmentId,
+          department: user?.department,
           department_types: formData.departmentTypeId || undefined,
           user: formData.doctorId || undefined,
         };
@@ -256,7 +268,7 @@ export function PatientRegistration() {
       const diseaseDto = {
         disease: formData.diseaseType,
         patient: patientId,
-        department: formData.departmentId,
+        department: user?.department ?? 1,
         department_types: formData.departmentTypeId || undefined,
         user: formData.doctorId || undefined,
       };
@@ -282,7 +294,7 @@ export function PatientRegistration() {
       setReceiptData({
         firstName: selectedPatient?.name || formData.firstName,
         lastName: selectedPatient?.last_name || formData.lastName,
-        department: department?.title_uz || "",
+        department: department?.title || "",
         doctorName: doctor?.full_name,
         queueNumber: newDiseaseData.queue_number, // Assuming disease create returns queue_number
         registrationDate: new Date().toISOString(),
@@ -301,7 +313,7 @@ export function PatientRegistration() {
         phone: "",
         address: "",
         diseaseType: "",
-        departmentId: 0,
+        departmentId: user?.department,
         departmentTypeId: 0,
         doctorId: 0,
       });
@@ -322,6 +334,10 @@ export function PatientRegistration() {
   const filteredDepartmentTypes = departmentTypes.filter(
     (type) => type.department === formData.departmentId
   );
+
+  const userDepartmentName =
+    departments.find((d) => d.id === user?.department)?.title ||
+    "Yuklanmoqda...";
 
   return (
     <div className="space-y-6">
@@ -508,7 +524,7 @@ export function PatientRegistration() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="diseaseType">
-                      Kasallik turi / Shikoyat *
+                      Kasallik turi / Shikoyat
                     </Label>
                     <Textarea
                       id="diseaseType"
@@ -519,36 +535,13 @@ export function PatientRegistration() {
                           diseaseType: e.target.value,
                         })
                       }
-                      required
                     />
                   </div>
 
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="department">Bo'lim *</Label>
-                      <Select
-                        value={
-                          formData.departmentId === 0
-                            ? ""
-                            : formData.departmentId.toString()
-                        }
-                        onValueChange={handleDepartmentChange}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Bo'limni tanlang" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {departments.map((dept) => (
-                            <SelectItem
-                              key={dept.id}
-                              value={dept.id.toString()}
-                            >
-                              {dept.title_uz}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Input readOnly value={userDepartmentName} />
                     </div>
 
                     {mode === "types" && (
@@ -572,8 +565,7 @@ export function PatientRegistration() {
                                 key={type.id}
                                 value={type.id.toString()}
                               >
-                                {type.title_uz} -{" "}
-                                {Number(type.price).toLocaleString()} so'm
+                                {type.title}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -588,21 +580,8 @@ export function PatientRegistration() {
                                 {
                                   filteredDepartmentTypes.find(
                                     (t) => t.id === formData.departmentTypeId
-                                  )?.title_uz
+                                  )?.title
                                 }
-                              </span>
-                            </p>
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">
-                                Narx:
-                              </span>{" "}
-                              <span className="font-medium">
-                                {filteredDepartmentTypes
-                                  .find(
-                                    (t) => t.id === formData.departmentTypeId
-                                  )
-                                  ?.price.toLocaleString()}{" "}
-                                so'm
                               </span>
                             </p>
                           </div>

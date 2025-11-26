@@ -528,11 +528,16 @@ export default function PatientAnalysis() {
                         <Eye className="w-4 h-4 text-blue-600" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="w-full h-full overflow-y-auto">
-                      {/* Background decoration */}
-                      <div className="absolute inset-0 from-blue-50/20 to-indigo-50/10 rounded-2xl pointer-events-none"></div>
-
-                      <DialogHeader className="relative p-6 pb-4 bg-white rounded-t-2xl border-b border-gray-100">
+                    <DialogContent
+                      className="flex flex-col"
+                      style={{
+                        maxHeight: "90vh",
+                        height: "100%",
+                        width: "100%",
+                        maxWidth: "90vw",
+                      }}
+                    >
+                      <DialogHeader>
                         <div className="flex items-center gap-3 mb-2">
                           <div className="p-2 bg-blue-100 rounded-xl">
                             <FileText className="w-6 h-6 text-blue-600" />
@@ -552,15 +557,15 @@ export default function PatientAnalysis() {
                         </DialogDescription>
                       </DialogHeader>
 
-                      <div className="relative p-6 overflow-auto max-h-[calc(95vh-180px)]">
+                      <div>
                         {isDialogLoading ? (
                           <div className="flex justify-center items-center h-40">
                             <p>Yuklanmoqda...</p>
                           </div>
                         ) : detailedAnalysisData ? (
-                          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                          <div className="bg-white rounded">
                             <Table>
-                              <TableHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                              <TableHeader>
                                 <TableRow className="hover:bg-transparent border-b border-blue-100">
                                   <TableHead className="font-bold text-blue-900 py-4 text-base border-r border-blue-100">
                                     <div className="flex items-center gap-2">
@@ -584,10 +589,14 @@ export default function PatientAnalysis() {
                               </TableHeader>
                               <TableBody>
                                 {detailedAnalysisData.results?.map(
-                                  (res: any, index: number) => (
-                                    <TableRow
-                                      key={res.id}
-                                      className={`
+                                  (res: any, index: number) => {
+                                    if (
+                                      res.analysis_result?.[0]?.analysis_result
+                                    ) {
+                                      return (
+                                        <TableRow
+                                          key={res.id}
+                                          className={`
                                         transition-colors duration-200 border-b border-gray-100
                                         ${
                                           index % 2 === 0
@@ -596,23 +605,23 @@ export default function PatientAnalysis() {
                                         }
                                         hover:bg-blue-50/30
                                       `}
-                                    >
-                                      <TableCell className="font-semibold text-gray-900 py-4 border-r border-gray-100">
-                                        <div className="flex items-center gap-3">
-                                          <div
-                                            className={`w-2 h-2 rounded-full ${
-                                              res.analysis_result?.[0]
-                                                ?.analysis_result
-                                                ? "bg-green-400"
-                                                : "bg-gray-300"
-                                            }`}
-                                          ></div>
-                                          {res.title}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="py-4 border-r border-gray-100">
-                                        <span
-                                          className={`
+                                        >
+                                          <TableCell className="font-semibold text-gray-900 py-4 border-r border-gray-100">
+                                            <div className="flex items-center gap-3">
+                                              <div
+                                                className={`w-2 h-2 rounded-full ${
+                                                  res.analysis_result?.[0]
+                                                    ?.analysis_result
+                                                    ? "bg-green-400"
+                                                    : "bg-gray-300"
+                                                }`}
+                                              ></div>
+                                              {res.title}
+                                            </div>
+                                          </TableCell>
+                                          <TableCell className="py-4 border-r border-gray-100">
+                                            <span
+                                              className={`
                                             inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
                                             ${
                                               res.analysis_result?.[0]
@@ -621,16 +630,19 @@ export default function PatientAnalysis() {
                                                 : "bg-amber-100 text-amber-800 border border-amber-200"
                                             }
                                           `}
-                                        >
-                                          {res.analysis_result?.[0]
-                                            ?.analysis_result || "Kiritilmagan"}
-                                        </span>
-                                      </TableCell>
-                                      <TableCell className="text-gray-700 py-4 font-medium">
-                                        {res.norma}
-                                      </TableCell>
-                                    </TableRow>
-                                  )
+                                            >
+                                              {res.analysis_result?.[0]
+                                                ?.analysis_result ||
+                                                "Kiritilmagan"}
+                                            </span>
+                                          </TableCell>
+                                          <TableCell className="text-gray-700 py-4 font-medium">
+                                            {res.norma}
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    }
+                                  }
                                 )}
                               </TableBody>
                             </Table>
@@ -663,7 +675,16 @@ export default function PatientAnalysis() {
                         <Edit className="w-4 h-4 text-gray-600" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="w-full h-full overflow-y-auto">
+                    <DialogContent
+                      style={{
+                        maxHeight: "90vh",
+                        height: "100%",
+                        width: "100%",
+                        maxWidth: "90vw",
+                        overflow: 'hidden',
+                        overflowY: 'auto'
+                      }}
+                    >
                       <DialogHeader>
                         <DialogTitle className="text-xl">
                           Tahlilni Tahrirlash
