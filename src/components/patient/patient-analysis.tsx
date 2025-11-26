@@ -388,7 +388,7 @@ export default function PatientAnalysis() {
         className: "",
       },
       r: {
-        label: "Ro'yxatdan o'tgan",
+        label: "Kutmoqda",
         className: "bg-gray-50 text-gray-700 border border-gray-200",
       },
       l: {

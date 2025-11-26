@@ -30,6 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { useClinicSettings } from "../stores/clinic-settings.store";
+import { toast } from "sonner";
+import { clinicAboutService } from "../services/clinic-about.service";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -51,24 +54,66 @@ const roleMap: { [key: string]: string } = {
   c: "Kassir",
 };
 
-const routeConfig: { [key: string]: { label: string; icon: React.ReactNode } } = {
-  "/superadmin": { label: "Boshqaruv paneli", icon: <LayoutDashboard className="w-5 h-5" /> },
-  "/superadmin/user-management": { label: "Foydalanuvchilar", icon: <Users className="w-5 h-5" /> },
-  "/superadmin/departments": { label: "Bo'limlar", icon: <Building className="w-5 h-5" /> },
-  "/superadmin/department-types": { label: "Bo'lim turlari", icon: <GitMerge className="w-5 h-5" /> },
-  "/reception": { label: "Qabulxona paneli", icon: <LayoutDashboard className="w-5 h-5" /> },
-  "/reception/patient-queue": { label: "Bemor navbati", icon: <List className="w-5 h-5" /> },
-  "/reception/patient-registration": { label: "Bemor ro'yxatga olish", icon: <UserPlus className="w-5 h-5" /> },
-  "/lab": { label: "Laboratoriya paneli", icon: <LayoutDashboard className="w-5 h-5" /> },
-  "/lab/test-results": { label: "Test natijalari", icon: <FlaskConical className="w-5 h-5" /> },
-  "/doctor": { label: "Shifokor paneli", icon: <LayoutDashboard className="w-5 h-5" /> },
-  "/doctor/consultation": { label: "Konsultatsiya", icon: <Stethoscope className="w-5 h-5" /> },
-  "/cashier": { label: "Kassir paneli", icon: <LayoutDashboard className="w-5 h-5" /> },
-  "/cashier/payment-processing": { label: "To'lovlar", icon: <DollarSign className="w-5 h-5" /> },
-  "/reports": { label: "Hisobotlar", icon: <FileText className="w-5 h-5" /> },
-  "/settings": { label: "Sozlamalar", icon: <Settings className="w-5 h-5" /> },
-};
-
+const routeConfig: { [key: string]: { label: string; icon: React.ReactNode } } =
+  {
+    "/superadmin": {
+      label: "Boshqaruv paneli",
+      icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    "/superadmin/user-management": {
+      label: "Foydalanuvchilar",
+      icon: <Users className="w-5 h-5" />,
+    },
+    "/superadmin/departments": {
+      label: "Bo'limlar",
+      icon: <Building className="w-5 h-5" />,
+    },
+    "/superadmin/department-types": {
+      label: "Bo'lim turlari",
+      icon: <GitMerge className="w-5 h-5" />,
+    },
+    "/reception": {
+      label: "Qabulxona paneli",
+      icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    "/reception/patient-queue": {
+      label: "Bemor navbati",
+      icon: <List className="w-5 h-5" />,
+    },
+    "/reception/patient-registration": {
+      label: "Bemor ro'yxatga olish",
+      icon: <UserPlus className="w-5 h-5" />,
+    },
+    "/lab": {
+      label: "Laboratoriya paneli",
+      icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    "/lab/test-results": {
+      label: "Test natijalari",
+      icon: <FlaskConical className="w-5 h-5" />,
+    },
+    "/doctor": {
+      label: "Shifokor paneli",
+      icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    "/doctor/consultation": {
+      label: "Konsultatsiya",
+      icon: <Stethoscope className="w-5 h-5" />,
+    },
+    "/cashier": {
+      label: "Kassir paneli",
+      icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    "/cashier/payment-processing": {
+      label: "To'lovlar",
+      icon: <DollarSign className="w-5 h-5" />,
+    },
+    "/reports": { label: "Hisobotlar", icon: <FileText className="w-5 h-5" /> },
+    "/settings": {
+      label: "Sozlamalar",
+      icon: <Settings className="w-5 h-5" />,
+    },
+  };
 
 export function Layout({ children }: LayoutProps) {
   const { user, setUser } = useUserStore();
@@ -78,6 +123,28 @@ export function Layout({ children }: LayoutProps) {
   );
   const navigate = useNavigate();
   const location = useLocation();
+  const { clinicSettings, setClinicSettings } = useClinicSettings();
+
+  useEffect(() => {
+    const fetchClinicSettings = async () => {
+      try {
+        const data = await clinicAboutService.findAll();
+        if (data && data.length > 0) {
+          const settings = data[0];
+          setClinicSettings({
+            name: settings.name,
+            address: settings.address,
+            phone_number: settings.phone_number,
+            email: settings.email,
+            work_time: settings.work_time,
+          });
+        }
+      } catch (error) {
+        toast.error("Klinika ma'lumotlarini yuklashda xatolik yuz berdi");
+      }
+    };
+    fetchClinicSettings();
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -168,7 +235,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="h-16 flex items-center px-6 border-b border-border">
-            <h2 className="text-primary">Klinika Tizimi</h2>
+            <h2 className="text-primary">{clinicSettings?.name}</h2>
           </div>
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-4 px-3">

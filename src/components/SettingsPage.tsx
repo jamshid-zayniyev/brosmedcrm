@@ -9,11 +9,13 @@ import { Settings, Bell, Shield, Database, Globe, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "./ui/skeleton";
 import { clinicAboutService } from "../services/clinic-about.service";
+import { useClinicSettings } from "../stores/clinic-settings.store";
 
 export function SettingsPage() {
   const [clinicSettingsId, setClinicSettingsId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { setClinicSettings: setClinicSettingsStore } = useClinicSettings();
 
   const [clinicSettings, setClinicSettings] = useState({
     name: "",
@@ -54,6 +56,13 @@ export function SettingsPage() {
         if (data && data.length > 0) {
           const settings = data[0];
           setClinicSettings({
+            name: settings.name,
+            address: settings.address,
+            phone_number: settings.phone_number,
+            email: settings.email,
+            work_time: settings.work_time,
+          });
+          setClinicSettingsStore({
             name: settings.name,
             address: settings.address,
             phone_number: settings.phone_number,
@@ -162,7 +171,10 @@ export function SettingsPage() {
                   id="clinicName"
                   value={clinicSettings.name}
                   onChange={(e) =>
-                    setClinicSettings({ ...clinicSettings, name: e.target.value })
+                    setClinicSettings({
+                      ...clinicSettings,
+                      name: e.target.value,
+                    })
                   }
                   disabled={isSubmitting}
                 />
@@ -231,7 +243,10 @@ export function SettingsPage() {
             </div>
           )}
 
-          <Button onClick={handleSaveClinicSettings} disabled={isSubmitting || isLoading}>
+          <Button
+            onClick={handleSaveClinicSettings}
+            disabled={isSubmitting || isLoading}
+          >
             {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Saqlash
           </Button>

@@ -317,7 +317,7 @@ export function PatientConsultation() {
   const getStatusLabel = (status: PatientStatus | undefined) => {
     // status can be undefined now
     const statusLabels = {
-      r: "Ro'yxatdan o'tgan",
+      r: "Kutmoqda",
       l: "Laboratoriyada",
       d: "Qabulda",
       t: "Davolanmoqda",
