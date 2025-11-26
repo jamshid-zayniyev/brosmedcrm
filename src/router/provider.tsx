@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+} from "react-router-dom";
 import { publicRoutes, privateRoutes, defaultRoutes } from ".";
 import { useUserStore } from "../stores/user.store";
 import { handleStorage } from "../utils/handle-storage";
 import { authService } from "../services/auth.service";
 import { Layout } from "../components/Layout";
 import PrivateRoute from "./private-route";
+import Loading from "../components/loading";
 
 const AppProvider = () => {
   const { user, setUser } = useUserStore();
@@ -31,7 +38,7 @@ const AppProvider = () => {
   }, [setUser]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loading />;
   }
 
   return (
@@ -53,10 +60,7 @@ const AppProvider = () => {
                 key={route.path}
                 element={<PrivateRoute allowedRoles={route.allowedRoles} />}
               >
-                <Route
-                  path={route.path}
-                  element={route.element}
-                />
+                <Route path={route.path} element={route.element} />
               </Route>
             ))}
           </Route>
