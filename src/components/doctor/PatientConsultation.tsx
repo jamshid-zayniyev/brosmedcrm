@@ -165,14 +165,8 @@ export function PatientConsultation() {
 
   const [formData, setFormData] = useState({
     diagnosis: "",
-    diagnosis_uz: "",
-    diagnosis_ru: "",
     recommendation: "",
-    recommendation_uz: "",
-    recommendation_ru: "",
     recipe: "",
-    recipe_uz: "",
-    recipe_ru: "",
   });
 
   const availablePatients = patientRecords.filter(
@@ -225,30 +219,10 @@ export function PatientConsultation() {
       return;
     }
 
-    const {
-      diagnosis,
-      diagnosis_uz,
-      diagnosis_ru,
-      recommendation,
-      recommendation_uz,
-      recommendation_ru,
-      recipe,
-      recipe_uz,
-      recipe_ru,
-    } = formData;
+    const { diagnosis, recommendation, recipe } = formData;
 
-    if (
-      !diagnosis ||
-      !diagnosis_uz ||
-      !diagnosis_ru ||
-      !recommendation ||
-      !recommendation_uz ||
-      !recommendation_ru ||
-      !recipe ||
-      !recipe_uz ||
-      !recipe_ru
-    ) {
-      toast.error("Iltimos, barcha tillardagi maydonlarni to'ldiring.");
+    if (!diagnosis || !recommendation || !recipe) {
+      toast.error("Iltimos, barcha maydonlarni to'ldiring.");
       return;
     }
 
@@ -266,14 +240,8 @@ export function PatientConsultation() {
 
       setFormData({
         diagnosis: "",
-        diagnosis_uz: "",
-        diagnosis_ru: "",
         recommendation: "",
-        recommendation_uz: "",
-        recommendation_ru: "",
         recipe: "",
-        recipe_uz: "",
-        recipe_ru: "",
       });
       setSelectedPatient("");
       await fetchPatients(); // Refetch to get updated queue
@@ -473,166 +441,53 @@ export function PatientConsultation() {
                   onSubmit={(e) => handleSubmit(e, "f")}
                   className="space-y-4"
                 >
-                  <Tabs defaultValue="uz" className="w-full">
-                    <TabsList>
-                      <TabsTrigger value="uz">O'zbekcha</TabsTrigger>
-                      <TabsTrigger value="ru">Русский</TabsTrigger>
-                      <TabsTrigger value="en">English</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="uz" className="space-y-4 pt-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="diagnosis_uz">Diagnoz (O'zb) *</Label>
-                        <Textarea
-                          id="diagnosis_uz"
-                          value={formData.diagnosis_uz}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              diagnosis_uz: e.target.value,
-                            })
-                          }
-                          placeholder="Diagnozni kiriting..."
-                          required
-                          disabled={!selectedPatient || isSubmitting}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="recommendation_uz">
-                          Tavsiyalar (O'zb) *
-                        </Label>
-                        <Textarea
-                          id="recommendation_uz"
-                          value={formData.recommendation_uz}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              recommendation_uz: e.target.value,
-                            })
-                          }
-                          placeholder="Tavsiyalarni kiriting..."
-                          required
-                          disabled={!selectedPatient || isSubmitting}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="recipe_uz">Retsept (O'zb) *</Label>
-                        <Textarea
-                          id="recipe_uz"
-                          value={formData.recipe_uz}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              recipe_uz: e.target.value,
-                            })
-                          }
-                          placeholder="Dori-darmonlarni kiriting..."
-                          required
-                          disabled={!selectedPatient || isSubmitting}
-                        />
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="ru" className="space-y-4 pt-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="diagnosis_ru">Диагноз (Рус) *</Label>
-                        <Textarea
-                          id="diagnosis_ru"
-                          value={formData.diagnosis_ru}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              diagnosis_ru: e.target.value,
-                            })
-                          }
-                          placeholder="Введите диагноз..."
-                          required
-                          disabled={!selectedPatient || isSubmitting}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="recommendation_ru">
-                          Рекомендации (Рус) *
-                        </Label>
-                        <Textarea
-                          id="recommendation_ru"
-                          value={formData.recommendation_ru}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              recommendation_ru: e.target.value,
-                            })
-                          }
-                          placeholder="Введите рекомендации..."
-                          required
-                          disabled={!selectedPatient || isSubmitting}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="recipe_ru">Рецепт (Рус) *</Label>
-                        <Textarea
-                          id="recipe_ru"
-                          value={formData.recipe_ru}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              recipe_ru: e.target.value,
-                            })
-                          }
-                          placeholder="Введите лекарства..."
-                          required
-                          disabled={!selectedPatient || isSubmitting}
-                        />
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="en" className="space-y-4 pt-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="diagnosis">Diagnosis (Eng) *</Label>
-                        <Textarea
-                          id="diagnosis"
-                          value={formData.diagnosis}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              diagnosis: e.target.value,
-                            })
-                          }
-                          placeholder="Enter diagnosis..."
-                          required
-                          disabled={!selectedPatient || isSubmitting}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="recommendation">
-                          Recommendations (Eng) *
-                        </Label>
-                        <Textarea
-                          id="recommendation"
-                          value={formData.recommendation}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              recommendation: e.target.value,
-                            })
-                          }
-                          placeholder="Enter recommendations..."
-                          required
-                          disabled={!selectedPatient || isSubmitting}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="recipe">Prescription (Eng) *</Label>
-                        <Textarea
-                          id="recipe"
-                          value={formData.recipe}
-                          onChange={(e) =>
-                            setFormData({ ...formData, recipe: e.target.value })
-                          }
-                          placeholder="Enter prescription..."
-                          required
-                          disabled={!selectedPatient || isSubmitting}
-                        />
-                      </div>
-                    </TabsContent>
-                  </Tabs>
+                  <div className="space-y-2">
+                    <Label htmlFor="diagnosis">Diagnosis (Eng) *</Label>
+                    <Textarea
+                      id="diagnosis"
+                      value={formData.diagnosis}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          diagnosis: e.target.value,
+                        })
+                      }
+                      placeholder="Enter diagnosis..."
+                      required
+                      disabled={!selectedPatient || isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="recommendation">
+                      Recommendations (Eng) *
+                    </Label>
+                    <Textarea
+                      id="recommendation"
+                      value={formData.recommendation}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          recommendation: e.target.value,
+                        })
+                      }
+                      placeholder="Enter recommendations..."
+                      required
+                      disabled={!selectedPatient || isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="recipe">Prescription (Eng) *</Label>
+                    <Textarea
+                      id="recipe"
+                      value={formData.recipe}
+                      onChange={(e) =>
+                        setFormData({ ...formData, recipe: e.target.value })
+                      }
+                      placeholder="Enter prescription..."
+                      required
+                      disabled={!selectedPatient || isSubmitting}
+                    />
+                  </div>
                   <Button
                     type="submit"
                     disabled={!selectedPatient || isSubmitting}
