@@ -52,6 +52,8 @@ import { analysisResultService } from "../../services/analysis-result.service";
 import { Analysis } from "../../interfaces/analysis.interface";
 import { diseaseService } from "../../services/disease.service";
 import { formattedDate } from "../../utils/formatted-date";
+import logo from "../../assets/logo.png";
+import pechat from "../../assets/pechat.png";
 
 // This EditAnalysisDialog component is directly copied from the old TestResults.tsx
 // It's a sub-component used within PatientAnalysis.
@@ -468,12 +470,19 @@ export default function PatientAnalysis() {
             }
             
             .print-header {
-              text-align: center;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
               margin-bottom: 30px;
               padding-bottom: 20px;
               border-bottom: 3px solid #2c3e50;
             }
             
+            .header-right p {
+              margin: 0;
+              font-size: 14px;
+            }
+
             .print-title {
               font-size: 28px;
               font-weight: bold;
@@ -600,6 +609,7 @@ export default function PatientAnalysis() {
               text-align: center;
               padding-top: 5px;
               font-size: 14px;
+              position: relative;
             }
             
             .watermark {
@@ -629,10 +639,17 @@ export default function PatientAnalysis() {
             }
             
             .print-header {
-              text-align: center;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
               margin-bottom: 30px;
               padding-bottom: 20px;
               border-bottom: 3px solid #2c3e50;
+            }
+
+            .header-right p {
+              margin: 0;
+              font-size: 14px;
             }
             
             .print-title {
@@ -761,6 +778,7 @@ export default function PatientAnalysis() {
               text-align: center;
               padding-top: 5px;
               font-size: 14px;
+              position: relative;
             }
             
             .watermark {
@@ -783,8 +801,13 @@ export default function PatientAnalysis() {
       <body>
         <div class="print-container">
           <div class="print-header">
-            <h1 class="print-title">TAHLIL NATIJALARI</h1>
-            <div class="print-subtitle">LABORATORIYA TADQIQOTI</div>
+            <div class="header-left">
+              <img src="${logo}" alt="Logo" style="width: 200px; height: auto;" />
+            </div>
+            <div class="header-right" style="text-align: left;">
+              <p><strong>Manzil:</strong> QARSHI SHAHAR KAT - MFY, NASAF KO' CHASI, 31-UY TEL: (75) 223-47-47</p>
+              <p><strong>Aloqa:</strong> (97) 070-47-47;(97) 310-21-01</p>
+            </div>
           </div>
           <table class="results-table">
             <thead>
@@ -841,21 +864,19 @@ export default function PatientAnalysis() {
               </div>
               <div class="signature-line">
                 Imzo
+                <img src="${pechat}" alt="Pechat" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 150px; opacity: 0.8;" />
               </div>
             </div>
           </div>
           
           <div class="watermark">
-            TIBBIYOT MARKAZI
+            BROSMED
           </div>
         </div>
         
         <script>
           window.onload = function() {
             window.print();
-            setTimeout(function() {
-              window.close();
-            }, 1000);
           }
         </script>
       </body>
