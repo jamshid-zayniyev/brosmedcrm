@@ -167,7 +167,6 @@ export function PatientRegistration() {
       address: patientFormData.address,
       // Reset medical info for the new visit
       diseaseType: "",
-      departmentId: 0,
       departmentTypeId: 0,
       doctorId: 0,
     });
