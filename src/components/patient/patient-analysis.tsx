@@ -864,6 +864,10 @@ export default function PatientAnalysis() {
               </div>
               <div class="signature-line">
                 Imzo
+                </br>
+                </br>
+                </br>
+                </br>
                 <img src="${pechat}" alt="Pechat" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 150px; opacity: 0.8;" />
               </div>
             </div>
