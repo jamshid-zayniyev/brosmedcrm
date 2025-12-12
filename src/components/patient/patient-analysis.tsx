@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -24,6 +24,10 @@ import {
   TrendingUp,
   Target,
   FileDown,
+  Printer,
+  User,
+  Calendar,
+  Stethoscope,
 } from "lucide-react";
 import {
   Dialog,
@@ -250,6 +254,7 @@ interface Disease {
 export default function PatientAnalysis() {
   const { id } = useParams<{ id: string }>();
   const patientId = Number(id);
+  const printContentRef = useRef<HTMLDivElement>(null);
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
@@ -416,6 +421,450 @@ export default function PatientAnalysis() {
     );
   };
 
+  const handlePrint = () => {
+    if (!patient || !detailedAnalysisData) return;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("Print oynasini ochishda xatolik!");
+      return;
+    }
+
+    const printDate = new Date().toLocaleDateString("uz-UZ", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const statusText = getStatusBadge(detailedAnalysisData.status).label;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="uz">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tahlil Natijalari - ${patient.name} ${patient.last_name}</title>
+        <style>
+          @media print {
+            @page {
+              margin: 20mm;
+            }
+            
+            body {
+              font-family: 'Segoe UI', 'Arial', sans-serif;
+              line-height: 1.6;
+              color: #000;
+              margin: 0;
+              padding: 0;
+              background: white;
+            }
+            
+            .print-container {
+              max-width: 100%;
+              margin: 0 auto;
+            }
+            
+            .print-header {
+              text-align: center;
+              margin-bottom: 30px;
+              padding-bottom: 20px;
+              border-bottom: 3px solid #2c3e50;
+            }
+            
+            .print-title {
+              font-size: 28px;
+              font-weight: bold;
+              color: #2c3e50;
+              margin: 0 0 10px 0;
+              text-transform: uppercase;
+            }
+            
+            .print-subtitle {
+              font-size: 20px;
+              color: #34495e;
+              margin: 10px 0;
+              font-weight: 600;
+            }
+            
+            .print-info-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+              gap: 20px;
+              margin: 30px 0;
+              background: #f8f9fa;
+              padding: 20px;
+              border-radius: 10px;
+              border: 1px solid #dee2e6;
+            }
+            
+            .info-group {
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+            }
+            
+            .info-label {
+              font-weight: bold;
+              color: #495057;
+              font-size: 14px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            
+            .info-value {
+              color: #000;
+              font-size: 16px;
+              padding: 8px 12px;
+              background: white;
+              border-radius: 6px;
+              border: 1px solid #ced4da;
+            }
+            
+            .results-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 30px 0;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            
+            .results-table th {
+              background: #2c3e50;
+              color: white;
+              font-weight: bold;
+              text-align: left;
+              padding: 15px;
+              border: 1px solid #1a252f;
+              font-size: 16px;
+            }
+            
+            .results-table td {
+              padding: 12px 15px;
+              border: 1px solid #dee2e6;
+              vertical-align: top;
+            }
+            
+            .results-table tr:nth-child(even) {
+              background: #f8f9fa;
+            }
+            
+            .result-value {
+              font-weight: bold;
+              color: #2c3e50;
+              font-size: 16px;
+            }
+            
+            .norma {
+              color: #6c757d;
+              font-size: 14px;
+            }
+            
+            .status-badge {
+              display: inline-block;
+              padding: 6px 12px;
+              border-radius: 20px;
+              font-size: 14px;
+              font-weight: bold;
+              margin: 5px;
+            }
+            
+            .footer {
+              margin-top: 50px;
+              padding-top: 20px;
+              border-top: 2px solid #2c3e50;
+              text-align: center;
+              color: #6c757d;
+              font-size: 14px;
+            }
+            
+            .footer-info {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 30px;
+              font-size: 14px;
+            }
+            
+            .signature {
+              margin-top: 50px;
+              display: flex;
+              justify-content: space-between;
+              padding: 0 50px;
+            }
+            
+            .signature-line {
+              width: 200px;
+              border-top: 1px solid #000;
+              text-align: center;
+              padding-top: 5px;
+              font-size: 14px;
+            }
+            
+            .watermark {
+              position: fixed;
+              bottom: 100px;
+              right: 100px;
+              opacity: 0.1;
+              font-size: 80px;
+              transform: rotate(-45deg);
+              color: #ccc;
+              pointer-events: none;
+            }
+          }
+          
+          @media screen {
+            body {
+              font-family: 'Segoe UI', 'Arial', sans-serif;
+              line-height: 1.6;
+              color: #000;
+              margin: 20px;
+              background: white;
+            }
+            
+            .print-container {
+              max-width: 210mm;
+              margin: 0 auto;
+            }
+            
+            .print-header {
+              text-align: center;
+              margin-bottom: 30px;
+              padding-bottom: 20px;
+              border-bottom: 3px solid #2c3e50;
+            }
+            
+            .print-title {
+              font-size: 28px;
+              font-weight: bold;
+              color: #2c3e50;
+              margin: 0 0 10px 0;
+              text-transform: uppercase;
+            }
+            
+            .print-subtitle {
+              font-size: 20px;
+              color: #34495e;
+              margin: 10px 0;
+              font-weight: 600;
+            }
+            
+            .print-info-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+              gap: 20px;
+              margin: 30px 0;
+              background: #f8f9fa;
+              padding: 20px;
+              border-radius: 10px;
+              border: 1px solid #dee2e6;
+            }
+            
+            .info-group {
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+            }
+            
+            .info-label {
+              font-weight: bold;
+              color: #495057;
+              font-size: 14px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            
+            .info-value {
+              color: #000;
+              font-size: 16px;
+              padding: 8px 12px;
+              background: white;
+              border-radius: 6px;
+              border: 1px solid #ced4da;
+            }
+            
+            .results-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 30px 0;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            
+            .results-table th {
+              background: #2c3e50;
+              color: white;
+              font-weight: bold;
+              text-align: left;
+              padding: 15px;
+              border: 1px solid #1a252f;
+              font-size: 16px;
+            }
+            
+            .results-table td {
+              padding: 12px 15px;
+              border: 1px solid #dee2e6;
+              vertical-align: top;
+            }
+            
+            .results-table tr:nth-child(even) {
+              background: #f8f9fa;
+            }
+            
+            .result-value {
+              font-weight: bold;
+              color: #2c3e50;
+              font-size: 16px;
+            }
+            
+            .norma {
+              color: #6c757d;
+              font-size: 14px;
+            }
+            
+            .status-badge {
+              display: inline-block;
+              padding: 6px 12px;
+              border-radius: 20px;
+              font-size: 14px;
+              font-weight: bold;
+              margin: 5px;
+            }
+            
+            .footer {
+              margin-top: 50px;
+              padding-top: 20px;
+              border-top: 2px solid #2c3e50;
+              text-align: center;
+              color: #6c757d;
+              font-size: 14px;
+            }
+            
+            .footer-info {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 30px;
+              font-size: 14px;
+            }
+            
+            .signature {
+              margin-top: 50px;
+              display: flex;
+              justify-content: space-between;
+              padding: 0 50px;
+            }
+            
+            .signature-line {
+              width: 200px;
+              border-top: 1px solid #000;
+              text-align: center;
+              padding-top: 5px;
+              font-size: 14px;
+            }
+            
+            .watermark {
+              position: fixed;
+              bottom: 100px;
+              right: 100px;
+              opacity: 0.1;
+              font-size: 80px;
+              transform: rotate(-45deg);
+              color: #ccc;
+              pointer-events: none;
+            }
+          }
+          
+          .no-print {
+            display: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-container">
+          <div class="print-header">
+            <h1 class="print-title">TAHLIL NATIJALARI</h1>
+            <div class="print-subtitle">LABORATORIYA TADQIQOTI</div>
+          </div>
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th style="width: 40%;">Tahlil Parametr</th>
+                <th style="width: 30%;">Olingan Natija</th>
+                <th style="width: 30%;">Normal Qiymatlar</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                detailedAnalysisData.results
+                  ?.map((res: any, index: number) => {
+                    if (res.analysis_result?.[0]?.analysis_result) {
+                      return `
+                <tr>
+                  <td>
+                    <strong>${res.title}</strong>
+                  </td>
+                  <td>
+                    <span class="result-value">${
+                      res.analysis_result?.[0]?.analysis_result
+                    }</span>
+                  </td>
+                  <td>
+                    <span class="norma">${res.norma || "Belgilanmagan"}</span>
+                  </td>
+                </tr>
+              `;
+                    }
+                  })
+                  .join("") ||
+                '<tr><td colspan="3">Natijalar topilmadi</td></tr>'
+              }
+            </tbody>
+          </table>
+          
+          <div class="footer">
+            <div class="footer-info">
+              <div>
+                <strong>Chop etilgan sana:</strong> ${printDate}
+              </div>
+              <div>
+                <strong>Bemor:</strong> ${patient?.name} ${patient?.last_name}
+              </div>
+              <div>
+                <strong>Tahlil ID:</strong> ${detailedAnalysisData?.id || "N/A"}
+              </div>
+            </div>
+            
+            <div class="signature">
+              <div class="signature-line">
+                Laboratoriya mudiri
+              </div>
+              <div class="signature-line">
+                Imzo
+              </div>
+            </div>
+          </div>
+          
+          <div class="watermark">
+            TIBBIYOT MARKAZI
+          </div>
+        </div>
+        
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() {
+              window.close();
+            }, 1000);
+          }
+        </script>
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+  };
+
   if (pageLoading) {
     return (
       <div className="space-y-8">
@@ -570,20 +1019,20 @@ export default function PatientAnalysis() {
                                   <TableHead className="font-bold text-blue-900 py-4 text-base border-r border-blue-100">
                                     <div className="flex items-center gap-2">
                                       <List className="w-4 h-4" />
+                                      Natija
                                     </div>
-                                    Natija
                                   </TableHead>
                                   <TableHead className="font-bold text-blue-900 py-4 text-base border-r border-blue-100">
                                     <div className="flex items-center gap-2">
                                       <TrendingUp className="w-4 h-4" />
+                                      Qiymat
                                     </div>
-                                    Qiymat
                                   </TableHead>
                                   <TableHead className="font-bold text-blue-900 py-4 text-base">
                                     <div className="flex items-center gap-2">
                                       <Target className="w-4 h-4" />
+                                      Norma
                                     </div>
-                                    Norma
                                   </TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -656,6 +1105,21 @@ export default function PatientAnalysis() {
                           </div>
                         )}
                       </div>
+                      {/* Print and Close Buttons */}
+                      {detailedAnalysisData && (
+                        <div className="mt-auto pt-6 flex justify-end gap-3">
+                          <Button
+                            variant="outline"
+                            onClick={() => setViewingAnalysisId(null)}
+                          >
+                            Yopish
+                          </Button>
+                          <Button onClick={handlePrint}>
+                            <Printer className="w-4 h-4 mr-2" />
+                            Chop etish
+                          </Button>
+                        </div>
+                      )}
                     </DialogContent>
                   </Dialog>
                   <Dialog
@@ -681,8 +1145,8 @@ export default function PatientAnalysis() {
                         height: "100%",
                         width: "100%",
                         maxWidth: "90vw",
-                        overflow: 'hidden',
-                        overflowY: 'auto'
+                        overflow: "hidden",
+                        overflowY: "auto",
                       }}
                     >
                       <DialogHeader>

@@ -504,14 +504,13 @@ export function PatientRegistration() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="address">Manzil *</Label>
+                <Label htmlFor="address">Manzil</Label>
                 <Textarea
                   id="address"
                   value={formData.address}
                   onChange={(e) =>
                     setFormData({ ...formData, address: e.target.value })
                   }
-                  required
                   disabled={!!selectedPatient}
                 />
               </div>
