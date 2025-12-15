@@ -1210,6 +1210,7 @@ export default function PatientAnalysis() {
                       await patientService.downloadPatientAnalysisFile({
                         patient_id: parseInt(id, 10),
                         analysis_id: analysisItem.id,
+                        filename: `${analysisItem.patient.name} ${analysisItem.patient.last_name}`,
                       });
                     }}
                   >

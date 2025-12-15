@@ -128,9 +128,11 @@ class PatientService {
   async downloadPatientAnalysisFile({
     patient_id,
     analysis_id,
+    filename,
   }: {
     patient_id: number;
     analysis_id: number;
+    filename: string;
   }) {
     try {
       const res = await apiInstance.post(
@@ -148,7 +150,6 @@ class PatientService {
       const url = window.URL.createObjectURL(blob);
 
       const contentDisposition = res.headers["content-disposition"];
-      let filename = "download.docx"; // A more sensible default
       if (contentDisposition) {
         // More robust regex to handle quoted and unquoted filenames
         const filenameMatch = contentDisposition.match(
