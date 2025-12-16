@@ -1028,6 +1028,7 @@ export default function PatientAnalysis() {
                         height: "100%",
                         width: "100%",
                         maxWidth: "90vw",
+                        overflowY: "auto",
                       }}
                     >
                       <DialogHeader>
