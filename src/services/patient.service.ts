@@ -142,27 +142,32 @@ class PatientService {
           analysis_id,
         },
         {
-          responseType: "blob",
+          responseType: "blob", // 🔑 blob bo'lishi shart
         }
       );
 
-      const blob = new Blob([res.data]);
+      // Blob yaratishda type berish
+      const blob = new Blob([res.data], {
+        type: res.headers["content-type"] || "application/octet-stream",
+      });
+
       const url = window.URL.createObjectURL(blob);
 
+      // Fayl nomini backend'dan olish
       const contentDisposition = res.headers["content-disposition"];
       if (contentDisposition) {
-        // More robust regex to handle quoted and unquoted filenames
         const filenameMatch = contentDisposition.match(
-          /filename\*?=['"]?([^'"]+)['"]?/
+          /filename\*?=(?:UTF-8''|")?([^;"']+)/
         );
-        if (filenameMatch && filenameMatch.length > 1) {
-          filename = filenameMatch[1].replace(/['"]/g, ""); // Clean up any quotes
+        if (filenameMatch?.[1]) {
+          filename = decodeURIComponent(filenameMatch[1]);
         }
       }
 
+      // Faylni yuklash
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", filename);
+      link.download = filename || "download";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

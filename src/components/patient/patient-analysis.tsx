@@ -72,22 +72,26 @@ function EditAnalysisDialog({
   onStatusUpdate: (newStatus: "n" | "ip" | "f") => Promise<void>;
 }) {
   const [results, setResults] = useState<
-    { id: number; result: number; analysis_result: string; loading?: boolean }[]
+    { id: number; result: number; analysis_result: string }[]
+  >([]);
+  const [initialResults, setInitialResults] = useState<
+    { id: number; result: number; analysis_result: string }[]
   >([]);
   const [status, setStatus] = useState<"n" | "ip" | "f">("n");
   const [statusLoading, setStatusLoading] = useState(false);
+  const [isSavingAll, setIsSavingAll] = useState(false);
 
   useEffect(() => {
     if (analysis) {
       setStatus(analysis.status || "n");
-      const initialResults =
+      const initialData =
         analysis.department_types?.result?.map((res) => ({
           id: res.analysis_result?.[0]?.id || 0,
           result: res.id,
           analysis_result: res.analysis_result?.[0]?.analysis_result || "",
-          loading: false,
         })) || [];
-      setResults(initialResults);
+      setResults(initialData);
+      setInitialResults(initialData);
     }
   }, [analysis]);
 
@@ -99,22 +103,42 @@ function EditAnalysisDialog({
     );
   };
 
-  const handleSaveSingleResult = async (resultId: number) => {
-    const resultToSave = results.find((r) => r.result === resultId);
-    if (!resultToSave) return;
+  const handleSaveAll = async () => {
+    const changedResults = results.filter((current) => {
+      const initial = initialResults.find((ir) => ir.result === current.result);
+      return initial && initial.analysis_result !== current.analysis_result;
+    });
 
-    setResults((prev) =>
-      prev.map((r) => (r.result === resultId ? { ...r, loading: true } : r))
+    if (changedResults.length === 0) {
+      toast.info("O'zgarishlar mavjud emas.");
+      return;
+    }
+
+    setIsSavingAll(true);
+    const toastId = toast.loading(
+      `Yangilanmoqda... 0/${changedResults.length}`
     );
+
     try {
-      await onSave(resultToSave);
-      toast.success("Natija muvaffaqiyatli saqlandi");
+      for (let i = 0; i < changedResults.length; i++) {
+        const resultToSave = changedResults[i];
+        await onSave(resultToSave);
+        toast.loading(`Yangilanmoqda... ${i + 1}/${changedResults.length}`, {
+          id: toastId,
+        });
+      }
+
+      toast.success("Barcha natijalar muvaffaqiyatli yangilandi!", {
+        id: toastId,
+      });
+      setInitialResults(results);
     } catch (error) {
-      toast.error("Natijani saqlashda xatolik");
+      console.error("Failed to save all results:", error);
+      toast.error("Yangilashda xatolik yuz berdi. Jarayon to'xtatildi.", {
+        id: toastId,
+      });
     } finally {
-      setResults((prev) =>
-        prev.map((r) => (r.result === resultId ? { ...r, loading: false } : r))
-      );
+      setIsSavingAll(false);
     }
   };
 
@@ -142,6 +166,7 @@ function EditAnalysisDialog({
           <Select
             value={status}
             onValueChange={(value: "n" | "ip" | "f") => setStatus(value)}
+            disabled={isSavingAll}
           >
             <SelectTrigger className="bg-white border-gray-200">
               <SelectValue />
@@ -155,10 +180,10 @@ function EditAnalysisDialog({
         </div>
         <Button
           onClick={handleStatusUpdate}
-          disabled={statusLoading}
+          disabled={statusLoading || isSavingAll}
           className="bg-primary hover:bg-primary/90"
         >
-          {statusLoading ? "Yangilanmoqda..." : "Yangilash"}
+          {statusLoading ? "Yangilanmoqda..." : "Statusni Yangilash"}
         </Button>
       </div>
 
@@ -174,14 +199,11 @@ function EditAnalysisDialog({
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-200 hover:bg-transparent">
-                  <TableHead className="font-semibold text-gray-700 w-[40%]">
+                  <TableHead className="font-semibold text-gray-700 w-[50%]">
                     Natija
                   </TableHead>
                   <TableHead className="font-semibold text-gray-700">
                     Qiymat
-                  </TableHead>
-                  <TableHead className="text-right font-semibold text-gray-700">
-                    Amal
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -212,19 +234,8 @@ function EditAnalysisDialog({
                           }
                           placeholder="Qiymat kiriting..."
                           className="border-gray-200 focus:border-primary"
+                          disabled={isSavingAll}
                         />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => handleSaveSingleResult(result.id)}
-                          disabled={currentResult?.loading}
-                          className="bg-primary hover:bg-primary/90 text-white"
-                        >
-                          {currentResult?.loading
-                            ? "Saqlanmoqda..."
-                            : "Saqlash"}
-                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -234,6 +245,14 @@ function EditAnalysisDialog({
           </div>
         </CardContent>
       </Card>
+
+      <Button
+        onClick={handleSaveAll}
+        disabled={isSavingAll || statusLoading}
+        className="w-full"
+      >
+        {isSavingAll ? "Saqlanmoqda..." : "Barchasini Saqlash"}
+      </Button>
     </div>
   );
 }
@@ -1207,11 +1226,21 @@ export default function PatientAnalysis() {
                         toast.error("Bemor malumotlari topilmadi!");
                         return;
                       }
-                      await patientService.downloadPatientAnalysisFile({
-                        patient_id: parseInt(id, 10),
-                        analysis_id: analysisItem.id,
-                        filename: `${analysisItem.patient.name} ${analysisItem.patient.last_name}`,
-                      });
+                      const toastId = toast.loading("Fayl yuklanmoqda...");
+                      try {
+                        await patientService.downloadPatientAnalysisFile({
+                          patient_id: parseInt(id, 10),
+                          analysis_id: analysisItem.id,
+                          filename: `${patient?.name} ${patient?.last_name}`,
+                        });
+                        toast.success("Fayl muvaffaqiyatli yuklandi.", {
+                          id: toastId,
+                        });
+                      } catch (error) {
+                        toast.error("Faylni yuklashda xatolik yuz berdi.", {
+                          id: toastId,
+                        });
+                      }
                     }}
                   >
                     <FileDown />
