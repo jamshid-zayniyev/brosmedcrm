@@ -351,7 +351,7 @@ export function TestResults() {
                 </div>
 
                 {analysisResults.length > 0 && (
-                  <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
+                  <Card className="border-blue-100">
                     <CardHeader className="pb-4">
                       <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
                         <BarChart3 className="w-4 h-4 text-primary" />
