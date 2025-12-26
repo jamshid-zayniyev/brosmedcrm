@@ -21,6 +21,7 @@ import {
   FileText,
   User,
   Plus,
+  Loader2, // Added Loader2 import
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
@@ -43,6 +44,7 @@ export function TestResults() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<
     AnalysisResultPayload[]
   >([]);
@@ -116,6 +118,8 @@ export function TestResults() {
       toast.error("Bemor yoki tahlil turi topilmadi");
       return;
     }
+    
+    setIsSubmitting(true); // Set submitting to true
 
     try {
       const analysisFormData = new FormData();
@@ -147,6 +151,8 @@ export function TestResults() {
     } catch (error) {
       console.error("Tahlil yaratishda xatolik:", error);
       toast.error("Tahlil yaratishda xatolik yuz berdi");
+    } finally {
+      setIsSubmitting(false); // Set submitting to false
     }
   };
 
@@ -476,9 +482,19 @@ export function TestResults() {
                 <Button
                   type="submit"
                   className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-semibold"
+                  disabled={isSubmitting}
                 >
-                  <TestTube className="w-5 h-5 mr-2" />
-                  Tahlilni saqlash
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saqlanmoqda...
+                    </>
+                  ) : (
+                    <>
+                      <TestTube className="w-5 h-5 mr-2" />
+                      Tahlilni saqlash
+                    </>
+                  )}
                 </Button>
               </form>
             </CardContent>
@@ -642,3 +658,4 @@ export function TestResults() {
     </div>
   );
 }
+
