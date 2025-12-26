@@ -451,455 +451,243 @@ export default function PatientAnalysis() {
       return;
     }
 
-    const printDate = new Date().toLocaleDateString("uz-UZ", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const tekshiruvDate = detailedAnalysisData.created_at
+      ? new Date(detailedAnalysisData.created_at)
+      : null;
+    const formattedTekshiruvDate = tekshiruvDate
+      ? `${tekshiruvDate.getFullYear()}-${(tekshiruvDate.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}-${tekshiruvDate
+          .getDate()
+          .toString()
+          .padStart(
+            2,
+            "0"
+          )} ${tekshiruvDate.getHours()}:${tekshiruvDate.getMinutes()}`
+      : "Noma'lum";
 
-    const statusText = getStatusBadge(detailedAnalysisData.status).label;
+    const filteredResults =
+      detailedAnalysisData.results?.filter(
+        (res: any) => res.analysis_result?.[0]?.analysis_result
+      ) || [];
+
+    const resultsHtml =
+      filteredResults.length > 0
+        ? filteredResults
+            .map(
+              (res: any) => `
+      <tr>
+        <td>${res.title}</td>
+        <td class="result-value">${
+          res.analysis_result?.[0]?.analysis_result || "-"
+        }</td>
+        <td>${res.norma || "-"}</td>
+      </tr>
+    `
+            )
+            .join("")
+        : '<tr><td colspan="3" class="text-center">Natijalar topilmadi.</td></tr>';
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html lang="uz">
       <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Tahlil Natijalari - ${patient.name} ${patient.last_name}</title>
+        <title>Tahlil Natijasi - ${patient.name} ${patient.last_name}</title>
         <style>
-          @media print {
-            @page {
-              margin: 20mm;
-            }
-            
-            body {
-              font-family: 'Segoe UI', 'Arial', sans-serif;
-              line-height: 1.6;
-              color: #000;
-              margin: 0;
-              padding: 0;
-              background: white;
-            }
-            
-            .print-container {
-              max-width: 100%;
-              margin: 0 auto;
-            }
-            
-            .print-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 30px;
-              padding-bottom: 20px;
-              border-bottom: 3px solid #2c3e50;
-            }
-            
-            .header-right p {
-              margin: 0;
-              font-size: 14px;
-            }
-
-            .print-title {
-              font-size: 28px;
-              font-weight: bold;
-              color: #2c3e50;
-              margin: 0 0 10px 0;
-              text-transform: uppercase;
-            }
-            
-            .print-subtitle {
-              font-size: 20px;
-              color: #34495e;
-              margin: 10px 0;
-              font-weight: 600;
-            }
-            
-            .print-info-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-              gap: 20px;
-              margin: 30px 0;
-              background: #f8f9fa;
-              padding: 20px;
-              border-radius: 10px;
-              border: 1px solid #dee2e6;
-            }
-            
-            .info-group {
-              display: flex;
-              flex-direction: column;
-              gap: 8px;
-            }
-            
-            .info-label {
-              font-weight: bold;
-              color: #495057;
-              font-size: 14px;
-              display: flex;
-              align-items: center;
-              gap: 8px;
-            }
-            
-            .info-value {
-              color: #000;
-              font-size: 16px;
-              padding: 8px 12px;
-              background: white;
-              border-radius: 6px;
-              border: 1px solid #ced4da;
-            }
-            
-            .results-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 30px 0;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
-            
-            .results-table th {
-              background: #2c3e50;
-              color: white;
-              font-weight: bold;
-              text-align: left;
-              padding: 15px;
-              border: 1px solid #1a252f;
-              font-size: 16px;
-            }
-            
-            .results-table td {
-              padding: 12px 15px;
-              border: 1px solid #dee2e6;
-              vertical-align: top;
-            }
-            
-            .results-table tr:nth-child(even) {
-              background: #f8f9fa;
-            }
-            
-            .result-value {
-              font-weight: bold;
-              color: #2c3e50;
-              font-size: 16px;
-            }
-            
-            .norma {
-              color: #6c757d;
-              font-size: 14px;
-            }
-            
-            .status-badge {
-              display: inline-block;
-              padding: 6px 12px;
-              border-radius: 20px;
-              font-size: 14px;
-              font-weight: bold;
-              margin: 5px;
-            }
-            
-            .footer {
-              margin-top: 50px;
-              padding-top: 20px;
-              border-top: 2px solid #2c3e50;
-              text-align: center;
-              color: #6c757d;
-              font-size: 14px;
-            }
-            
-            .footer-info {
-              display: flex;
-              justify-content: space-between;
-              margin-top: 30px;
-              font-size: 14px;
-            }
-            
-            .signature {
-              margin-top: 50px;
-              display: flex;
-              justify-content: space-between;
-              padding: 0 50px;
-            }
-            
-            .signature-line {
-              width: 200px;
-              border-top: 1px solid #000;
-              text-align: center;
-              padding-top: 5px;
-              font-size: 14px;
-              position: relative;
-            }
-            
-            .watermark {
-              position: fixed;
-              bottom: 100px;
-              right: 100px;
-              opacity: 0.1;
-              font-size: 80px;
-              transform: rotate(-45deg);
-              color: #ccc;
-              pointer-events: none;
-            }
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+          
+          body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           
-          @media screen {
-            body {
-              font-family: 'Segoe UI', 'Arial', sans-serif;
-              line-height: 1.6;
-              color: #000;
-              margin: 20px;
-              background: white;
-            }
-            
-            .print-container {
-              max-width: 210mm;
-              margin: 0 auto;
-            }
-            
-            .print-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 30px;
-              padding-bottom: 20px;
-              border-bottom: 3px solid #2c3e50;
-            }
-
-            .header-right p {
-              margin: 0;
-              font-size: 14px;
-            }
-            
-            .print-title {
-              font-size: 28px;
-              font-weight: bold;
-              color: #2c3e50;
-              margin: 0 0 10px 0;
-              text-transform: uppercase;
-            }
-            
-            .print-subtitle {
-              font-size: 20px;
-              color: #34495e;
-              margin: 10px 0;
-              font-weight: 600;
-            }
-            
-            .print-info-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-              gap: 20px;
-              margin: 30px 0;
-              background: #f8f9fa;
-              padding: 20px;
-              border-radius: 10px;
-              border: 1px solid #dee2e6;
-            }
-            
-            .info-group {
-              display: flex;
-              flex-direction: column;
-              gap: 8px;
-            }
-            
-            .info-label {
-              font-weight: bold;
-              color: #495057;
-              font-size: 14px;
-              display: flex;
-              align-items: center;
-              gap: 8px;
-            }
-            
-            .info-value {
-              color: #000;
-              font-size: 16px;
-              padding: 8px 12px;
-              background: white;
-              border-radius: 6px;
-              border: 1px solid #ced4da;
-            }
-            
-            .results-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 30px 0;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
-            
-            .results-table th {
-              background: #2c3e50;
-              color: white;
-              font-weight: bold;
-              text-align: left;
-              padding: 15px;
-              border: 1px solid #1a252f;
-              font-size: 16px;
-            }
-            
-            .results-table td {
-              padding: 12px 15px;
-              border: 1px solid #dee2e6;
-              vertical-align: top;
-            }
-            
-            .results-table tr:nth-child(even) {
-              background: #f8f9fa;
-            }
-            
-            .result-value {
-              font-weight: bold;
-              color: #2c3e50;
-              font-size: 16px;
-            }
-            
-            .norma {
-              color: #6c757d;
-              font-size: 14px;
-            }
-            
-            .status-badge {
-              display: inline-block;
-              padding: 6px 12px;
-              border-radius: 20px;
-              font-size: 14px;
-              font-weight: bold;
-              margin: 5px;
-            }
-            
-            .footer {
-              margin-top: 50px;
-              padding-top: 20px;
-              border-top: 2px solid #2c3e50;
-              text-align: center;
-              color: #6c757d;
-              font-size: 14px;
-            }
-            
-            .footer-info {
-              display: flex;
-              justify-content: space-between;
-              margin-top: 30px;
-              font-size: 14px;
-            }
-            
-            .signature {
-              margin-top: 50px;
-              display: flex;
-              justify-content: space-between;
-              padding: 0 50px;
-            }
-            
-            .signature-line {
-              width: 200px;
-              border-top: 1px solid #000;
-              text-align: center;
-              padding-top: 5px;
-              font-size: 14px;
-              position: relative;
-            }
-            
-            .watermark {
-              position: fixed;
-              bottom: 100px;
-              right: 100px;
-              opacity: 0.1;
-              font-size: 80px;
-              transform: rotate(-45deg);
-              color: #ccc;
-              pointer-events: none;
-            }
+          .print-container {
+            width: 210mm;
+            min-height: 290mm; /* Slightly less than A4 height to help fit */
+            margin: 0 auto;
+            padding: 10mm;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
           }
           
-          .no-print {
-            display: none;
+          .print-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #000;
+            margin-bottom: 10px;
+          }
+          
+          .header-left img {
+            width: 160px;
+          }
+          
+          .header-right {
+            text-align: right;
+            font-size: 10px;
+            line-height: 1.3;
+          }
+          .header-right strong {
+            font-weight: 700;
+          }
+          
+          .analysis-title {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            margin: 8px 0;
+          }
+          
+          .patient-info-table, .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-bottom: 10px;
+          }
+          
+          .patient-info-table td, .results-table td, .results-table th {
+            border: 1px solid #000;
+            padding: 4px 6px;
+            text-align: left;
+          }
+
+          .patient-info-table td:first-child {
+            font-weight: 700;
+            width: 150px; /* Fixed width for labels */
+          }
+          
+          .results-table th {
+            font-weight: 700;
+          }
+          
+          .result-value {
+            font-weight: 700;
+          }
+          
+          .print-footer {
+            margin-top: auto;
+            padding-top: 15px;
+            font-size: 12px;
+          }
+          
+          .signature-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 20px;
+          }
+          
+          .doctor-name {
+            font-weight: 700;
+            margin-bottom: 5px; /* Space between name and line */
+          }
+          
+          .signature-area {
+            display: flex;
+            justify-content: center; /* Center the single block */
+            align-items: flex-end;
+            margin-top: 20px;
+          }
+          
+          .signature-block {
+            text-align: center;
+            width: 200px; /* Give it a specific width for centering */
+          }
+          
+          .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 0; /* Adjust to place line directly below name */
+            padding-top: 5px;
+          }
+          
+          .text-center {
+            text-align: center;
+          }
+
+          @page {
+            size: A4;
+            margin: 0;
           }
         </style>
       </head>
       <body>
         <div class="print-container">
-          <div class="print-header">
+          <header class="print-header">
             <div class="header-left">
-              <img src="${logo}" alt="Logo" style="width: 200px; height: auto;" />
+              <img src="${logo}" alt="Logo" />
             </div>
-            <div class="header-right" style="text-align: left;">
-              <p><strong>Manzil:</strong> QARSHI SHAHAR KAT - MFY, NASAF KO' CHASI, 31-UY TEL: (75) 223-47-47</p>
-              <p><strong>Aloqa:</strong> (97) 070-47-47;(97) 310-21-01</p>
+            <div class="header-right">
+              <strong>MANZIL:</strong> QARSHI SHAHAR KAT - MFY, NASAF KO'CHASI, 31-UY <strong>TEL:</strong> (75) 223-47-47<br>
+              <strong>MOBIL:</strong> (97) 070-47-47 ; (97) 310-21-01
             </div>
-          </div>
-          <table class="results-table">
-            <thead>
-              <tr>
-                <th style="width: 40%;">Tahlil Parametr</th>
-                <th style="width: 30%;">Olingan Natija</th>
-                <th style="width: 30%;">Normal Qiymatlar</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${
-                detailedAnalysisData.results
-                  ?.map((res: any, index: number) => {
-                    if (res.analysis_result?.[0]?.analysis_result) {
-                      return `
+          </header>
+          
+          <main>
+             <h1 class="analysis-title">${
+               detailedAnalysisData?.department_types.title ||
+               "Tahlil Natijalari"
+             }</h1>
+
+            <table class="patient-info-table">
+              <tbody>
                 <tr>
-                  <td>
-                    <strong>${res.title}</strong>
-                  </td>
-                  <td>
-                    <span class="result-value">${
-                      res.analysis_result?.[0]?.analysis_result
-                    }</span>
-                  </td>
-                  <td>
-                    <span class="norma">${res.norma || "Belgilanmagan"}</span>
-                  </td>
+                  <td>Bemor I.F.O:</td>
+                  <td>${patient.last_name} ${patient.name} ${
+      patient.middle_name
+    }</td>
                 </tr>
-              `;
-                    }
-                  })
-                  .join("") ||
-                '<tr><td colspan="3">Natijalar topilmadi</td></tr>'
-              }
-            </tbody>
-          </table>
-          
-          <div class="footer">
-            <div class="footer-info">
-              <div>
-                <strong>Chop etilgan sana:</strong> ${printDate}
-              </div>
-              <div>
-                <strong>Bemor:</strong> ${patient?.name} ${patient?.last_name}
-              </div>
-              <div>
-                <strong>Tahlil ID:</strong> ${detailedAnalysisData?.id || "N/A"}
-              </div>
-            </div>
+                <tr>
+                  <td>Tug'ilgan sanasi:</td>
+                  <td>${patient.birth_date}</td>
+                </tr>
+                <tr>
+                  <td>Telefon raqami:</td>
+                  <td>${patient.phone_number}</td>
+                </tr>
+                <tr>
+                  <td>Tekshiruv sanasi:</td>
+                  <td>${formattedTekshiruvDate}</td>
+                </tr>
+              </tbody>
+            </table>
             
-            <div class="signature">
-              <div class="signature-line">
-                Laboratoriya mudiri
-              </div>
-              <div class="signature-line">
-                Imzo
-                </br>
-                </br>
-                </br>
-                </br>
-                <img src="${pechat}" alt="Pechat" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 150px; opacity: 0.8;" />
-              </div>
-            </div>
-          </div>
+            <table class="results-table">
+              <thead>
+                <tr>
+                  <th>Ko'rsatkich</th>
+                  <th>Natija</th>
+                  <th>Norma</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${resultsHtml}
+              </tbody>
+            </table>
+          </main>
           
-          <div class="watermark">
-            BROSMED
-          </div>
+          <footer class="print-footer">
+            <div class="signature-area">
+              <div class="doctor-name">Davronov.E.T</div>
+              <div class="signature-line"></div>
+            </div>
+          </footer>
         </div>
-        
         <script>
           window.onload = function() {
-            window.print();
+            setTimeout(() => {
+              window.print();
+              window.onafterprint = function() {
+                // window.close();
+              }
+            }, 300);
           }
         </script>
       </body>
