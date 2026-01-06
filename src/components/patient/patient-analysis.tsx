@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -790,7 +790,7 @@ export default function PatientAnalysis() {
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <Dialog
                     open={viewingAnalysisId === analysisItem.id}
                     onOpenChange={(isOpen) => {
@@ -1034,6 +1034,17 @@ export default function PatientAnalysis() {
                   >
                     <FileDown />
                   </Button>
+                  <Link
+                    to={`https://t.me/brosmedsupportbot?text=${id}`}
+                    className="flex items-center gap-2"
+                  >
+                    <span className="p-2 border border-white rounded">
+                      Telegramdan olish
+                    </span>{" "}
+                    <span>
+                      <b>ID:</b> {id}
+                    </span>
+                  </Link>
                 </div>
               </div>
               {analysisItem.files && analysisItem.files.length > 0 && (
