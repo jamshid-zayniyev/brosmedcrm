@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -21,7 +21,9 @@ import {
   FileText,
   User,
   Plus,
-  Loader2, // Added Loader2 import
+  Loader2,
+  Search,
+  LoaderCircle,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
@@ -48,6 +50,9 @@ export function TestResults() {
   const [analysisResults, setAnalysisResults] = useState<
     AnalysisResultPayload[]
   >([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Patient[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -210,6 +215,49 @@ export function TestResults() {
   const registeredPatients = patients.filter(
     (p) => p.patient_status === "r" || p.patient_status === "l"
   );
+
+  const handleSearch = async () => {
+    if (!searchQuery) {
+      toast.info("Qidiruv uchun ma'lumot kiriting");
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const results = await patientService.searchPatient(searchQuery);
+      if (results && results.length > 0) {
+        setSearchResults(results);
+        toast.success(`${results.length} ta bemor topildi`);
+      } else {
+        setSearchResults([]);
+        toast.info("Bemor topilmadi.");
+      }
+    } catch (error) {
+      toast.error("Qidiruvda xatolik yuz berdi");
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handlePatientSelect = (patient: Patient) => {
+    navigate(`/lab/patient-analysis/${patient.id}`);
+  };
+
+  const handleReset = async () => {
+    setLoading(true);
+    setSearchQuery("");
+    setSearchResults([]);
+    try {
+      const patientsRes = await patientService.findAll();
+      setPatients(patientsRes);
+    } catch (error) {
+      toast.error("Bemorlarni yuklashda xatolik yuz berdi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const patientsToDisplay = searchResults.length > 0 ? searchResults : patients;
 
   if (loading) {
     return (
@@ -502,8 +550,34 @@ export function TestResults() {
         </TabsContent>
 
         <TabsContent value="list" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Bemorlarni qidirish</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Telefon raqam yoki ism-familiya"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                />
+                <Button onClick={handleSearch} disabled={isSearching}>
+                  {isSearching ? (
+                    <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
+                  Qidirish
+                </Button>
+                <Button variant="outline" onClick={handleReset} disabled={loading}>
+                  Reset
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
           <Accordion type="single" collapsible className="w-full space-y-3">
-            {patients.map((patient) => (
+            {patientsToDisplay.map((patient) => (
               <AccordionItem
                 value={`item-${patient.id}`}
                 key={patient.id}
@@ -532,15 +606,6 @@ export function TestResults() {
                         </span>
                       </div>
                     </div>
-                    {/*
-                    <Badge
-                      className={`${
-                        getStatusBadge(patient.patient_status).className
-                      }`}
-                    >
-                      {getStatusBadge(patient.patient_status).label}
-                    </Badge>
-                    */}
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-6 py-6 bg-gray-50 border-t border-gray-200">
@@ -592,26 +657,6 @@ export function TestResults() {
                             </span>
                           </div>
 
-                          {/* <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                              <span className="text-sm font-medium text-gray-600">
-                                To'lov holati:
-                              </span>
-                            </div>
-                            <Badge
-                              className={
-                                patient.payment_status === "c"
-                                  ? "bg-green-100 text-green-800 border border-green-200 shadow-xs font-medium px-3 py-1"
-                                  : "bg-red-100 text-red-800 border border-red-200 shadow-xs font-medium px-3 py-1"
-                              }
-                            >
-                              {patient.payment_status === "c"
-                                ? "To'langan"
-                                : "To'lanmagan"}
-                            </Badge>
-                          </div> */}
-
                           <div className="col-span-full flex justify-between items-start p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
@@ -623,27 +668,13 @@ export function TestResults() {
                               {patient.address}
                             </span>
                           </div>
-
-                          {/* <div className="col-span-full flex justify-between items-start p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-red-400"></div>
-                              <span className="text-sm font-medium text-gray-600">
-                                Kasallik:
-                              </span>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900 text-right max-w-[70%] px-2 py-1 rounded bg-gray-50">
-                              {patient.disease}
-                            </span>
-                          </div> */}
                         </div>
                       </CardContent>
                     </Card>
 
                     <div className="mt-4">
                       <Button
-                        onClick={() =>
-                          navigate(`/lab/patient-analysis/${patient.id}`)
-                        }
+                        onClick={() => handlePatientSelect(patient)}
                       >
                         Analizlarni ko'rish
                       </Button>
@@ -658,4 +689,3 @@ export function TestResults() {
     </div>
   );
 }
-
