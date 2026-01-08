@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -25,9 +25,6 @@ import {
   Target,
   FileDown,
   Printer,
-  User,
-  Calendar,
-  Stethoscope,
 } from "lucide-react";
 import {
   Dialog,
@@ -53,10 +50,7 @@ import { Analysis } from "../../interfaces/analysis.interface";
 import { diseaseService } from "../../services/disease.service";
 import { formattedDate } from "../../utils/formatted-date";
 import logo from "../../assets/logo.png";
-import pechat from "../../assets/pechat.png";
 
-// This EditAnalysisDialog component is directly copied from the old TestResults.tsx
-// It's a sub-component used within PatientAnalysis.
 function EditAnalysisDialog({
   analysis,
   onSave,
@@ -275,7 +269,6 @@ interface Disease {
 export default function PatientAnalysis() {
   const { id } = useParams<{ id: string }>();
   const patientId = Number(id);
-  const printContentRef = useRef<HTMLDivElement>(null);
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
@@ -451,21 +444,25 @@ export default function PatientAnalysis() {
       return;
     }
 
+    // Sanani formatlash
     const tekshiruvDate = detailedAnalysisData.created_at
       ? new Date(detailedAnalysisData.created_at)
       : null;
     const formattedTekshiruvDate = tekshiruvDate
-      ? `${tekshiruvDate.getFullYear()}-${(tekshiruvDate.getMonth() + 1)
+      ? `${tekshiruvDate.getDate().toString().padStart(2, "0")}.${(
+          tekshiruvDate.getMonth() + 1
+        )
           .toString()
-          .padStart(2, "0")}-${tekshiruvDate
-          .getDate()
+          .padStart(2, "0")}.${tekshiruvDate.getFullYear()} ${tekshiruvDate
+          .getHours()
           .toString()
-          .padStart(
-            2,
-            "0"
-          )} ${tekshiruvDate.getHours()}:${tekshiruvDate.getMinutes()}`
+          .padStart(2, "0")}:${tekshiruvDate
+          .getMinutes()
+          .toString()
+          .padStart(2, "0")}`
       : "Noma'lum";
 
+    // Natijalarni HTML qatorlariga aylantirish
     const filteredResults =
       detailedAnalysisData.results?.filter(
         (res: any) => res.analysis_result?.[0]?.analysis_result
@@ -475,18 +472,19 @@ export default function PatientAnalysis() {
       filteredResults.length > 0
         ? filteredResults
             .map(
-              (res: any) => `
+              (res: any, index: number) => `
       <tr>
+        <td style="text-align: center;">${index + 1}</td>
         <td>${res.title}</td>
-        <td class="result-value">${
+        <td class="text-center">${
           res.analysis_result?.[0]?.analysis_result || "-"
         }</td>
-        <td>${res.norma || "-"}</td>
+        <td class="text-center">${res.norma || "-"}</td>
       </tr>
     `
             )
             .join("")
-        : '<tr><td colspan="3" class="text-center">Natijalar topilmadi.</td></tr>';
+        : '<tr><td colspan="4" class="text-center">Natijalar topilmadi.</td></tr>';
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -498,118 +496,132 @@ export default function PatientAnalysis() {
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
           
           body {
-            font-family: 'Roboto', sans-serif;
+            font-family: 'Roboto', Arial, sans-serif;
             margin: 0;
             padding: 0;
             background-color: #fff;
             color: #000;
+            font-size: 12px;
             -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
           }
           
           .print-container {
             width: 210mm;
-            min-height: 290mm; /* Slightly less than A4 height to help fit */
             margin: 0 auto;
-            padding: 10mm;
+            padding: 10mm 15mm; 
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            box-sizing: border-box;
           }
           
+          /* HEADER */
           .print-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #000;
-            margin-bottom: 10px;
+            align-items: center;
+            /* Border olib tashlandi */
+            margin-bottom: 20px;
+            padding-bottom: 0;
           }
           
+          .header-left {
+            display: flex;
+            align-items: center;
+          }
+
           .header-left img {
-            width: 160px;
+            height: 70px; /* Logo biroz kattalashtirildi */
+            object-fit: contain;
           }
           
+          /* Subtitle olib tashlandi */
+
           .header-right {
             text-align: right;
-            font-size: 10px;
-            line-height: 1.3;
+            font-size: 12px; /* Font kattalashtirildi */
+            line-height: 1.4;
+            max-width: 350px; /* Matn sig'ishi uchun kenglik */
           }
-          .header-right strong {
+          .header-right b {
             font-weight: 700;
           }
           
+          /* INFO TABLE */
+          .info-section {
+            margin-bottom: 20px;
+          }
+
+          .patient-info-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+          }
+          
+          .patient-info-table td {
+            border: 1px solid #000;
+            padding: 5px 8px;
+          }
+
+          .label-cell {
+            font-weight: 700;
+            width: 140px;
+          }
+
+          /* RESULTS TABLE */
           .analysis-title {
             text-align: center;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
-            margin: 8px 0;
+            margin: 20px 0 15px 0;
+            text-transform: uppercase;
           }
           
-          .patient-info-table, .results-table {
+          .results-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 12px;
             margin-bottom: 10px;
           }
           
-          .patient-info-table td, .results-table td, .results-table th {
+          .results-table th, .results-table td {
             border: 1px solid #000;
-            padding: 4px 6px;
-            text-align: left;
-          }
-
-          .patient-info-table td:first-child {
-            font-weight: 700;
-            width: 150px; /* Fixed width for labels */
+            padding: 6px 8px;
+            background-color: transparent !important;
           }
           
           .results-table th {
             font-weight: 700;
-          }
-          
-          .result-value {
-            font-weight: 700;
-          }
-          
-          .print-footer {
-            margin-top: auto;
-            padding-top: 15px;
-            font-size: 12px;
-          }
-          
-          .signature-area {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-top: 20px;
-          }
-          
-          .doctor-name {
-            font-weight: 700;
-            margin-bottom: 5px; /* Space between name and line */
-          }
-          
-          .signature-area {
-            display: flex;
-            justify-content: center; /* Center the single block */
-            align-items: flex-end;
-            margin-top: 20px;
-          }
-          
-          .signature-block {
             text-align: center;
-            width: 200px; /* Give it a specific width for centering */
-          }
-          
-          .signature-line {
-            border-top: 1px solid #000;
-            margin-top: 0; /* Adjust to place line directly below name */
-            padding-top: 5px;
           }
           
           .text-center {
             text-align: center;
+          }
+
+          /* FOOTER - SIGNATURE AREA */
+          .print-footer {
+            margin-top: 30px;
+            display: flex;
+            justify-content: flex-end; /* Faqat o'ng tomonda joylashadi */
+            font-size: 12px;
+          }
+
+          /* Lab info olib tashlandi */
+
+          .signature-block {
+            font-size: 13px;
+          }
+
+          .signature-line {
+            display: inline-block;
+            width: 150px;
+            border-bottom: 1px solid #000;
+            margin: 0 10px;
+            vertical-align: bottom;
+          }
+
+          .doctor-name {
+            font-weight: bold;
           }
 
           @page {
@@ -620,50 +632,55 @@ export default function PatientAnalysis() {
       </head>
       <body>
         <div class="print-container">
+          
           <header class="print-header">
             <div class="header-left">
               <img src="${logo}" alt="Logo" />
             </div>
             <div class="header-right">
-              <strong>MANZIL:</strong> QARSHI SHAHAR KAT - MFY, NASAF KO'CHASI, 31-UY <strong>TEL:</strong> (75) 223-47-47<br>
-              <strong>MOBIL:</strong> (97) 070-47-47 ; (97) 310-21-01
+              <b>MANZIL:</b> QARSHI SHAHAR KAT - MFY,<br>
+              NASAF KO' CHASI, 31-UY <b>TEL:</b> (75) 223-47-47<br>
+              <b>MOBIL:</b> (97) 070-47-47 ; (97) 310-21-01
             </div>
           </header>
           
           <main>
-             <h1 class="analysis-title">${
-               detailedAnalysisData?.department_types.title ||
-               "Tahlil Natijalari"
-             }</h1>
-
-            <table class="patient-info-table">
-              <tbody>
-                <tr>
-                  <td>Bemor I.F.O:</td>
-                  <td>${patient.last_name} ${patient.name} ${
-      patient.middle_name
+            <div class="info-section">
+              <table class="patient-info-table">
+                <tbody>
+                  <tr>
+                    <td class="label-cell">Bemor I.F.O:</td>
+                    <td>${patient.last_name} ${patient.name} ${
+      patient.middle_name || ""
     }</td>
-                </tr>
-                <tr>
-                  <td>Tug'ilgan sanasi:</td>
-                  <td>${patient.birth_date}</td>
-                </tr>
-                <tr>
-                  <td>Telefon raqami:</td>
-                  <td>${patient.phone_number}</td>
-                </tr>
-                <tr>
-                  <td>Tekshiruv sanasi:</td>
-                  <td>${formattedTekshiruvDate}</td>
-                </tr>
-              </tbody>
-            </table>
+                  </tr>
+                  <tr>
+                    <td class="label-cell">Tug'ilgan sanasi:</td>
+                    <td>${patient.birth_date}</td>
+                  </tr>
+                  <tr>
+                    <td class="label-cell">Telefon raqami:</td>
+                    <td>${patient.phone_number}</td>
+                  </tr>
+                  <tr>
+                    <td class="label-cell">Tekshiruv sanasi:</td>
+                    <td>${formattedTekshiruvDate}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h1 class="analysis-title">${
+              detailedAnalysisData?.department_types?.title ||
+              "TAHLIL NATIJALARI"
+            }</h1>
             
             <table class="results-table">
               <thead>
                 <tr>
-                  <th>Ko'rsatkich</th>
-                  <th>Natija</th>
+                  <th style="width: 30px;">№</th>
+                  <th>Tahlil nomi</th>
+                  <th>Tahlil natijasi</th>
                   <th>Norma</th>
                 </tr>
               </thead>
@@ -671,23 +688,20 @@ export default function PatientAnalysis() {
                 ${resultsHtml}
               </tbody>
             </table>
-          </main>
-          
-          <footer class="print-footer">
-            <div class="signature-area">
-              <div class="doctor-name">Davronov.E.T</div>
-              <div class="signature-line"></div>
+
+            <div class="print-footer">
+              <div class="signature-block">
+                Врач лаборант: <span class="signature-line"></span> <span class="doctor-name">Davronov.E.T</span>
+              </div>
             </div>
-          </footer>
+
+          </main>
         </div>
         <script>
           window.onload = function() {
             setTimeout(() => {
               window.print();
-              window.onafterprint = function() {
-                // window.close();
-              }
-            }, 300);
+            }, 500);
           }
         </script>
       </body>
