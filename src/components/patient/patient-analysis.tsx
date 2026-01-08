@@ -440,11 +440,10 @@ export default function PatientAnalysis() {
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      toast.error("Print oynasini ochishda xatolik!");
+      toast.error("Ошибка при открытии окна печати!");
       return;
     }
 
-    // Sanani formatlash
     const tekshiruvDate = detailedAnalysisData.created_at
       ? new Date(detailedAnalysisData.created_at)
       : null;
@@ -460,9 +459,8 @@ export default function PatientAnalysis() {
           .getMinutes()
           .toString()
           .padStart(2, "0")}`
-      : "Noma'lum";
+      : "Неизвестно";
 
-    // Natijalarni HTML qatorlariga aylantirish
     const filteredResults =
       detailedAnalysisData.results?.filter(
         (res: any) => res.analysis_result?.[0]?.analysis_result
@@ -473,240 +471,231 @@ export default function PatientAnalysis() {
         ? filteredResults
             .map(
               (res: any, index: number) => `
-      <tr>
-        <td style="text-align: center;">${index + 1}</td>
-        <td>${res.title}</td>
-        <td class="text-center">${
-          res.analysis_result?.[0]?.analysis_result || "-"
-        }</td>
-        <td class="text-center">${res.norma || "-"}</td>
-      </tr>
-    `
+    <tr>
+      <td style="text-align: center;">${index + 1}</td>
+      <td>${res.title}</td>
+      <td class="text-center">${
+        res.analysis_result?.[0]?.analysis_result || "-"
+      }</td>
+      <td class="text-center">${res.norma || "-"}</td>
+    </tr>
+  `
             )
             .join("")
-        : '<tr><td colspan="4" class="text-center">Natijalar topilmadi.</td></tr>';
+        : '<tr><td colspan="4" class="text-center">Результаты не найдены.</td></tr>';
 
     printWindow.document.write(`
-      <!DOCTYPE html>
-      <html lang="uz">
-      <head>
-        <meta charset="UTF-8">
-        <title>Tahlil Natijasi - ${patient.name} ${patient.last_name}</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-          
-          body {
-            font-family: 'Roboto', Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #fff;
-            color: #000;
-            font-size: 12px;
-            -webkit-print-color-adjust: exact;
-          }
-          
-          .print-container {
-            width: 210mm;
-            margin: 0 auto;
-            padding: 10mm 15mm; 
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-          }
-          
-          /* HEADER */
-          .print-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            /* Border olib tashlandi */
-            margin-bottom: 20px;
-            padding-bottom: 0;
-          }
-          
-          .header-left {
-            display: flex;
-            align-items: center;
-          }
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+      <meta charset="UTF-8">
+      <title>Результат анализа - ${patient.name} ${patient.last_name}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+        
+        body {
+          font-family: 'Roboto', Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #fff;
+          color: #000;
+          font-size: 12px;
+          -webkit-print-color-adjust: exact;
+        }
+        
+        .print-container {
+          width: 210mm;
+          margin: 0 auto;
+          padding: 10mm 15mm; 
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .print-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          padding-bottom: 0;
+        }
+        
+        .header-left {
+          display: flex;
+          align-items: center;
+        }
 
-          .header-left img {
-            height: 70px; /* Logo biroz kattalashtirildi */
-            object-fit: contain;
-          }
-          
-          /* Subtitle olib tashlandi */
+        .header-left img {
+          height: 70px;
+          object-fit: contain;
+        }
 
-          .header-right {
-            text-align: right;
-            font-size: 12px; /* Font kattalashtirildi */
-            line-height: 1.4;
-            max-width: 350px; /* Matn sig'ishi uchun kenglik */
-          }
-          .header-right b {
-            font-weight: 700;
-          }
-          
-          /* INFO TABLE */
-          .info-section {
-            margin-bottom: 20px;
-          }
+        .header-right {
+          text-align: right;
+          font-size: 12px;
+          line-height: 1.4;
+          max-width: 350px;
+        }
+        .header-right b {
+          font-weight: 700;
+        }
 
-          .patient-info-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-          }
-          
-          .patient-info-table td {
-            border: 1px solid #000;
-            padding: 5px 8px;
-          }
+        .info-section {
+          margin-bottom: 20px;
+        }
 
-          .label-cell {
-            font-weight: 700;
-            width: 140px;
-          }
+        .patient-info-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+        }
+        
+        .patient-info-table td {
+          border: 1px solid #000;
+          padding: 5px 8px;
+        }
 
-          /* RESULTS TABLE */
-          .analysis-title {
-            text-align: center;
-            font-size: 16px;
-            font-weight: 700;
-            margin: 20px 0 15px 0;
-            text-transform: uppercase;
-          }
-          
-          .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-            margin-bottom: 10px;
-          }
-          
-          .results-table th, .results-table td {
-            border: 1px solid #000;
-            padding: 6px 8px;
-            background-color: transparent !important;
-          }
-          
-          .results-table th {
-            font-weight: 700;
-            text-align: center;
-          }
-          
-          .text-center {
-            text-align: center;
-          }
+        .label-cell {
+          font-weight: 700;
+          width: 140px;
+        }
 
-          /* FOOTER - SIGNATURE AREA */
-          .print-footer {
-            margin-top: 30px;
-            display: flex;
-            justify-content: flex-end; /* Faqat o'ng tomonda joylashadi */
-            font-size: 12px;
-          }
+        .analysis-title {
+          text-align: center;
+          font-size: 16px;
+          font-weight: 700;
+          margin: 20px 0 15px 0;
+          text-transform: uppercase;
+        }
+        
+        .results-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+          margin-bottom: 10px;
+        }
+        
+        .results-table th, .results-table td {
+          border: 1px solid #000;
+          padding: 6px 8px;
+          background-color: transparent !important;
+        }
+        
+        .results-table th {
+          font-weight: 700;
+          text-align: center;
+        }
+        
+        .text-center {
+          text-align: center;
+        }
 
-          /* Lab info olib tashlandi */
+        .print-footer {
+          margin-top: 30px;
+          display: flex;
+          justify-content: flex-end;
+          font-size: 12px;
+        }
 
-          .signature-block {
-            font-size: 13px;
-          }
+        .signature-block {
+          font-size: 13px;
+        }
 
-          .signature-line {
-            display: inline-block;
-            width: 150px;
-            border-bottom: 1px solid #000;
-            margin: 0 10px;
-            vertical-align: bottom;
-          }
+        .signature-line {
+          display: inline-block;
+          width: 150px;
+          border-bottom: 1px solid #000;
+          margin: 0 10px;
+          vertical-align: bottom;
+        }
 
-          .doctor-name {
-            font-weight: bold;
-          }
+        .doctor-name {
+          font-weight: bold;
+        }
 
-          @page {
-            size: A4;
-            margin: 0;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="print-container">
-          
-          <header class="print-header">
-            <div class="header-left">
-              <img src="${logo}" alt="Logo" />
-            </div>
-            <div class="header-right">
-              <b>MANZIL:</b> QARSHI SHAHAR KAT - MFY,<br>
-              NASAF KO' CHASI, 31-UY <b>TEL:</b> (75) 223-47-47<br>
-              <b>MOBIL:</b> (97) 070-47-47 ; (97) 310-21-01
-            </div>
-          </header>
-          
-          <main>
-            <div class="info-section">
-              <table class="patient-info-table">
-                <tbody>
-                  <tr>
-                    <td class="label-cell">Bemor I.F.O:</td>
-                    <td>${patient.last_name} ${patient.name} ${
+        @page {
+          size: A4;
+          margin: 0;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="print-container">
+        
+        <header class="print-header">
+          <div class="header-left">
+            <img src="${logo}" alt="Logo" />
+          </div>
+          <div class="header-right">
+            <b>АДРЕС:</b> Город Карши, КАТ - МФЙ,<br>
+            Улица Насаф, дом 31 <b>ТЕЛ:</b> (75) 223-47-47<br>
+            <b>МОБ:</b> (97) 070-47-47 ; (97) 310-21-01
+          </div>
+        </header>
+        
+        <main>
+          <div class="info-section">
+            <table class="patient-info-table">
+              <tbody>
+                <tr>
+                  <td class="label-cell">Ф.И.О. пациента:</td>
+                  <td>${patient.last_name} ${patient.name} ${
       patient.middle_name || ""
     }</td>
-                  </tr>
-                  <tr>
-                    <td class="label-cell">Tug'ilgan sanasi:</td>
-                    <td>${patient.birth_date}</td>
-                  </tr>
-                  <tr>
-                    <td class="label-cell">Telefon raqami:</td>
-                    <td>${patient.phone_number}</td>
-                  </tr>
-                  <tr>
-                    <td class="label-cell">Tekshiruv sanasi:</td>
-                    <td>${formattedTekshiruvDate}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h1 class="analysis-title">${
-              detailedAnalysisData?.department_types?.title ||
-              "TAHLIL NATIJALARI"
-            } ID: ${patient?.id}</h1>
-            
-            <table class="results-table">
-              <thead>
-                <tr>
-                  <th style="width: 30px;">№</th>
-                  <th>Tahlil nomi</th>
-                  <th>Tahlil natijasi</th>
-                  <th>Norma</th>
                 </tr>
-              </thead>
-              <tbody>
-                ${resultsHtml}
+                <tr>
+                  <td class="label-cell">Дата рождения:</td>
+                  <td>${patient.birth_date}</td>
+                </tr>
+                <tr>
+                  <td class="label-cell">Номер телефона:</td>
+                  <td>${patient.phone_number}</td>
+                </tr>
+                <tr>
+                  <td class="label-cell">Дата анализа:</td>
+                  <td>${formattedTekshiruvDate}</td>
+                </tr>
               </tbody>
             </table>
+          </div>
 
-            <div class="print-footer">
-              <div class="signature-block">
-                Врач лаборант: <span class="signature-line"></span> <span class="doctor-name">Davronov.E.T</span>
-              </div>
+          <h1 class="analysis-title">${
+            detailedAnalysisData?.department_types?.title ||
+            "РЕЗУЛЬТАТЫ АНАЛИЗОВ"
+          } ID: ${patient?.id}</h1>
+          
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th style="width: 30px;">№</th>
+                <th>Название анализа</th>
+                <th>Результат анализа</th>
+                <th>Норма</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${resultsHtml}
+            </tbody>
+          </table>
+
+          <div class="print-footer">
+            <div class="signature-block">
+              Врач лаборант: <span class="signature-line"></span> <span class="doctor-name">Давронов Е.Т.</span>
             </div>
+          </div>
 
-          </main>
-        </div>
-        <script>
-          window.onload = function() {
-            setTimeout(() => {
-              window.print();
-            }, 500);
-          }
-        </script>
-      </body>
-      </html>
-    `);
+        </main>
+      </div>
+      <script>
+        window.onload = function() {
+          setTimeout(() => {
+            window.print();
+          }, 500);
+        }
+      </script>
+    </body>
+    </html>
+  `);
 
     printWindow.document.close();
   };
