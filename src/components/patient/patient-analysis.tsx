@@ -673,7 +673,7 @@ export default function PatientAnalysis() {
             <h1 class="analysis-title">${
               detailedAnalysisData?.department_types?.title ||
               "TAHLIL NATIJALARI"
-            }</h1>
+            } ID: ${patient?.id}</h1>
             
             <table class="results-table">
               <thead>
