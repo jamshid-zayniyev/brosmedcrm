@@ -75,6 +75,40 @@ class PatientService {
     }
   }
 
+  async updatePatientById(
+    id: number,
+    data: {
+      user?: number;
+      department?: number;
+      department_types?: number;
+      name?: string;
+      last_name?: string;
+      middle_name?: string;
+      gender?: "e" | "a";
+      birth_date?: string;
+      phone_number?: string;
+      passport?: string;
+      address?: string;
+      disease?: string;
+      disease_uz?: string;
+      disease_ru?: string;
+      self_disease?: string;
+      payment_status?: "p" | "c" | "pc";
+      patient_status?: "r" | "l" | "d" | "t" | "f" | "rc";
+    }
+  ) {
+    try {
+      const res = await apiInstance.patch(
+        `${API_ENDPOINTS.PATIENT.base}${id}/`,
+        data
+      );
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async delete(id: number) {
     try {
       const res = await apiInstance.delete(

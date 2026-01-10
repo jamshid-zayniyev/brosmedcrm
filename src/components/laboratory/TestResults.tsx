@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Badge } from "../ui/badge";
 import { Skeleton } from "../ui/skeleton";
 import { toast } from "sonner";
 import {
@@ -123,7 +122,7 @@ export function TestResults() {
       toast.error("Bemor yoki tahlil turi topilmadi");
       return;
     }
-    
+
     setIsSubmitting(true); // Set submitting to true
 
     try {
@@ -141,6 +140,7 @@ export function TestResults() {
       const resultsWithAnalysisId = analysisResults.map((res) => ({
         ...res,
         analysis: newAnalysis.id,
+        patient: newAnalysis.patient,
       }));
       await analysisResultService.create(resultsWithAnalysisId);
 
@@ -570,7 +570,11 @@ export function TestResults() {
                   )}
                   Qidirish
                 </Button>
-                <Button variant="outline" onClick={handleReset} disabled={loading}>
+                <Button
+                  variant="outline"
+                  onClick={handleReset}
+                  disabled={loading}
+                >
                   Reset
                 </Button>
               </div>
@@ -673,9 +677,7 @@ export function TestResults() {
                     </Card>
 
                     <div className="mt-4">
-                      <Button
-                        onClick={() => handlePatientSelect(patient)}
-                      >
+                      <Button onClick={() => handlePatientSelect(patient)}>
                         Analizlarni ko'rish
                       </Button>
                     </div>
