@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -23,6 +23,7 @@ import {
   Loader2,
   Search,
   LoaderCircle,
+  Pencil,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
@@ -39,6 +40,7 @@ import { departmentTypeService } from "../../services/department-type.service";
 import { patientService } from "../../services/patient.service";
 import { analysisResultService } from "../../services/analysis-result.service";
 import { AnalysisResultPayload } from "../../interfaces/analysis-result.interface";
+import { UpdatePatientDialog } from "../patient/UpdatePatientDialog";
 
 export function TestResults() {
   const navigate = useNavigate();
@@ -53,18 +55,31 @@ export function TestResults() {
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // State for the update dialog
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [selectedPatientForUpdate, setSelectedPatientForUpdate] =
+    useState<Patient | null>(null);
+
+  const fetchAllPatients = async () => {
+    try {
+      const patientsRes = await patientService.findAll();
+      setPatients(patientsRes);
+    } catch (error) {
+      console.error("Failed to fetch patients:", error);
+      toast.error("Bemorlar ro'yxatini yuklashda xatolik yuz berdi");
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
-        const [patientsRes, departmentTypesRes] = await Promise.all([
-          patientService.findAll(),
-          departmentTypeService.findAll(),
-        ]);
-        setPatients(patientsRes);
+        const departmentTypesRes = await departmentTypeService.findAll();
         setDepartmentTypes(departmentTypesRes);
+        await fetchAllPatients();
       } catch (error) {
         console.error("Ma'lumotlarni yuklashda xatolik:", error);
-        toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
+        toast.error("Asosiy ma'lumotlarni yuklashda xatolik yuz berdi");
       } finally {
         setLoading(false);
       }
@@ -247,14 +262,22 @@ export function TestResults() {
     setLoading(true);
     setSearchQuery("");
     setSearchResults([]);
-    try {
-      const patientsRes = await patientService.findAll();
-      setPatients(patientsRes);
-    } catch (error) {
-      toast.error("Bemorlarni yuklashda xatolik yuz berdi");
-    } finally {
-      setLoading(false);
-    }
+    await fetchAllPatients();
+    setLoading(false);
+  };
+
+  const handleOpenUpdateDialog = (patient: Patient) => {
+    setSelectedPatientForUpdate(patient);
+    setIsUpdateDialogOpen(true);
+  };
+
+  const handleUpdateSuccess = async () => {
+    setIsUpdateDialogOpen(false);
+    setLoading(true);
+    await fetchAllPatients();
+    // Clear search results to show the full updated list
+    setSearchResults([]);
+    setLoading(false);
   };
 
   const patientsToDisplay = searchResults.length > 0 ? searchResults : patients;
@@ -676,9 +699,16 @@ export function TestResults() {
                       </CardContent>
                     </Card>
 
-                    <div className="mt-4">
+                    <div className="mt-4 flex gap-2">
                       <Button onClick={() => handlePatientSelect(patient)}>
                         Analizlarni ko'rish
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleOpenUpdateDialog(patient)}
+                      >
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Tahrirlash
                       </Button>
                     </div>
                   </div>
@@ -688,6 +718,12 @@ export function TestResults() {
           </Accordion>
         </TabsContent>
       </Tabs>
+      <UpdatePatientDialog
+        patient={selectedPatientForUpdate}
+        isOpen={isUpdateDialogOpen}
+        onOpenChange={setIsUpdateDialogOpen}
+        onSuccess={handleUpdateSuccess}
+      />
     </div>
   );
 }

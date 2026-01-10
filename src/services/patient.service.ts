@@ -98,7 +98,7 @@ class PatientService {
     }
   ) {
     try {
-      const res = await apiInstance.patch(
+      const res = await apiInstance.put(
         `${API_ENDPOINTS.PATIENT.base}${id}/`,
         data
       );
