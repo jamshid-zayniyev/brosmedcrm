@@ -184,49 +184,6 @@ export function TestResults() {
     }
   };
 
-  // const getStatusBadge = (status: string) => {
-  //   const statusConfig: Record<string, { label: string; className: string }> = {
-  //     n: {
-  //       label: "Yangi",
-  //       className: "bg-blue-50 text-blue-700 border border-blue-200",
-  //     },
-  //     ip: {
-  //       label: "Jarayonda",
-  //       className: "bg-amber-50 text-amber-700 border border-amber-200",
-  //     },
-  //     f: {
-  //       label: "Yakunlangan",
-  //       className: "",
-  //     },
-  //     r: {
-  //       label: "Kutmoqda",
-  //       className: "bg-gray-50 text-gray-700 border border-gray-200",
-  //     },
-  //     l: {
-  //       label: "Laboratoriyada",
-  //       className: "bg-purple-50 text-purple-700 border border-purple-200",
-  //     },
-  //     d: {
-  //       label: "Doktorda",
-  //       className: "bg-indigo-50 text-indigo-700 border border-indigo-200",
-  //     },
-  //     t: {
-  //       label: "To'lovda",
-  //       className: "bg-pink-50 text-pink-700 border border-pink-200",
-  //     },
-  //     rc: {
-  //       label: "Ro'yxatdan o'chirilgan",
-  //       className: "bg-red-50 text-red-700 border border-red-200",
-  //     },
-  //   };
-  //   return (
-  //     statusConfig[status] || {
-  //       label: status,
-  //       className: "bg-gray-50 text-gray-700 border border-gray-200",
-  //     }
-  //   );
-  // };
-
   const registeredPatients = patients.filter(
     (p) => p.patient_status === "r" || p.patient_status === "l"
   );

@@ -50,6 +50,7 @@ import { Analysis } from "../../interfaces/analysis.interface";
 import { diseaseService } from "../../services/disease.service";
 import { formattedDate } from "../../utils/formatted-date";
 import logo from "../../assets/logo.png";
+import pechat from '../../assets/pechat.png'
 
 function EditAnalysisDialog({
   analysis,
@@ -449,16 +450,16 @@ export default function PatientAnalysis() {
       : null;
     const formattedTekshiruvDate = tekshiruvDate
       ? `${tekshiruvDate.getDate().toString().padStart(2, "0")}.${(
-          tekshiruvDate.getMonth() + 1
-        )
-          .toString()
-          .padStart(2, "0")}.${tekshiruvDate.getFullYear()} ${tekshiruvDate
+        tekshiruvDate.getMonth() + 1
+      )
+        .toString()
+        .padStart(2, "0")}.${tekshiruvDate.getFullYear()} ${tekshiruvDate
           .getHours()
           .toString()
           .padStart(2, "0")}:${tekshiruvDate
-          .getMinutes()
-          .toString()
-          .padStart(2, "0")}`
+            .getMinutes()
+            .toString()
+            .padStart(2, "0")}`
       : "Неизвестно";
 
     const filteredResults =
@@ -469,19 +470,18 @@ export default function PatientAnalysis() {
     const resultsHtml =
       filteredResults.length > 0
         ? filteredResults
-            .map(
-              (res: any, index: number) => `
+          .map(
+            (res: any, index: number) => `
     <tr>
       <td style="text-align: center;">${index + 1}</td>
       <td>${res.title}</td>
-      <td class="text-center">${
-        res.analysis_result?.[0]?.analysis_result || "-"
-      }</td>
+      <td class="text-center">${res.analysis_result?.[0]?.analysis_result || "-"
+              }</td>
       <td class="text-center">${res.norma || "-"}</td>
     </tr>
   `
-            )
-            .join("")
+          )
+          .join("")
         : '<tr><td colspan="4" class="text-center">Результаты не найдены.</td></tr>';
 
     printWindow.document.write(`
@@ -595,10 +595,12 @@ export default function PatientAnalysis() {
           display: flex;
           justify-content: flex-end;
           font-size: 12px;
+          position: relative;
         }
 
         .signature-block {
           font-size: 13px;
+          position: relative;
         }
 
         .signature-line {
@@ -611,6 +613,14 @@ export default function PatientAnalysis() {
 
         .doctor-name {
           font-weight: bold;
+        }
+
+        .pechat-img {
+          position: absolute;
+          bottom: -80px;
+          right: 20px;
+          height: 80px;
+          width: auto;
         }
 
         @page {
@@ -639,9 +649,8 @@ export default function PatientAnalysis() {
               <tbody>
                 <tr>
                   <td class="label-cell">Ф.И.О. пациента:</td>
-                  <td>${patient.last_name} ${patient.name} ${
-      patient.middle_name || ""
-    }</td>
+                  <td>${patient.last_name} ${patient.name} ${patient.middle_name || ""
+      }</td>
                 </tr>
                 <tr>
                   <td class="label-cell">Дата рождения:</td>
@@ -659,10 +668,9 @@ export default function PatientAnalysis() {
             </table>
           </div>
 
-          <h1 class="analysis-title">${
-            detailedAnalysisData?.department_types?.title ||
-            "РЕЗУЛЬТАТЫ АНАЛИЗОВ"
-          } ID: ${patient?.id}</h1>
+          <h1 class="analysis-title">${detailedAnalysisData?.department_types?.title ||
+      "РЕЗУЛЬТАТЫ АНАЛИЗОВ"
+      } ID: ${patient?.id}</h1>
           
           <table class="results-table">
             <thead>
@@ -681,6 +689,7 @@ export default function PatientAnalysis() {
           <div class="print-footer">
             <div class="signature-block">
               Врач лаборант: <span class="signature-line"></span> <span class="doctor-name">Давронов Е.Т.</span>
+              <img src="${pechat}" alt="Печать" class="pechat-img" />
             </div>
           </div>
 
@@ -776,9 +785,8 @@ export default function PatientAnalysis() {
                   </p>
                   <div className="flex items-center gap-2">
                     <Badge
-                      className={`${
-                        getStatusBadge(analysisItem.status).className
-                      }`}
+                      className={`${getStatusBadge(analysisItem.status).className
+                        }`}
                     >
                       {getStatusBadge(analysisItem.status).label}
                     </Badge>
@@ -883,23 +891,21 @@ export default function PatientAnalysis() {
                                           key={res.id}
                                           className={`
                                         transition-colors duration-200 border-b border-gray-100
-                                        ${
-                                          index % 2 === 0
-                                            ? "bg-gray-50/50"
-                                            : "bg-white"
-                                        }
+                                        ${index % 2 === 0
+                                              ? "bg-gray-50/50"
+                                              : "bg-white"
+                                            }
                                         hover:bg-blue-50/30
                                       `}
                                         >
                                           <TableCell className="font-semibold text-gray-900 py-4 border-r border-gray-100">
                                             <div className="flex items-center gap-3">
                                               <div
-                                                className={`w-2 h-2 rounded-full ${
-                                                  res.analysis_result?.[0]
-                                                    ?.analysis_result
-                                                    ? "bg-green-400"
-                                                    : "bg-gray-300"
-                                                }`}
+                                                className={`w-2 h-2 rounded-full ${res.analysis_result?.[0]
+                                                  ?.analysis_result
+                                                  ? "bg-green-400"
+                                                  : "bg-gray-300"
+                                                  }`}
                                               ></div>
                                               {res.title}
                                             </div>
@@ -908,12 +914,11 @@ export default function PatientAnalysis() {
                                             <span
                                               className={`
                                             inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                                            ${
-                                              res.analysis_result?.[0]
-                                                ?.analysis_result
-                                                ? "bg-green-100 text-green-800 border border-green-200"
-                                                : "bg-amber-100 text-amber-800 border border-amber-200"
-                                            }
+                                            ${res.analysis_result?.[0]
+                                                  ?.analysis_result
+                                                  ? "bg-green-100 text-green-800 border border-green-200"
+                                                  : "bg-amber-100 text-amber-800 border border-amber-200"
+                                                }
                                           `}
                                             >
                                               {res.analysis_result?.[0]
