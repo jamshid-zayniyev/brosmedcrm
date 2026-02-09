@@ -503,7 +503,11 @@ export function TestResults() {
                           <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[400px] p-0">
+                      <PopoverContent
+                        style={{
+                          height: "380px",
+                        }}
+                      >
                         <Command shouldFilter={false}>
                           <CommandInput
                             placeholder="Bemorni qidirish..."
@@ -532,7 +536,7 @@ export function TestResults() {
                                       handlePatientSelect(currentValue);
                                     }}
                                   >
-                                    <div className="flex items-center gap-2 w-full">
+                                    <div className="flex items-center gap-2 w-full cursor-pointer">
                                       <Avatar className="h-8 w-8">
                                         <AvatarImage
                                           src={`https://api.dicebear.com/7.x/initials/svg?seed=${patient.name} ${patient.last_name}`}
