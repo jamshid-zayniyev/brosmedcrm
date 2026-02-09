@@ -61,6 +61,11 @@ export function TestResults() {
   const [limit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  // Search filter for patients list tab
+  const [listSearchQuery, setListSearchQuery] = useState("");
+  const [isListSearching, setIsListSearching] = useState(false);
+
   const [analysisResults, setAnalysisResults] = useState<
     AnalysisResultPayload[]
   >([]);
@@ -102,16 +107,28 @@ export function TestResults() {
     fetchInitialPatients();
   }, []);
 
-  // Fetch patients when page changes (for list tab)
+  // Fetch patients when page changes or search query changes (for list tab)
   useEffect(() => {
     const fetchPatients = async () => {
       setLoading(true);
       try {
-        const response = await patientService.findAll({ page, limit });
+        let response;
 
-        setPatients(response.data || []);
-        setTotalCount(response.total || 0);
-        setTotalPages(response.total_pages || 1);
+        if (listSearchQuery.trim() === "") {
+          // Normal pagination
+          response = await patientService.findAll({ page, limit });
+          setPatients(response.data || []);
+          setTotalCount(response.total || 0);
+          setTotalPages(response.total_pages || 1);
+        } else {
+          // Search mode
+          setIsListSearching(true);
+          const searchResults =
+            await patientService.searchPatient(listSearchQuery);
+          setPatients(searchResults || []);
+          setTotalCount(searchResults?.length || 0);
+          setTotalPages(1); // Search results in single page
+        }
       } catch (error) {
         console.error("Bemorlarni yuklashda xatolik:", error);
         toast.error("Bemorlarni yuklashda xatolik yuz berdi");
@@ -120,11 +137,19 @@ export function TestResults() {
         setTotalPages(1);
       } finally {
         setLoading(false);
+        setIsListSearching(false);
       }
     };
 
-    fetchPatients();
-  }, [page, limit]);
+    const debounceTimer = setTimeout(
+      () => {
+        fetchPatients();
+      },
+      listSearchQuery.trim() === "" ? 0 : 300,
+    ); // No debounce for empty, 300ms for search
+
+    return () => clearTimeout(debounceTimer);
+  }, [page, limit, listSearchQuery]);
 
   // Search patients with debounce
   useEffect(() => {
@@ -277,6 +302,11 @@ export function TestResults() {
 
   const handlePageClick = (pageNumber: number) => {
     setPage(pageNumber);
+  };
+
+  const handleListSearchChange = (value: string) => {
+    setListSearchQuery(value);
+    setPage(1); // Reset to first page when searching
   };
 
   const renderPageNumbers = () => {
@@ -711,10 +741,22 @@ export function TestResults() {
         </TabsContent>
 
         <TabsContent value="list" className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <p className="text-sm text-muted-foreground">
               Jami bemorlar: {totalCount} ta
             </p>
+            <div className="relative w-full sm:w-80">
+              <Input
+                type="text"
+                placeholder="Bemorni qidirish..."
+                value={listSearchQuery}
+                onChange={(e) => handleListSearchChange(e.target.value)}
+                className="pl-9 bg-white border-gray-200"
+              />
+              {isListSearching && (
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
           </div>
 
           {loading ? (
@@ -855,7 +897,8 @@ export function TestResults() {
                 ))}
               </Accordion>
 
-              {totalPages > 1 && (
+              {/* Pagination - only show when not searching */}
+              {totalPages > 1 && listSearchQuery.trim() === "" && (
                 <Card className="border-gray-200">
                   <CardContent className="p-4">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
