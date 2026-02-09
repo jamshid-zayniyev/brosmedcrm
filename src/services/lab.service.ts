@@ -2,9 +2,20 @@ import apiInstance from "../lib/api-instance";
 import { API_ENDPOINTS } from "../utils/shared";
 
 class LabService {
-  async findAllAnalysis() {
+  async findAllAnalysis({
+    page = 1,
+    limit = 10,
+  }: {
+    page?: number;
+    limit?: number;
+  }) {
     try {
-      const res = await apiInstance.get(API_ENDPOINTS.LAB.base);
+      const res = await apiInstance.get(API_ENDPOINTS.LAB.base, {
+        params: {
+          page,
+          limit,
+        },
+      });
       return res.data;
     } catch (error) {
       console.error(error);

@@ -21,6 +21,10 @@ import {
   FileText,
   User,
   Plus,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Loader2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
@@ -37,38 +41,133 @@ import { departmentTypeService } from "../../services/department-type.service";
 import { patientService } from "../../services/patient.service";
 import { analysisResultService } from "../../services/analysis-result.service";
 import { AnalysisResultPayload } from "../../interfaces/analysis-result.interface";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 export function TestResults() {
   const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [departmentTypesLoading, setDepartmentTypesLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [analysisResults, setAnalysisResults] = useState<
     AnalysisResultPayload[]
   >([]);
 
+  // New analysis tab - patient search states
+  const [patientsForSelect, setPatientsForSelect] = useState<Patient[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [openPatientSelect, setOpenPatientSelect] = useState(false);
+
+  // Fetch department types only once on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchDepartmentTypes = async () => {
       try {
-        const [patientsRes, departmentTypesRes] = await Promise.all([
-          patientService.findAll(),
-          departmentTypeService.findAll(),
-        ]);
-        setPatients(patientsRes);
+        const departmentTypesRes = await departmentTypeService.findAll();
         setDepartmentTypes(departmentTypesRes);
       } catch (error) {
-        console.error("Ma'lumotlarni yuklashda xatolik:", error);
-        toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
+        console.error("Department types yuklashda xatolik:", error);
+        toast.error("Tahlil turlarini yuklashda xatolik yuz berdi");
+      } finally {
+        setDepartmentTypesLoading(false);
+      }
+    };
+
+    fetchDepartmentTypes();
+  }, []);
+
+  // Fetch initial patients for select (first 10)
+  useEffect(() => {
+    const fetchInitialPatients = async () => {
+      try {
+        const response = await patientService.findAll({ page: 1, limit: 10 });
+        setPatientsForSelect(response.data || []);
+      } catch (error) {
+        console.error("Bemorlarni yuklashda xatolik:", error);
+      }
+    };
+
+    fetchInitialPatients();
+  }, []);
+
+  // Fetch patients when page changes (for list tab)
+  useEffect(() => {
+    const fetchPatients = async () => {
+      setLoading(true);
+      try {
+        const response = await patientService.findAll({ page, limit });
+
+        setPatients(response.data || []);
+        setTotalCount(response.total || 0);
+        setTotalPages(response.total_pages || 1);
+      } catch (error) {
+        console.error("Bemorlarni yuklashda xatolik:", error);
+        toast.error("Bemorlarni yuklashda xatolik yuz berdi");
+        setPatients([]);
+        setTotalCount(0);
+        setTotalPages(1);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
+    fetchPatients();
+  }, [page, limit]);
+
+  // Search patients with debounce
+  useEffect(() => {
+    const searchPatients = async () => {
+      if (searchQuery.trim() === "") {
+        // If search is empty, load initial 10 patients
+        try {
+          const response = await patientService.findAll({ page: 1, limit: 10 });
+          setPatientsForSelect(response.data || []);
+        } catch (error) {
+          console.error("Bemorlarni yuklashda xatolik:", error);
+        }
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const searchResults = await patientService.searchPatient(searchQuery);
+        setPatientsForSelect(searchResults || []);
+      } catch (error) {
+        console.error("Qidirishda xatolik:", error);
+        setPatientsForSelect([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(() => {
+      searchPatients();
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  // Handle patient selection
+  const handlePatientSelect = (patientId: string) => {
+    setSelectedPatient(patientId);
+    setOpenPatientSelect(false);
+  };
 
   const [selectedPatient, setSelectedPatient] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     departmentTypeId: "",
     status: "n" as "n" | "ip" | "f",
@@ -77,13 +176,13 @@ export function TestResults() {
   const handleDepartmentTypeChange = (value: string) => {
     setFormData({ ...formData, departmentTypeId: value });
     const selectedType = departmentTypes.find(
-      (dt) => dt.id.toString() === value
+      (dt) => dt.id.toString() === value,
     );
     if (selectedType && selectedType.result) {
       const initialResults = selectedType.result.map((res) => ({
         result: res.id,
         analysis_result: "",
-        patient: parseInt(selectedPatient) || 0, // Add patient ID
+        patient: parseInt(selectedPatient) || 0,
       }));
       setAnalysisResults(initialResults);
     } else {
@@ -94,8 +193,8 @@ export function TestResults() {
   const handleResultChange = (resultId: number, value: string) => {
     setAnalysisResults((prev) =>
       prev.map((res) =>
-        res.result === resultId ? { ...res, analysis_result: value } : res
-      )
+        res.result === resultId ? { ...res, analysis_result: value } : res,
+      ),
     );
   };
 
@@ -107,9 +206,11 @@ export function TestResults() {
       return;
     }
 
-    const patient = patients.find((p) => p.id.toString() === selectedPatient);
+    const patient = patientsForSelect.find(
+      (p) => p.id.toString() === selectedPatient,
+    );
     const departmentType = departmentTypes.find(
-      (dt) => dt.id.toString() === formData.departmentTypeId
+      (dt) => dt.id.toString() === formData.departmentTypeId,
     );
 
     if (!patient || !departmentType) {
@@ -117,6 +218,7 @@ export function TestResults() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const analysisFormData = new FormData();
       analysisFormData.append("patient", patient.id.toString());
@@ -135,8 +237,8 @@ export function TestResults() {
       }));
       await analysisResultService.create(resultsWithAnalysisId);
 
-      const updatedPatients = await patientService.findAll();
-      setPatients(updatedPatients);
+      const response = await patientService.findAll({ page, limit });
+      setPatients(response.data || []);
 
       toast.success("Tahlil va uning natijalari muvaffaqiyatli saqlandi");
 
@@ -144,9 +246,12 @@ export function TestResults() {
       setAnalysisResults([]);
       setFiles([]);
       setSelectedPatient("");
+      setSearchQuery("");
     } catch (error) {
       console.error("Tahlil yaratishda xatolik:", error);
       toast.error("Tahlil yaratishda xatolik yuz berdi");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -158,54 +263,94 @@ export function TestResults() {
     }
   };
 
-  // const getStatusBadge = (status: string) => {
-  //   const statusConfig: Record<string, { label: string; className: string }> = {
-  //     n: {
-  //       label: "Yangi",
-  //       className: "bg-blue-50 text-blue-700 border border-blue-200",
-  //     },
-  //     ip: {
-  //       label: "Jarayonda",
-  //       className: "bg-amber-50 text-amber-700 border border-amber-200",
-  //     },
-  //     f: {
-  //       label: "Yakunlangan",
-  //       className: "",
-  //     },
-  //     r: {
-  //       label: "Kutmoqda",
-  //       className: "bg-gray-50 text-gray-700 border border-gray-200",
-  //     },
-  //     l: {
-  //       label: "Laboratoriyada",
-  //       className: "bg-purple-50 text-purple-700 border border-purple-200",
-  //     },
-  //     d: {
-  //       label: "Doktorda",
-  //       className: "bg-indigo-50 text-indigo-700 border border-indigo-200",
-  //     },
-  //     t: {
-  //       label: "To'lovda",
-  //       className: "bg-pink-50 text-pink-700 border border-pink-200",
-  //     },
-  //     rc: {
-  //       label: "Ro'yxatdan o'chirilgan",
-  //       className: "bg-red-50 text-red-700 border border-red-200",
-  //     },
-  //   };
-  //   return (
-  //     statusConfig[status] || {
-  //       label: status,
-  //       className: "bg-gray-50 text-gray-700 border border-gray-200",
-  //     }
-  //   );
-  // };
+  const handlePreviousPage = () => {
+    if (page > 1) {
+      setPage(page - 1);
+    }
+  };
 
-  const registeredPatients = patients.filter(
-    (p) => p.patient_status === "r" || p.patient_status === "l"
+  const handleNextPage = () => {
+    if (page < totalPages) {
+      setPage(page + 1);
+    }
+  };
+
+  const handlePageClick = (pageNumber: number) => {
+    setPage(pageNumber);
+  };
+
+  const renderPageNumbers = () => {
+    const pages = [];
+    const maxPagesToShow = 5;
+
+    let startPage = Math.max(1, page - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage + 1 < maxPagesToShow) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+
+    if (startPage > 1) {
+      pages.push(
+        <Button
+          key={1}
+          variant={1 === page ? "default" : "outline"}
+          size="sm"
+          onClick={() => handlePageClick(1)}
+        >
+          1
+        </Button>,
+      );
+      if (startPage > 2) {
+        pages.push(
+          <span key="ellipsis-start" className="px-2">
+            ...
+          </span>,
+        );
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <Button
+          key={i}
+          variant={i === page ? "default" : "outline"}
+          size="sm"
+          onClick={() => handlePageClick(i)}
+        >
+          {i}
+        </Button>,
+      );
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pages.push(
+          <span key="ellipsis-end" className="px-2">
+            ...
+          </span>,
+        );
+      }
+      pages.push(
+        <Button
+          key={totalPages}
+          variant={totalPages === page ? "default" : "outline"}
+          size="sm"
+          onClick={() => handlePageClick(totalPages)}
+        >
+          {totalPages}
+        </Button>,
+      );
+    }
+
+    return pages;
+  };
+
+  const registeredPatientsForSelect = patientsForSelect.filter(
+    (p) => p.patient_status === "r" || p.patient_status === "l",
   );
 
-  if (loading) {
+  if (loading && page === 1) {
     return (
       <div className="space-y-8">
         <div>
@@ -303,25 +448,87 @@ export function TestResults() {
                     >
                       Bemorni tanlang *
                     </Label>
-                    <Select
-                      value={selectedPatient}
-                      onValueChange={setSelectedPatient}
-                      required
+                    <Popover
+                      open={openPatientSelect}
+                      onOpenChange={setOpenPatientSelect}
                     >
-                      <SelectTrigger className="bg-white border-gray-200 h-10">
-                        <SelectValue placeholder="Bemorni tanlang" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {registeredPatients.map((patient) => (
-                          <SelectItem
-                            key={patient.id}
-                            value={patient.id.toString()}
-                          >
-                            {patient.name} {patient.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openPatientSelect}
+                          className="w-full justify-between bg-white border-gray-200 h-10"
+                        >
+                          {selectedPatient
+                            ? (() => {
+                                const patient =
+                                  registeredPatientsForSelect.find(
+                                    (p) => p.id.toString() === selectedPatient,
+                                  );
+                                return patient
+                                  ? `${patient.name} ${patient.last_name}`
+                                  : "Bemorni tanlang";
+                              })()
+                            : "Bemorni tanlang"}
+                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0">
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder="Bemorni qidirish..."
+                            value={searchQuery}
+                            onValueChange={setSearchQuery}
+                          />
+                          <CommandList>
+                            {isSearching ? (
+                              <div className="p-4 text-sm text-center text-muted-foreground">
+                                Qidirilmoqda...
+                              </div>
+                            ) : registeredPatientsForSelect.length === 0 ? (
+                              <CommandEmpty>Bemor topilmadi</CommandEmpty>
+                            ) : (
+                              <CommandGroup>
+                                {registeredPatientsForSelect.map((patient) => (
+                                  <CommandItem
+                                    key={patient.id}
+                                    value={patient.id.toString()}
+                                    keywords={[
+                                      patient.name,
+                                      patient.last_name,
+                                      patient.phone_number,
+                                    ]}
+                                    onSelect={(currentValue: string) => {
+                                      handlePatientSelect(currentValue);
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2 w-full">
+                                      <Avatar className="h-8 w-8">
+                                        <AvatarImage
+                                          src={`https://api.dicebear.com/7.x/initials/svg?seed=${patient.name} ${patient.last_name}`}
+                                        />
+                                        <AvatarFallback className="text-xs">
+                                          {patient.name.charAt(0)}
+                                          {patient.last_name.charAt(0)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex-1">
+                                        <div className="font-medium">
+                                          {patient.name} {patient.last_name}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {patient.phone_number}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            )}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   <div className="space-y-2">
@@ -331,22 +538,29 @@ export function TestResults() {
                     >
                       Tahlil turi *
                     </Label>
-                    <Select
-                      value={formData.departmentTypeId}
-                      onValueChange={handleDepartmentTypeChange}
-                      required
-                    >
-                      <SelectTrigger className="bg-white border-gray-200 h-10">
-                        <SelectValue placeholder="Tahlil turini tanlang" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departmentTypes.map((type) => (
-                          <SelectItem key={type.id} value={type.id.toString()}>
-                            {type.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {departmentTypesLoading ? (
+                      <Skeleton className="h-10 w-full" />
+                    ) : (
+                      <Select
+                        value={formData.departmentTypeId}
+                        onValueChange={handleDepartmentTypeChange}
+                        required
+                      >
+                        <SelectTrigger className="bg-white border-gray-200 h-10">
+                          <SelectValue placeholder="Tahlil turini tanlang" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departmentTypes.map((type) => (
+                            <SelectItem
+                              key={type.id}
+                              value={type.id.toString()}
+                            >
+                              {type.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
 
@@ -361,7 +575,8 @@ export function TestResults() {
                     <CardContent className="space-y-4">
                       {departmentTypes
                         .find(
-                          (dt) => dt.id.toString() === formData.departmentTypeId
+                          (dt) =>
+                            dt.id.toString() === formData.departmentTypeId,
                         )
                         ?.result.map((resItem) => (
                           <div
@@ -378,7 +593,7 @@ export function TestResults() {
                               id={`result-${resItem.id}`}
                               value={
                                 analysisResults.find(
-                                  (r) => r.result === resItem.id
+                                  (r) => r.result === resItem.id,
                                 )?.analysis_result || ""
                               }
                               onChange={(e) =>
@@ -475,10 +690,20 @@ export function TestResults() {
 
                 <Button
                   type="submit"
+                  disabled={isSubmitting}
                   className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-semibold"
                 >
-                  <TestTube className="w-5 h-5 mr-2" />
-                  Tahlilni saqlash
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Saqlanmoqda...
+                    </>
+                  ) : (
+                    <>
+                      <TestTube className="w-5 h-5 mr-2" />
+                      Tahlilni saqlash
+                    </>
+                  )}
                 </Button>
               </form>
             </CardContent>
@@ -486,157 +711,188 @@ export function TestResults() {
         </TabsContent>
 
         <TabsContent value="list" className="space-y-4">
-          <Accordion type="single" collapsible className="w-full space-y-3">
-            {patients.map((patient) => (
-              <AccordionItem
-                value={`item-${patient.id}`}
-                key={patient.id}
-                className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden"
-              >
-                <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-gray-50">
-                  <div className="flex items-center gap-4 w-full">
-                    <Avatar className="h-12 w-12 ring-2 ring-primary/10">
-                      <AvatarImage
-                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${patient.name} ${patient.last_name}`}
-                      />
-                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                        {patient.name.charAt(0)}
-                        {patient.last_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 text-left">
-                      <div className="font-semibold text-gray-900 text-base">
-                        {patient.name} {patient.last_name}
-                      </div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        ID: <span className="font-medium">{patient.id}</span> •
-                        Ro'yxatga olindi:{" "}
-                        <span className="font-medium">
-                          {new Date(patient.created_at).toLocaleDateString()}
-                        </span>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-muted-foreground">
+              Jami bemorlar: {totalCount} ta
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="space-y-3">
+              {[...Array(limit)].map((_, i) => (
+                <Card key={i} className="border-gray-200">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="h-12 w-12 rounded-full" />
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-5 w-48" />
+                        <Skeleton className="h-4 w-64" />
                       </div>
                     </div>
-                    {/*
-                    <Badge
-                      className={`${
-                        getStatusBadge(patient.patient_status).className
-                      }`}
-                    >
-                      {getStatusBadge(patient.patient_status).label}
-                    </Badge>
-                    */}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-6 py-6 bg-gray-50 border-t border-gray-200">
-                  <div className="space-y-6 py-8">
-                    <Card className="border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300 bg-gradient-to-br from-white to-gray-50/30">
-                      <CardHeader className="pb-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/30 rounded-t-lg border-b border-blue-100">
-                        <CardTitle className="text-lg font-semibold flex items-center gap-2 text-blue-800">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <User className="w-5 h-5 text-blue-600" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : patients.length === 0 ? (
+            <Card className="border-gray-200">
+              <CardContent className="p-12 text-center">
+                <p className="text-muted-foreground">Hozircha bemorlar yo'q</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <Accordion type="single" collapsible className="w-full space-y-3">
+                {patients.map((patient) => (
+                  <AccordionItem
+                    value={`item-${patient.id}`}
+                    key={patient.id}
+                    className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                  >
+                    <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-gray-50">
+                      <div className="flex items-center gap-4 w-full">
+                        <Avatar className="h-12 w-12 ring-2 ring-primary/10">
+                          <AvatarImage
+                            src={`https://api.dicebear.com/7.x/initials/svg?seed=${patient.name} ${patient.last_name}`}
+                          />
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                            {patient.name.charAt(0)}
+                            {patient.last_name.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 text-left">
+                          <div className="font-semibold text-gray-900 text-base">
+                            {patient.name} {patient.last_name}
                           </div>
-                          Bemor ma'lumotlari
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                              <span className="text-sm font-medium text-gray-600">
-                                Jinsi:
-                              </span>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900 px-2 py-1 rounded bg-gray-50">
-                              {patient.gender === "e" ? "Erkak" : "Ayol"}
+                          <div className="text-sm text-gray-500 mt-1">
+                            ID:{" "}
+                            <span className="font-medium">{patient.id}</span> •
+                            Ro'yxatga olindi:{" "}
+                            <span className="font-medium">
+                              {new Date(
+                                patient.created_at,
+                              ).toLocaleDateString()}
                             </span>
                           </div>
-
-                          <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-green-400"></div>
-                              <span className="text-sm font-medium text-gray-600">
-                                Tug'ilgan sana:
-                              </span>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900 px-2 py-1 rounded bg-gray-50">
-                              {patient.birth_date}
-                            </span>
-                          </div>
-
-                          <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-                              <span className="text-sm font-medium text-gray-600">
-                                Telefon:
-                              </span>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900 px-2 py-1 rounded bg-gray-50">
-                              {patient.phone_number}
-                            </span>
-                          </div>
-
-                          {/* <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                              <span className="text-sm font-medium text-gray-600">
-                                To'lov holati:
-                              </span>
-                            </div>
-                            <Badge
-                              className={
-                                patient.payment_status === "c"
-                                  ? "bg-green-100 text-green-800 border border-green-200 shadow-xs font-medium px-3 py-1"
-                                  : "bg-red-100 text-red-800 border border-red-200 shadow-xs font-medium px-3 py-1"
-                              }
-                            >
-                              {patient.payment_status === "c"
-                                ? "To'langan"
-                                : "To'lanmagan"}
-                            </Badge>
-                          </div> */}
-
-                          <div className="col-span-full flex justify-between items-start p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
-                              <span className="text-sm font-medium text-gray-600">
-                                Manzil:
-                              </span>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900 text-right max-w-[70%] px-2 py-1 rounded bg-gray-50">
-                              {patient.address}
-                            </span>
-                          </div>
-
-                          {/* <div className="col-span-full flex justify-between items-start p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-red-400"></div>
-                              <span className="text-sm font-medium text-gray-600">
-                                Kasallik:
-                              </span>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900 text-right max-w-[70%] px-2 py-1 rounded bg-gray-50">
-                              {patient.disease}
-                            </span>
-                          </div> */}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 py-6 bg-gray-50 border-t border-gray-200">
+                      <div className="space-y-6 py-8">
+                        <Card className="border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300 bg-gradient-to-br from-white to-gray-50/30">
+                          <CardHeader className="pb-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/30 rounded-t-lg border-b border-blue-100">
+                            <CardTitle className="text-lg font-semibold flex items-center gap-2 text-blue-800">
+                              <div className="p-2 bg-blue-100 rounded-lg">
+                                <User className="w-5 h-5 text-blue-600" />
+                              </div>
+                              Bemor ma'lumotlari
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                                  <span className="text-sm font-medium text-gray-600">
+                                    Jinsi:
+                                  </span>
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900 px-2 py-1 rounded bg-gray-50">
+                                  {patient.gender === "e" ? "Erkak" : "Ayol"}
+                                </span>
+                              </div>
 
-                    <div className="mt-4">
-                      <Button
-                        onClick={() =>
-                          navigate(`/lab/patient-analysis/${patient.id}`)
-                        }
-                      >
-                        Analizlarni ko'rish
-                      </Button>
+                              <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                                  <span className="text-sm font-medium text-gray-600">
+                                    Tug'ilgan sana:
+                                  </span>
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900 px-2 py-1 rounded bg-gray-50">
+                                  {patient.birth_date}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between items-center p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-purple-400"></div>
+                                  <span className="text-sm font-medium text-gray-600">
+                                    Telefon:
+                                  </span>
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900 px-2 py-1 rounded bg-gray-50">
+                                  {patient.phone_number}
+                                </span>
+                              </div>
+
+                              <div className="col-span-full flex justify-between items-start p-3 rounded-lg bg-white border border-gray-100 shadow-xs">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
+                                  <span className="text-sm font-medium text-gray-600">
+                                    Manzil:
+                                  </span>
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900 text-right max-w-[70%] px-2 py-1 rounded bg-gray-50">
+                                  {patient.address}
+                                </span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <div className="mt-4">
+                          <Button
+                            onClick={() =>
+                              navigate(`/lab/patient-analysis/${patient.id}`)
+                            }
+                          >
+                            Analizlarni ko'rish
+                          </Button>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+
+              {totalPages > 1 && (
+                <Card className="border-gray-200">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="text-sm text-muted-foreground">
+                        Sahifa {page} / {totalPages}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePreviousPage}
+                          disabled={page === 1}
+                        >
+                          <ChevronLeft className="w-4 h-4 mr-1" />
+                          Oldingi
+                        </Button>
+
+                        <div className="hidden md:flex items-center gap-1">
+                          {renderPageNumbers()}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleNextPage}
+                          disabled={page === totalPages}
+                        >
+                          Keyingi
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>
