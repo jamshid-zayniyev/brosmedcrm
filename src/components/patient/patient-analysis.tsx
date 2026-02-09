@@ -98,8 +98,8 @@ function EditAnalysisDialog({
   const handleResultChange = (resultId: number, value: string) => {
     setResults((prev) =>
       prev.map((r) =>
-        r.result === resultId ? { ...r, analysis_result: value } : r
-      )
+        r.result === resultId ? { ...r, analysis_result: value } : r,
+      ),
     );
   };
 
@@ -116,7 +116,7 @@ function EditAnalysisDialog({
 
     setIsSavingAll(true);
     const toastId = toast.loading(
-      `Yangilanmoqda... 0/${changedResults.length}`
+      `Yangilanmoqda... 0/${changedResults.length}`,
     );
 
     try {
@@ -210,7 +210,7 @@ function EditAnalysisDialog({
               <TableBody>
                 {analysis.department_types?.result?.map((result) => {
                   const currentResult = results.find(
-                    (r) => r.result === result.id
+                    (r) => r.result === result.id,
                   );
                   return (
                     <TableRow
@@ -284,10 +284,10 @@ export default function PatientAnalysis() {
 
   // State for the on-demand analysis view
   const [viewingAnalysisId, setViewingAnalysisId] = useState<number | null>(
-    null
+    null,
   );
   const [detailedAnalysisData, setDetailedAnalysisData] = useState<any | null>(
-    null
+    null,
   );
   const [isDialogLoading, setIsDialogLoading] = useState(false);
 
@@ -383,10 +383,10 @@ export default function PatientAnalysis() {
 
   const updateAnalysisStatus = (
     analysisId: number,
-    newStatus: "n" | "ip" | "f"
+    newStatus: "n" | "ip" | "f",
   ) => {
     setAnalyses((prev) =>
-      prev.map((a) => (a.id === analysisId ? { ...a, status: newStatus } : a))
+      prev.map((a) => (a.id === analysisId ? { ...a, status: newStatus } : a)),
     );
   };
 
@@ -455,38 +455,41 @@ export default function PatientAnalysis() {
       ? new Date(detailedAnalysisData.created_at)
       : null;
     const formattedTekshiruvDate = tekshiruvDate
-      ? `${tekshiruvDate.getFullYear()}-${(tekshiruvDate.getMonth() + 1)
+      ? `${tekshiruvDate.getDate().toString().padStart(2, "0")}.${(
+          tekshiruvDate.getMonth() + 1
+        )
           .toString()
-          .padStart(2, "0")}-${tekshiruvDate
-          .getDate()
+          .padStart(2, "0")}.${tekshiruvDate.getFullYear()} ${tekshiruvDate
+          .getHours()
           .toString()
-          .padStart(
-            2,
-            "0"
-          )} ${tekshiruvDate.getHours()}:${tekshiruvDate.getMinutes()}`
+          .padStart(2, "0")}:${tekshiruvDate
+          .getMinutes()
+          .toString()
+          .padStart(2, "0")}`
       : "Noma'lum";
 
     const filteredResults =
       detailedAnalysisData.results?.filter(
-        (res: any) => res.analysis_result?.[0]?.analysis_result
+        (res: any) => res.analysis_result?.[0]?.analysis_result,
       ) || [];
 
     const resultsHtml =
       filteredResults.length > 0
         ? filteredResults
             .map(
-              (res: any) => `
+              (res: any, index: number) => `
       <tr>
+        <td style="text-align: center;">${index + 1}</td>
         <td>${res.title}</td>
-        <td class="result-value">${
+        <td class="text-center">${
           res.analysis_result?.[0]?.analysis_result || "-"
         }</td>
-        <td>${res.norma || "-"}</td>
+        <td class="text-center">${res.norma || "-"}</td>
       </tr>
-    `
+    `,
             )
             .join("")
-        : '<tr><td colspan="3" class="text-center">Natijalar topilmadi.</td></tr>';
+        : '<tr><td colspan="4" class="text-center">Natijalar topilmadi.</td></tr>';
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -498,197 +501,173 @@ export default function PatientAnalysis() {
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
           
           body {
-            font-family: 'Roboto', sans-serif;
+            font-family: 'Roboto', Arial, sans-serif;
             margin: 0;
             padding: 0;
             background-color: #fff;
             color: #000;
+            font-size: 12px;
             -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
           }
           
           .print-container {
             width: 210mm;
-            min-height: 290mm; /* Slightly less than A4 height to help fit */
             margin: 0 auto;
-            padding: 10mm;
+            padding: 10mm 15mm; 
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            box-sizing: border-box;
           }
           
           .print-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #000;
-            margin-bottom: 10px;
+            align-items: center;
+            margin-bottom: 20px;
           }
           
           .header-left img {
-            width: 160px;
+            height: 75px;
+            object-fit: contain;
           }
-          
+
           .header-right {
             text-align: right;
-            font-size: 10px;
-            line-height: 1.3;
-          }
-          .header-right strong {
-            font-weight: 700;
+            font-size: 12px;
+            line-height: 1.4;
           }
           
-          .analysis-title {
-            text-align: center;
-            font-size: 18px;
-            font-weight: 700;
-            margin: 8px 0;
-          }
-          
-          .patient-info-table, .results-table {
+          .patient-info-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 12px;
+            margin-bottom: 20px;
+          }
+          
+          .patient-info-table td {
+            border: 1px solid #000;
+            padding: 5px 8px;
+          }
+
+          .label-cell {
+            font-weight: 700;
+            width: 140px;
+          }
+
+          .analysis-title {
+            text-align: center;
+            font-size: 16px;
+            font-weight: 700;
+            margin: 20px 0 15px 0;
+            text-transform: uppercase;
+          }
+          
+          .results-table {
+            width: 100%;
+            border-collapse: collapse;
             margin-bottom: 10px;
           }
           
-          .patient-info-table td, .results-table td, .results-table th {
+          .results-table th, .results-table td {
             border: 1px solid #000;
-            padding: 4px 6px;
-            text-align: left;
+            padding: 6px 8px;
           }
+          
+          .text-center { text-align: center; }
 
-          .patient-info-table td:first-child {
-            font-weight: 700;
-            width: 150px; /* Fixed width for labels */
-          }
-          
-          .results-table th {
-            font-weight: 700;
-          }
-          
-          .result-value {
-            font-weight: 700;
-          }
-          
+          /* FOOTER & STAMP STYLES */
           .print-footer {
-            margin-top: auto;
-            padding-top: 15px;
-            font-size: 12px;
-          }
-          
-          .signature-area {
+            margin-top: 50px;
             display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-top: 20px;
-          }
-          
-          .doctor-name {
-            font-weight: 700;
-            margin-bottom: 5px; /* Space between name and line */
-          }
-          
-          .signature-area {
-            display: flex;
-            justify-content: center; /* Center the single block */
-            align-items: flex-end;
-            margin-top: 20px;
-          }
-          
-          .signature-block {
-            text-align: center;
-            width: 200px; /* Give it a specific width for centering */
-          }
-          
-          .signature-line {
-            border-top: 1px solid #000;
-            margin-top: 0; /* Adjust to place line directly below name */
-            padding-top: 5px;
-          }
-          
-          .text-center {
-            text-align: center;
+            justify-content: flex-end;
           }
 
-          @page {
-            size: A4;
-            margin: 0;
+          .signature-wrapper {
+            position: relative; /* Контейнер для позиционирования печати */
+            display: inline-block;
           }
+
+          .stamp-img {
+            position: absolute;
+            width: 150px; /* Размер печати */
+            height: auto;
+            left: 140px;  /* Смещение влево, чтобы накрыть линию подписи */
+            top: 15px;   /* Смещение вверх */
+            opacity: 0.8; /* Прозрачность для реалистичности */
+            z-index: 1;
+            pointer-events: none;
+          }
+
+          .signature-block {
+            position: relative;
+            z-index: 2; /* Текст поверх печати */
+            font-size: 14px;
+          }
+
+          .signature-line {
+            display: inline-block;
+            width: 120px;
+            border-bottom: 1px solid #000;
+            margin: 0 10px;
+          }
+
+          .doctor-name { font-weight: bold; }
+
+          @page { size: A4; margin: 0; }
         </style>
       </head>
       <body>
         <div class="print-container">
           <header class="print-header">
-            <div class="header-left">
-              <img src="${logo}" alt="Logo" />
-            </div>
+            <div class="header-left"><img src="${logo}" alt="Logo" /></div>
             <div class="header-right">
-              <strong>MANZIL:</strong> QARSHI SHAHAR KAT - MFY, NASAF KO'CHASI, 31-UY <strong>TEL:</strong> (75) 223-47-47<br>
-              <strong>MOBIL:</strong> (97) 070-47-47 ; (97) 310-21-01
+              <b>MANZIL:</b> QARSHI SHAHAR KAT - MFY,<br>
+              NASAF KO' CHASI, 31-UY <b>TEL:</b> (75) 223-47-47<br>
+              <b>MOBIL:</b> (97) 070-47-47 ; (97) 310-21-01
             </div>
           </header>
           
           <main>
-             <h1 class="analysis-title">${
-               detailedAnalysisData?.department_types.title ||
-               "Tahlil Natijalari"
-             }</h1>
-
             <table class="patient-info-table">
-              <tbody>
-                <tr>
-                  <td>Bemor I.F.O:</td>
-                  <td>${patient.last_name} ${patient.name} ${
-      patient.middle_name
-    }</td>
-                </tr>
-                <tr>
-                  <td>Tug'ilgan sanasi:</td>
-                  <td>${patient.birth_date}</td>
-                </tr>
-                <tr>
-                  <td>Telefon raqami:</td>
-                  <td>${patient.phone_number}</td>
-                </tr>
-                <tr>
-                  <td>Tekshiruv sanasi:</td>
-                  <td>${formattedTekshiruvDate}</td>
-                </tr>
-              </tbody>
+              <tr>
+                <td class="label-cell">Ф.И.О. пациента:</td>
+                <td>${patient.last_name} ${patient.name} ${patient.middle_name || ""}</td>
+              </tr>
+              <tr>
+                <td class="label-cell">Дата рождения:</td>
+                <td>${patient.birth_date}</td>
+              </tr>
+              <tr>
+                <td class="label-cell">Номер телефона:</td>
+                <td>${patient.phone_number}</td>
+              </tr>
+              <tr>
+                <td class="label-cell">Дата обследования:</td>
+                <td>${formattedTekshiruvDate}</td>
+              </tr>
             </table>
+            <h1 class="analysis-title">${detailedAnalysisData?.department_types?.title || "TAHLIL NATIJALARI"} ID: ${detailedAnalysisData.patient.id}</h1>
             
             <table class="results-table">
               <thead>
-                <tr>
-                  <th>Ko'rsatkich</th>
-                  <th>Natija</th>
-                  <th>Norma</th>
-                </tr>
+                <tr><th style="width: 30px;">№</th><th>Tahlil nomi</th><th>Tahlil natijasi</th><th>Norma</th></tr>
               </thead>
-              <tbody>
-                ${resultsHtml}
-              </tbody>
+              <tbody>${resultsHtml}</tbody>
             </table>
-          </main>
-          
-          <footer class="print-footer">
-            <div class="signature-area">
-              <div class="doctor-name">Davronov.E.T</div>
-              <div class="signature-line"></div>
+
+            <div class="print-footer">
+              <div class="signature-wrapper">
+                <img src="${pechat}" class="stamp-img" alt="Печать" />
+                
+                <div class="signature-block">
+                  Врач лаборант: <span class="signature-line"></span> 
+                  <span class="doctor-name">Davronov.E.T</span>
+                </div>
+              </div>
             </div>
-          </footer>
+          </main>
         </div>
         <script>
-          window.onload = function() {
-            setTimeout(() => {
-              window.print();
-              window.onafterprint = function() {
-                // window.close();
-              }
-            }, 300);
-          }
+          window.onload = function() { setTimeout(() => { window.print(); }, 500); }
         </script>
       </body>
       </html>
@@ -924,7 +903,7 @@ export default function PatientAnalysis() {
                                         </TableRow>
                                       );
                                     }
-                                  }
+                                  },
                                 )}
                               </TableBody>
                             </Table>

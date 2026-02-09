@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Badge } from "../ui/badge";
 import { Skeleton } from "../ui/skeleton";
 import { toast } from "sonner";
 import {
@@ -55,7 +54,7 @@ export function TestResults() {
   const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [departmentTypesLoading, setDepartmentTypesLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -97,10 +96,13 @@ export function TestResults() {
   useEffect(() => {
     const fetchInitialPatients = async () => {
       try {
+        setLoading(true);
         const response = await patientService.findAll({ page: 1, limit: 10 });
         setPatientsForSelect(response.data || []);
       } catch (error) {
         console.error("Bemorlarni yuklashda xatolik:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -110,7 +112,6 @@ export function TestResults() {
   // Fetch patients when page changes or search query changes (for list tab)
   useEffect(() => {
     const fetchPatients = async () => {
-      setLoading(true);
       try {
         let response;
 
@@ -136,7 +137,6 @@ export function TestResults() {
         setTotalCount(0);
         setTotalPages(1);
       } finally {
-        setLoading(false);
         setIsListSearching(false);
       }
     };
@@ -759,7 +759,7 @@ export function TestResults() {
             </div>
           </div>
 
-          {loading ? (
+          {isListSearching || loading ? (
             <div className="space-y-3">
               {[...Array(limit)].map((_, i) => (
                 <Card key={i} className="border-gray-200">
@@ -778,7 +778,7 @@ export function TestResults() {
           ) : patients.length === 0 ? (
             <Card className="border-gray-200">
               <CardContent className="p-12 text-center">
-                <p className="text-muted-foreground">Hozircha bemorlar yo'q</p>
+                <p className="text-muted-foreground">Internetni tekshiring!</p>
               </CardContent>
             </Card>
           ) : (
