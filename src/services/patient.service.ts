@@ -2,9 +2,14 @@ import apiInstance from "../lib/api-instance";
 import { API_ENDPOINTS } from "../utils/shared";
 
 class PatientService {
-  async findAll() {
+  async findAll({ page = 1, limit = 10 }: { page?: number; limit?: number }) {
     try {
-      const res = await apiInstance.get(API_ENDPOINTS.PATIENT.base);
+      const res = await apiInstance.get(API_ENDPOINTS.PATIENT.base, {
+        params: {
+          page,
+          limit,
+        },
+      });
       return res.data;
     } catch (error) {
       console.error(error);
@@ -66,7 +71,7 @@ class PatientService {
     try {
       const res = await apiInstance.put(
         `${API_ENDPOINTS.PATIENT.base}${dto.id}/`,
-        dto
+        dto,
       );
       return res.data;
     } catch (error) {
@@ -112,7 +117,7 @@ class PatientService {
   async delete(id: number) {
     try {
       const res = await apiInstance.delete(
-        `${API_ENDPOINTS.PATIENT.base}${id}/`
+        `${API_ENDPOINTS.PATIENT.base}${id}/`,
       );
       return res.data;
     } catch (error) {
@@ -124,7 +129,7 @@ class PatientService {
   async findAllForDoctor() {
     try {
       const res = await apiInstance.get(
-        API_ENDPOINTS.PATIENT.patientsForDoctor
+        API_ENDPOINTS.PATIENT.patientsForDoctor,
       );
       return res.data;
     } catch (error) {
@@ -137,7 +142,7 @@ class PatientService {
     try {
       const res = await apiInstance.put(
         `${API_ENDPOINTS.PATIENT.base}${dto.id}/`,
-        dto
+        dto,
       );
       return res.data;
     } catch (error) {
@@ -150,7 +155,7 @@ class PatientService {
     try {
       const res = await apiInstance.post(
         API_ENDPOINTS.PATIENT.patientAnalysis,
-        { patient_id }
+        { patient_id },
       );
       return res.data;
     } catch (error) {
@@ -177,7 +182,7 @@ class PatientService {
         },
         {
           responseType: "blob", // 🔑 blob bo'lishi shart
-        }
+        },
       );
 
       // Blob yaratishda type berish
@@ -191,7 +196,7 @@ class PatientService {
       const contentDisposition = res.headers["content-disposition"];
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(
-          /filename\*?=(?:UTF-8''|")?([^;"']+)/
+          /filename\*?=(?:UTF-8''|")?([^;"']+)/,
         );
         if (filenameMatch?.[1]) {
           filename = decodeURIComponent(filenameMatch[1]);
