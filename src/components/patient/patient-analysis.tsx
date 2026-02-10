@@ -620,9 +620,9 @@ export default function PatientAnalysis() {
           <header class="print-header">
             <div class="header-left"><img src="${logo}" alt="Logo" /></div>
             <div class="header-right">
-              <b>MANZIL:</b> QARSHI SHAHAR KAT - MFY,<br>
-              NASAF KO' CHASI, 31-UY <b>TEL:</b> (75) 223-47-47<br>
-              <b>MOBIL:</b> (97) 070-47-47 ; (97) 310-21-01
+              <b>АДРЕС:</b> ГОРОД КАРШИ, КАТ-МФЙ,<br>
+              УЛ. НАСАФ, Д. 31 <b>ТЕЛ:</b> (75) 223-47-47<br>
+              <b>МОБИЛ:</b> (97) 070-47-47 ; (97) 310-21-01
             </div>
           </header>
           
