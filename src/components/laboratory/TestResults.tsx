@@ -24,6 +24,7 @@ import {
   ChevronRight,
   Search,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
@@ -33,6 +34,13 @@ import {
   AccordionTrigger,
 } from "../ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../ui/dialog";
 import { Patient } from "../../interfaces/patient.interface";
 import { DepartmentType } from "../../interfaces/department-type.interface";
 import { labService } from "../../services/lab.service";
@@ -74,6 +82,12 @@ export function TestResults() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [openPatientSelect, setOpenPatientSelect] = useState(false);
+
+  // --- Edit patient dialog states ---
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", last_name: "" });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch department types only once on mount
   useEffect(() => {
@@ -309,6 +323,57 @@ export function TestResults() {
     setPage(1); // Reset to first page when searching
   };
 
+  // --- Edit patient handlers ---
+  const handleOpenEditDialog = (patient: Patient) => {
+    setEditingPatient(patient);
+    setEditForm({ name: patient.name, last_name: patient.last_name });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditFormChange = (field: "name" | "last_name", value: string) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleUpdatePatient = async () => {
+    if (!editingPatient) return;
+
+    if (!editForm.name.trim() || !editForm.last_name.trim()) {
+      toast.error("Ism va familya bo'sh bo'lishi mumkin emas");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await patientService.update({
+        id: editingPatient.id,
+        name: editForm.name.trim(),
+        last_name: editForm.last_name.trim(),
+      });
+
+      // Update patient in local state
+      setPatients((prev) =>
+        prev.map((p) =>
+          p.id === editingPatient.id
+            ? {
+                ...p,
+                name: editForm.name.trim(),
+                last_name: editForm.last_name.trim(),
+              }
+            : p,
+        ),
+      );
+
+      toast.success("Bemor ma'lumotlari muvaffaqiyatli yangilandi");
+      setEditDialogOpen(false);
+      setEditingPatient(null);
+    } catch (error) {
+      console.error("Bemorni yangilashda xatolik:", error);
+      toast.error("Bemorni yangilashda xatolik yuz berdi");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const renderPageNumbers = () => {
     const pages = [];
     const maxPagesToShow = 5;
@@ -423,6 +488,229 @@ export function TestResults() {
 
   return (
     <div className="space-y-8">
+      {/* --- Edit Patient Dialog --- */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent
+          style={{
+            maxWidth: "460px",
+            borderRadius: "16px",
+            padding: "32px",
+            boxShadow:
+              "0 20px 60px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08)",
+            border: "1px solid #e5e7eb",
+            background: "linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)",
+          }}
+        >
+          <DialogHeader style={{ marginBottom: "24px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                marginBottom: "8px",
+              }}
+            >
+              <div
+                style={{
+                  padding: "10px",
+                  background: "linear-gradient(135deg, #eff6ff, #dbeafe)",
+                  borderRadius: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Pencil
+                  style={{ width: "20px", height: "20px", color: "#2563eb" }}
+                />
+              </div>
+              <DialogTitle
+                style={{
+                  fontSize: "20px",
+                  fontWeight: "700",
+                  color: "#111827",
+                  margin: 0,
+                }}
+              >
+                Bemor ma'lumotlarini yangilash
+              </DialogTitle>
+            </div>
+            {editingPatient && (
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: "#6b7280",
+                  marginLeft: "44px",
+                  marginTop: "2px",
+                }}
+              >
+                ID: {editingPatient.id} • Hozirgi:{" "}
+                <span style={{ fontWeight: "600", color: "#374151" }}>
+                  {editingPatient.name} {editingPatient.last_name}
+                </span>
+              </p>
+            )}
+          </DialogHeader>
+
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+          >
+            {/* Name field */}
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <Label
+                htmlFor="edit-name"
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  letterSpacing: "0.01em",
+                }}
+              >
+                Ism <span style={{ color: "#ef4444" }}>*</span>
+              </Label>
+              <Input
+                id="edit-name"
+                value={editForm.name}
+                onChange={(e) => handleEditFormChange("name", e.target.value)}
+                placeholder="Ismni kiriting..."
+                style={{
+                  height: "44px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #e5e7eb",
+                  fontSize: "15px",
+                  padding: "0 14px",
+                  background: "#ffffff",
+                  transition: "border-color 0.2s",
+                  outline: "none",
+                  color: "#111827",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#2563eb";
+                  e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#e5e7eb";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+            </div>
+
+            {/* Last name field */}
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <Label
+                htmlFor="edit-last-name"
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  letterSpacing: "0.01em",
+                }}
+              >
+                Familya <span style={{ color: "#ef4444" }}>*</span>
+              </Label>
+              <Input
+                id="edit-last-name"
+                value={editForm.last_name}
+                onChange={(e) =>
+                  handleEditFormChange("last_name", e.target.value)
+                }
+                placeholder="Familyani kiriting..."
+                style={{
+                  height: "44px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #e5e7eb",
+                  fontSize: "15px",
+                  padding: "0 14px",
+                  background: "#ffffff",
+                  transition: "border-color 0.2s",
+                  outline: "none",
+                  color: "#111827",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#2563eb";
+                  e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#e5e7eb";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+            </div>
+          </div>
+
+          <DialogFooter style={{ marginTop: "28px", gap: "10px" }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditDialogOpen(false);
+                setEditingPatient(null);
+              }}
+              disabled={isUpdating}
+              style={{
+                flex: 1,
+                height: "44px",
+                borderRadius: "10px",
+                border: "1.5px solid #e5e7eb",
+                fontSize: "14px",
+                fontWeight: "600",
+                color: "#374151",
+                background: "#ffffff",
+                cursor: "pointer",
+              }}
+            >
+              Bekor qilish
+            </Button>
+            <Button
+              onClick={handleUpdatePatient}
+              disabled={isUpdating}
+              style={{
+                flex: 1,
+                height: "44px",
+                borderRadius: "10px",
+                fontSize: "14px",
+                fontWeight: "600",
+                background: isUpdating
+                  ? "#93c5fd"
+                  : "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                color: "#ffffff",
+                border: "none",
+                cursor: isUpdating ? "not-allowed" : "pointer",
+                boxShadow: isUpdating
+                  ? "none"
+                  : "0 4px 12px rgba(37,99,235,0.3)",
+                transition: "all 0.2s",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+              }}
+            >
+              {isUpdating ? (
+                <>
+                  <Loader2
+                    style={{
+                      width: "16px",
+                      height: "16px",
+                      animation: "spin 1s linear infinite",
+                    }}
+                  />
+                  Saqlanmoqda...
+                </>
+              ) : (
+                <>
+                  <Pencil style={{ width: "16px", height: "16px" }} />
+                  Saqlash
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/10 rounded-lg">
@@ -886,13 +1174,55 @@ export function TestResults() {
                           </CardContent>
                         </Card>
 
-                        <div className="mt-4">
+                        {/* Action buttons */}
+                        <div className="mt-4 flex items-center gap-3">
                           <Button
                             onClick={() =>
                               navigate(`/lab/patient-analysis/${patient.id}`)
                             }
                           >
                             Analizlarni ko'rish
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            onClick={(
+                              e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
+                              e.stopPropagation();
+                              handleOpenEditDialog(patient);
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              height: "36px",
+                              paddingLeft: "14px",
+                              paddingRight: "14px",
+                              borderRadius: "8px",
+                              border: "1.5px solid #e5e7eb",
+                              background: "#ffffff",
+                              color: "#2563eb",
+                              fontSize: "14px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(
+                              e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
+                              e.currentTarget.style.background = "#eff6ff";
+                              e.currentTarget.style.borderColor = "#93c5fd";
+                            }}
+                            onMouseLeave={(
+                              e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
+                              e.currentTarget.style.background = "#ffffff";
+                              e.currentTarget.style.borderColor = "#e5e7eb";
+                            }}
+                          >
+                            <Pencil style={{ width: "14px", height: "14px" }} />
+                            Ma'lumotlarni yangilash
                           </Button>
                         </div>
                       </div>
