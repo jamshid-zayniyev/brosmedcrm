@@ -13,6 +13,16 @@ class ResultService {
       throw error;
     }
   }
+
+  async deleteResult(id: number) {
+    try {
+      const res = await apiInstance.delete(API_ENDPOINTS.RESULT.delete(id));
+      return res.data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
 }
 
 export const resultService = new ResultService();

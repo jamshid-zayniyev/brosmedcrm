@@ -28,6 +28,8 @@ import {
   User,
   Calendar,
   Stethoscope,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -54,6 +56,7 @@ import { diseaseService } from "../../services/disease.service";
 import { formattedDate } from "../../utils/formatted-date";
 import logo from "../../assets/logo.png";
 import pechat from "../../assets/pechat.png";
+import { resultService } from "../../services/result.service";
 
 // This EditAnalysisDialog component is directly copied from the old TestResults.tsx
 // It's a sub-component used within PatientAnalysis.
@@ -295,6 +298,7 @@ export default function PatientAnalysis() {
   const [editingAnalysis, setEditingAnalysis] =
     useState<Partial<Analysis> | null>(null);
   const [isEditLoading, setIsEditLoading] = useState(false);
+  const [deletingResultId, setDeletingResultId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -397,6 +401,37 @@ export default function PatientAnalysis() {
       dto: { status: newStatus },
     });
     updateAnalysisStatus(editingAnalysis.id, newStatus);
+  };
+
+  const handleDeleteResult = async (resultId: number) => {
+    const confirmed = window.confirm(
+      "Haqiqatan ham bu natijani o'chirmoqchimisiz?",
+    );
+    if (!confirmed) return;
+
+    setDeletingResultId(resultId);
+    const toastId = toast.loading("Natija o'chirilmoqda...");
+
+    try {
+      await resultService.deleteResult(resultId);
+      setAnalyses((prev) => prev.filter((analysis) => analysis.id !== resultId));
+
+      if (viewingAnalysisId === resultId) {
+        setViewingAnalysisId(null);
+        setDetailedAnalysisData(null);
+      }
+
+      if (editingAnalysis?.id === resultId) {
+        setEditingAnalysis(null);
+      }
+
+      toast.success("Natija muvaffaqiyatli o'chirildi.", { id: toastId });
+    } catch (error) {
+      console.error("Failed to delete result:", error);
+      toast.error("Natijani o'chirishda xatolik yuz berdi.", { id: toastId });
+    } finally {
+      setDeletingResultId(null);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -934,6 +969,18 @@ export default function PatientAnalysis() {
                       )}
                     </DialogContent>
                   </Dialog>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={deletingResultId === analysisItem.id}
+                    onClick={() => handleDeleteResult(analysisItem.id)}
+                  >
+                    {deletingResultId === analysisItem.id ? (
+                      <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    )}
+                  </Button>
                   <Dialog
                     open={editingAnalysis?.id === analysisItem.id}
                     onOpenChange={(isOpen) => {

@@ -49,6 +49,7 @@ export const API_ENDPOINTS = {
   RESULT: {
     findResultForDepartment: (id: number) =>
       `/laboratory/department/result/${id}/`,
+    delete: (id: number) => `/laboratory/analysis/${id}/`,
   },
   DISEASE: {
     base: "/reception/disease/",
