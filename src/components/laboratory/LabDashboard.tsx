@@ -6,15 +6,41 @@ import { Button } from "../ui/button";
 import { TestTube, Clock, CheckCircle, AlertCircle, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { labService } from "../../services/lab.service";
 import { Analysis } from "../../interfaces/analysis.interface";
+import { useAppCacheStore } from "../../stores/app-cache.store";
+
+const LAB_DASHBOARD_STATS_CACHE_KEY = "lab-dashboard:stats";
+const getLabDashboardPageCacheKey = (page: number, limit: number) =>
+  `lab-dashboard:page:${page}:limit:${limit}`;
+
+interface LabDashboardPageCache {
+  analyses: Analysis[];
+  totalCount: number;
+  totalPages: number;
+}
 
 export function LabDashboard() {
-  const [analyses, setAnalyses] = useState<Analysis[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [statsLoading, setStatsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const cachedStats = useAppCacheStore
+    .getState()
+    .getCachedData<{
+      kunlik_tahlil: number;
+      jami_tahlil: number;
+      yangi_tahlil: number;
+      jarayondagi_tahlil: number;
+      yakunlangan_tahlil: number;
+    }>(LAB_DASHBOARD_STATS_CACHE_KEY);
+  const initialPageCache = useAppCacheStore
+    .getState()
+    .getCachedData<LabDashboardPageCache>(getLabDashboardPageCacheKey(1, 10));
+  const fetchCachedData = useAppCacheStore((state) => state.fetchCachedData);
+  const [analyses, setAnalyses] = useState<Analysis[]>(
+    initialPageCache?.analyses || []
+  );
+  const [loading, setLoading] = useState(!initialPageCache);
+  const [statsLoading, setStatsLoading] = useState(!cachedStats);
+  const [totalPages, setTotalPages] = useState(initialPageCache?.totalPages || 1);
+  const [totalCount, setTotalCount] = useState(initialPageCache?.totalCount || 0);
 
   const [stats, setStats] = useState<{
     kunlik_tahlil: number;
@@ -22,54 +48,100 @@ export function LabDashboard() {
     yangi_tahlil: number;
     jarayondagi_tahlil: number;
     yakunlangan_tahlil: number;
-  }>();
+  } | undefined>(cachedStats);
 
   // Fetch stats only once on mount
   useEffect(() => {
+    let isMounted = true;
+
     const fetchStats = async () => {
+      if (cachedStats) {
+        setStatsLoading(false);
+        return;
+      }
+
       try {
-        const statsData = await labService.getStats();
-        setStats(statsData);
+        const statsData = await fetchCachedData(LAB_DASHBOARD_STATS_CACHE_KEY, () =>
+          labService.getStats()
+        );
+
+        if (isMounted) {
+          setStats(statsData);
+        }
       } catch (error) {
         console.error(error);
-        setStats({
-          kunlik_tahlil: 0,
-          jami_tahlil: 0,
-          yangi_tahlil: 0,
-          jarayondagi_tahlil: 0,
-          yakunlangan_tahlil: 0,
-        });
+        if (isMounted) {
+          setStats({
+            kunlik_tahlil: 0,
+            jami_tahlil: 0,
+            yangi_tahlil: 0,
+            jarayondagi_tahlil: 0,
+            yakunlangan_tahlil: 0,
+          });
+        }
       } finally {
-        setStatsLoading(false);
+        if (isMounted) {
+          setStatsLoading(false);
+        }
       }
     };
 
     fetchStats();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [cachedStats, fetchCachedData]);
 
   // Fetch analyses when page changes
   useEffect(() => {
+    let isMounted = true;
+
     const fetchAnalyses = async () => {
+      const cacheKey = getLabDashboardPageCacheKey(page, limit);
+
+      if (page === 1 && initialPageCache) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
-        const response = await labService.findAllAnalysis({ page, limit });
-        
-        // Backend response structure: { page, limit, total, total_pages, data }
-        setAnalyses(response.data || []);
-        setTotalCount(response.total || 0);
-        setTotalPages(response.total_pages || 1);
+        const pageData = await fetchCachedData(cacheKey, async () => {
+          const response = await labService.findAllAnalysis({ page, limit });
+
+          return {
+            analyses: response.data || [],
+            totalCount: response.total || 0,
+            totalPages: response.total_pages || 1,
+          };
+        });
+
+        if (isMounted) {
+          setAnalyses(pageData.analyses);
+          setTotalCount(pageData.totalCount);
+          setTotalPages(pageData.totalPages);
+        }
       } catch (error) {
         console.error(error);
-        setAnalyses([]);
-        setTotalCount(0);
-        setTotalPages(1);
+        if (isMounted) {
+          setAnalyses([]);
+          setTotalCount(0);
+          setTotalPages(1);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchAnalyses();
-  }, [page, limit]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [page, limit, initialPageCache, fetchCachedData]);
 
   const handlePreviousPage = () => {
     if (page > 1) {

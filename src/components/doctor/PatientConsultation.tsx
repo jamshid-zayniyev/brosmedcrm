@@ -81,7 +81,7 @@ interface Disease {
 }
 
 export function PatientConsultation() {
-  const { user } = useUserStore();
+  const user = useUserStore((state) => state.user);
 
   const [patientRecords, setPatientRecords] = useState<PatientRecord[]>([]); // Renamed from 'patients'
   const [loading, setLoading] = useState(true);

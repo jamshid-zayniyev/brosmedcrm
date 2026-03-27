@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { DollarSign, Users, TrendingUp, Clock } from "lucide-react";
 import { cashierService } from "../../services/cashier.service";
 import { Skeleton } from "../ui/skeleton";
+import { useAppCacheStore } from "../../stores/app-cache.store";
 
 // Mock data for patients (for "Recent Activity" list, as requested)
 const mockPatients = [
@@ -73,24 +74,48 @@ interface CashierStats {
   jami_bemorlar: number;
 }
 
+const CASHIER_DASHBOARD_CACHE_KEY = "cashier-dashboard:stats";
+
 export function CashierDashboard() {
-  const [stats, setStats] = useState<CashierStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cachedStats = useAppCacheStore
+    .getState()
+    .getCachedData<CashierStats>(CASHIER_DASHBOARD_CACHE_KEY);
+  const fetchCachedData = useAppCacheStore((state) => state.fetchCachedData);
+  const [stats, setStats] = useState<CashierStats | null>(cachedStats || null);
+  const [loading, setLoading] = useState(!cachedStats);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchStats = async () => {
+      if (cachedStats) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
-        const data = await cashierService.getStats();
-        setStats(data);
+        const data = await fetchCachedData(CASHIER_DASHBOARD_CACHE_KEY, () =>
+          cashierService.getStats()
+        );
+
+        if (isMounted) {
+          setStats(data);
+        }
       } catch (error) {
         console.error("Failed to fetch cashier stats:", error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchStats();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [cachedStats, fetchCachedData]);
 
   // Keep mock data for "Recent Activity"
   const patients = mockPatients;

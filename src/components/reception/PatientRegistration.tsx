@@ -23,9 +23,9 @@ import {
 } from "../ui/dialog";
 import { patientService } from "../../services/patient.service";
 import { departmentService } from "../../services/department.service";
-import { departmentTypeService } from "../../services/department-type.service";
 import { diseaseService } from "../../services/disease.service"; // Import diseaseService
 import { useUserStore } from "../../stores/user.store";
+import { useReferenceDataStore } from "../../stores/reference-data.store";
 
 interface Patient {
   id: number;
@@ -84,9 +84,23 @@ const toPatientForm = (data: Patient) => ({
 export function PatientRegistration() {
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
-  const { user } = useUserStore();
+  const departments = useReferenceDataStore(
+    (state) => state.departments as Department[]
+  );
+  const departmentTypes = useReferenceDataStore(
+    (state) => state.departmentTypes as DepartmentType[]
+  );
+  const departmentsLoaded = useReferenceDataStore(
+    (state) => state.departmentsLoaded
+  );
+  const departmentTypesLoaded = useReferenceDataStore(
+    (state) => state.departmentTypesLoaded
+  );
+  const fetchDepartments = useReferenceDataStore((state) => state.fetchDepartments);
+  const fetchDepartmentTypes = useReferenceDataStore(
+    (state) => state.fetchDepartmentTypes
+  );
+  const user = useUserStore((state) => state.user);
 
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,19 +112,29 @@ export function PatientRegistration() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [departmentData, departmentTypeData] = await Promise.all([
-          departmentService.findAll(),
-          departmentTypeService.findAll(),
-        ]);
-        setDepartments(departmentData.results || departmentData);
-        setDepartmentTypes(departmentTypeData.results || departmentTypeData);
+        const requests: Promise<unknown>[] = [];
+
+        if (!departmentsLoaded) {
+          requests.push(fetchDepartments());
+        }
+
+        if (!departmentTypesLoaded) {
+          requests.push(fetchDepartmentTypes());
+        }
+
+        await Promise.all(requests);
       } catch (error) {
         toast.error("Bo'lim ma'lumotlarini yuklashda xatolik");
       }
     };
 
     fetchData();
-  }, []);
+  }, [
+    departmentsLoaded,
+    departmentTypesLoaded,
+    fetchDepartments,
+    fetchDepartmentTypes,
+  ]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);

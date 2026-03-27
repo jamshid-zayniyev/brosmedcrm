@@ -5,6 +5,7 @@ import { Users, Clock, CheckCircle, Calendar, Loader2 } from "lucide-react";
 import { Consultation } from "../../interfaces/consultation.interface";
 import { PatientStatus } from "../../interfaces/patient.interface";
 import { patientService } from "../../services/patient.service";
+import { useAppCacheStore } from "../../stores/app-cache.store";
 
 interface DoctorStats {
   jami_bemorlar: number;
@@ -15,44 +16,77 @@ interface DoctorStats {
   oxirgi_konsultatsiyalar: Consultation[] | null;
 }
 
+const DOCTOR_DASHBOARD_CACHE_KEY = "doctor-dashboard:data";
+
 export function DoctorDashboard() {
-  const [stats, setStats] = useState<DoctorStats | null>(null);
-  const [patientRecords, setPatientRecords] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedDashboard = useAppCacheStore
+    .getState()
+    .getCachedData<{ stats: DoctorStats | null; patientRecords: any[] }>(
+      DOCTOR_DASHBOARD_CACHE_KEY
+    );
+  const fetchCachedData = useAppCacheStore((state) => state.fetchCachedData);
+  const [stats, setStats] = useState<DoctorStats | null>(
+    cachedDashboard?.stats || null
+  );
+  const [patientRecords, setPatientRecords] = useState<any[]>(
+    cachedDashboard?.patientRecords || []
+  );
+  const [loading, setLoading] = useState(!cachedDashboard);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadDashboardData = async () => {
+      if (cachedDashboard) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
-        const [statsData, responseData] = await Promise.all([
-          consultationService.findStats(),
-          patientService.findAllForDoctor(),
-        ]);
+        const dashboardData = await fetchCachedData(
+          DOCTOR_DASHBOARD_CACHE_KEY,
+          async () => {
+            const [statsData, responseData] = await Promise.all([
+              consultationService.findStats(),
+              patientService.findAllForDoctor(),
+            ]);
 
-        setStats(statsData);
+            return {
+              stats: statsData,
+              patientRecords:
+                responseData && Array.isArray(responseData.diseases)
+                  ? responseData.diseases
+                  : [],
+            };
+          }
+        );
 
-        if (responseData && Array.isArray(responseData.diseases)) {
-          setPatientRecords(responseData.diseases);
-        } else {
-          console.error(
-            "Xatolik: 'diseases' ma'lumoti massiv emas!",
-            responseData
-          );
-          setPatientRecords([]);
+        if (isMounted) {
+          setStats(dashboardData.stats);
+          setPatientRecords(dashboardData.patientRecords);
         }
       } catch (err) {
-        setError("Ma'lumotlarni yuklashda xatolik yuz berdi.");
+        if (isMounted) {
+          setError("Ma'lumotlarni yuklashda xatolik yuz berdi.");
+          setPatientRecords([]);
+        }
         console.error(err);
-        setPatientRecords([]);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadDashboardData();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [cachedDashboard, fetchCachedData]);
 
   const upcomingPatients = patientRecords
     .filter(

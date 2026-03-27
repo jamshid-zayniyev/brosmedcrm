@@ -18,7 +18,7 @@ import {
   FileText,
   Settings,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { handleStorage } from "../utils/handle-storage";
 import { privateRoutes } from "../router";
@@ -116,20 +116,29 @@ const routeConfig: { [key: string]: { label: string; icon: React.ReactNode } } =
   };
 
 export function Layout({ children }: LayoutProps) {
-  const { user, setUser } = useUserStore();
+  const user = useUserStore((state) => state.user);
+  const setUser = useUserStore((state) => state.setUser);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(
     (localStorage.getItem("theme") as "light" | "dark") || "light"
   );
   const navigate = useNavigate();
   const location = useLocation();
-  const { clinicSettings, setClinicSettings } = useClinicSettings();
+  const clinicSettingsLoaded = useClinicSettings((state) => state.hasLoaded);
+  const clinicSettings = useClinicSettings((state) => state.clinicSettings);
+  const setClinicSettings = useClinicSettings((state) => state.setClinicSettings);
 
   useEffect(() => {
+    if (clinicSettingsLoaded) {
+      return;
+    }
+
+    let isMounted = true;
+
     const fetchClinicSettings = async () => {
       try {
         const data = await clinicAboutService.findAll();
-        if (data && data.length > 0) {
+        if (isMounted && data && data.length > 0) {
           const settings = data[0];
           setClinicSettings({
             name: settings.name,
@@ -137,14 +146,19 @@ export function Layout({ children }: LayoutProps) {
             phone_number: settings.phone_number,
             email: settings.email,
             work_time: settings.work_time,
-          });
+          }, settings.id);
         }
       } catch (error) {
         toast.error("Klinika ma'lumotlarini yuklashda xatolik yuz berdi");
       }
     };
+
     fetchClinicSettings();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [clinicSettingsLoaded, setClinicSettings]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -157,29 +171,35 @@ export function Layout({ children }: LayoutProps) {
     return <Navigate to="/login" replace />;
   }
 
-  const menuItems: MenuItem[] = privateRoutes
-    .filter((route) => !route.path.includes("/:")) // dynamic paramlarni olib tashlaydi
-    .map((route, index) => {
-      const config = routeConfig[route.path] || {
-        label:
-          route.path
-            .split("/")
-            .pop()
-            ?.replace("-", " ")
-            .replace(/\b\w/g, (l) => l.toUpperCase()) || "",
-        icon: <LayoutDashboard className="w-5 h-5" />,
-      };
-      return {
-        id: index,
-        label: config.label,
-        icon: config.icon,
-        roles: route.allowedRoles,
-        path: route.path,
-      };
-    });
+  const menuItems: MenuItem[] = useMemo(
+    () =>
+      privateRoutes
+        .filter((route) => !route.path.includes("/:"))
+        .map((route, index) => {
+          const config = routeConfig[route.path] || {
+            label:
+              route.path
+                .split("/")
+                .pop()
+                ?.replace("-", " ")
+                .replace(/\b\w/g, (l) => l.toUpperCase()) || "",
+            icon: <LayoutDashboard className="w-5 h-5" />,
+          };
 
-  const filteredMenuItems = menuItems.filter((item) =>
-    item.roles.includes(user?.role)
+          return {
+            id: index,
+            label: config.label,
+            icon: config.icon,
+            roles: route.allowedRoles,
+            path: route.path,
+          };
+        }),
+    []
+  );
+
+  const filteredMenuItems = useMemo(
+    () => menuItems.filter((item) => item.roles.includes(user.role)),
+    [menuItems, user.role]
   );
 
   const handleNavigate = (path: string) => {
@@ -194,7 +214,9 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
+    setTheme((currentTheme) =>
+      currentTheme === "light" ? "dark" : "light"
+    );
   };
 
   return (

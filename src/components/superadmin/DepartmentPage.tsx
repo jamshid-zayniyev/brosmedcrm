@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { departmentService } from "../../services/department.service";
+import { useReferenceDataStore } from "../../stores/reference-data.store";
 import {
   Table,
   TableBody,
@@ -25,8 +26,14 @@ interface Department {
 }
 
 export function DepartmentPage() {
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const departments = useReferenceDataStore(
+    (state) => state.departments as Department[]
+  );
+  const departmentsLoaded = useReferenceDataStore(
+    (state) => state.departmentsLoaded
+  );
+  const fetchDepartments = useReferenceDataStore((state) => state.fetchDepartments);
+  const [isLoading, setIsLoading] = useState(!departmentsLoaded);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(
@@ -39,20 +46,32 @@ export function DepartmentPage() {
   });
 
   useEffect(() => {
-    fetchDepartments();
-  }, []);
+    let isMounted = true;
 
-  const fetchDepartments = async () => {
-    setIsLoading(true);
-    try {
-      const data = await departmentService.findAll();
-      setDepartments(data);
-    } catch (error) {
-      toast.error("Bo'limlarni yuklashda xatolik yuz berdi !");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const loadDepartments = async () => {
+      if (departmentsLoaded) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        await fetchDepartments();
+      } catch (error) {
+        toast.error("Bo'limlarni yuklashda xatolik yuz berdi !");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadDepartments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [departmentsLoaded, fetchDepartments]);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -98,11 +117,13 @@ export function DepartmentPage() {
         await departmentService.create(formData);
         toast.success("Yangi bo'lim muvaffaqiyatli qo'shildi");
       }
-      fetchDepartments();
+      setIsLoading(true);
+      await fetchDepartments(true);
       handleModalClose();
     } catch (error) {
       toast.error("Jarayonda xatolik yuz berdi");
     } finally {
+      setIsLoading(false);
       setIsSubmitting(false);
     }
   };
@@ -112,9 +133,12 @@ export function DepartmentPage() {
       try {
         await departmentService.delete(id);
         toast.success("Bo'lim muvaffaqiyatli o'chirildi");
-        fetchDepartments();
+        setIsLoading(true);
+        await fetchDepartments(true);
       } catch (error) {
         toast.error("Bo'limni o'chirishda xatolik yuz berdi");
+      } finally {
+        setIsLoading(false);
       }
     }
   };

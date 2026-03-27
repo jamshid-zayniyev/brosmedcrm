@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -44,7 +44,6 @@ import {
 import { Patient } from "../../interfaces/patient.interface";
 import { DepartmentType } from "../../interfaces/department-type.interface";
 import { labService } from "../../services/lab.service";
-import { departmentTypeService } from "../../services/department-type.service";
 import { patientService } from "../../services/patient.service";
 import { analysisResultService } from "../../services/analysis-result.service";
 import { AnalysisResultPayload } from "../../interfaces/analysis-result.interface";
@@ -57,17 +56,54 @@ import {
   CommandList,
 } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { useAppCacheStore } from "../../stores/app-cache.store";
+import { useReferenceDataStore } from "../../stores/reference-data.store";
+
+const TEST_RESULTS_PATIENT_SELECT_INITIAL_CACHE_KEY =
+  "test-results:patient-select:initial";
+
+const getTestResultsListCacheKey = (page: number, limit: number, search: string) =>
+  `test-results:list:${page}:${limit}:${search.trim() || "_"}`;
+
+const getTestResultsPatientSearchCacheKey = (search: string) =>
+  `test-results:patient-select:${search.trim() || "_"}`;
+
+interface CachedPatientList {
+  patients: Patient[];
+  totalCount: number;
+  totalPages: number;
+}
 
 export function TestResults() {
+  const initialListCache = useAppCacheStore
+    .getState()
+    .getCachedData<CachedPatientList>(getTestResultsListCacheKey(1, 10, ""));
+  const initialPatientsForSelect = useAppCacheStore
+    .getState()
+    .getCachedData<Patient[]>(TEST_RESULTS_PATIENT_SELECT_INITIAL_CACHE_KEY);
+  const fetchCachedData = useAppCacheStore((state) => state.fetchCachedData);
   const navigate = useNavigate();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [departmentTypesLoading, setDepartmentTypesLoading] = useState(true);
+  const departmentTypes = useReferenceDataStore(
+    (state) => state.departmentTypes as DepartmentType[]
+  );
+  const departmentTypesLoaded = useReferenceDataStore(
+    (state) => state.departmentTypesLoaded
+  );
+  const fetchDepartmentTypes = useReferenceDataStore(
+    (state) => state.fetchDepartmentTypes
+  );
+  const [patients, setPatients] = useState<Patient[]>(
+    initialListCache?.patients || []
+  );
+  const [listLoading, setListLoading] = useState(!initialListCache);
+  const [selectLoading, setSelectLoading] = useState(!initialPatientsForSelect);
+  const [departmentTypesLoading, setDepartmentTypesLoading] = useState(
+    !departmentTypesLoaded
+  );
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(initialListCache?.totalPages || 1);
+  const [totalCount, setTotalCount] = useState(initialListCache?.totalCount || 0);
 
   // Search filter for patients list tab
   const [listSearchQuery, setListSearchQuery] = useState("");
@@ -78,10 +114,13 @@ export function TestResults() {
   >([]);
 
   // New analysis tab - patient search states
-  const [patientsForSelect, setPatientsForSelect] = useState<Patient[]>([]);
+  const [patientsForSelect, setPatientsForSelect] = useState<Patient[]>(
+    initialPatientsForSelect || []
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [openPatientSelect, setOpenPatientSelect] = useState(false);
+  const skipInitialSelectSearch = useRef(true);
 
   // --- Edit patient dialog states ---
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -91,67 +130,128 @@ export function TestResults() {
 
   // Fetch department types only once on mount
   useEffect(() => {
-    const fetchDepartmentTypes = async () => {
+    let isMounted = true;
+
+    const loadDepartmentTypes = async () => {
+      if (departmentTypesLoaded) {
+        setDepartmentTypesLoading(false);
+        return;
+      }
+
       try {
-        const departmentTypesRes = await departmentTypeService.findAll();
-        setDepartmentTypes(departmentTypesRes);
+        await fetchDepartmentTypes();
       } catch (error) {
         console.error("Department types yuklashda xatolik:", error);
         toast.error("Tahlil turlarini yuklashda xatolik yuz berdi");
       } finally {
-        setDepartmentTypesLoading(false);
+        if (isMounted) {
+          setDepartmentTypesLoading(false);
+        }
       }
     };
 
-    fetchDepartmentTypes();
-  }, []);
+    loadDepartmentTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [departmentTypesLoaded, fetchDepartmentTypes]);
 
   // Fetch initial patients for select (first 10)
   useEffect(() => {
+    let isMounted = true;
+
     const fetchInitialPatients = async () => {
+      if (initialPatientsForSelect) {
+        return;
+      }
+
       try {
-        setLoading(true);
-        const response = await patientService.findAll({ page: 1, limit: 10 });
-        setPatientsForSelect(response.data || []);
+        setSelectLoading(true);
+        const data = await fetchCachedData(
+          TEST_RESULTS_PATIENT_SELECT_INITIAL_CACHE_KEY,
+          async () => {
+            const response = await patientService.findAll({ page: 1, limit: 10 });
+            return response.data || [];
+          }
+        );
+
+        if (isMounted) {
+          setPatientsForSelect(data);
+        }
       } catch (error) {
         console.error("Bemorlarni yuklashda xatolik:", error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setSelectLoading(false);
+        }
       }
     };
 
     fetchInitialPatients();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchCachedData, initialPatientsForSelect]);
 
   // Fetch patients when page changes or search query changes (for list tab)
   useEffect(() => {
+    let isMounted = true;
+
     const fetchPatients = async () => {
+      if (isMounted) {
+        setListLoading(true);
+      }
+
       try {
-        let response;
+        const cacheKey = getTestResultsListCacheKey(page, limit, listSearchQuery);
 
         if (listSearchQuery.trim() === "") {
-          // Normal pagination
-          response = await patientService.findAll({ page, limit });
-          setPatients(response.data || []);
-          setTotalCount(response.total || 0);
-          setTotalPages(response.total_pages || 1);
+          const cachedList = await fetchCachedData(cacheKey, async () => {
+            const response = await patientService.findAll({ page, limit });
+            return {
+              patients: response.data || [],
+              totalCount: response.total || 0,
+              totalPages: response.total_pages || 1,
+            };
+          });
+
+          if (isMounted) {
+            setPatients(cachedList.patients);
+            setTotalCount(cachedList.totalCount);
+            setTotalPages(cachedList.totalPages);
+          }
         } else {
-          // Search mode
           setIsListSearching(true);
-          const searchResults =
-            await patientService.searchPatient(listSearchQuery);
-          setPatients(searchResults || []);
-          setTotalCount(searchResults?.length || 0);
-          setTotalPages(1); // Search results in single page
+          const searchResults = await fetchCachedData(cacheKey, async () => {
+            const data = await patientService.searchPatient(listSearchQuery);
+            return {
+              patients: data || [],
+              totalCount: data?.length || 0,
+              totalPages: 1,
+            };
+          });
+
+          if (isMounted) {
+            setPatients(searchResults.patients);
+            setTotalCount(searchResults.totalCount);
+            setTotalPages(searchResults.totalPages);
+          }
         }
       } catch (error) {
         console.error("Bemorlarni yuklashda xatolik:", error);
         toast.error("Bemorlarni yuklashda xatolik yuz berdi");
-        setPatients([]);
-        setTotalCount(0);
-        setTotalPages(1);
+        if (isMounted) {
+          setPatients([]);
+          setTotalCount(0);
+          setTotalPages(1);
+        }
       } finally {
-        setIsListSearching(false);
+        if (isMounted) {
+          setListLoading(false);
+          setIsListSearching(false);
+        }
       }
     };
 
@@ -162,17 +262,35 @@ export function TestResults() {
       listSearchQuery.trim() === "" ? 0 : 300,
     ); // No debounce for empty, 300ms for search
 
-    return () => clearTimeout(debounceTimer);
-  }, [page, limit, listSearchQuery]);
+    return () => {
+      isMounted = false;
+      clearTimeout(debounceTimer);
+    };
+  }, [page, limit, listSearchQuery, fetchCachedData]);
 
   // Search patients with debounce
   useEffect(() => {
+    let isMounted = true;
+
     const searchPatients = async () => {
+      if (skipInitialSelectSearch.current && searchQuery.trim() === "") {
+        skipInitialSelectSearch.current = false;
+        return;
+      }
+
       if (searchQuery.trim() === "") {
-        // If search is empty, load initial 10 patients
         try {
-          const response = await patientService.findAll({ page: 1, limit: 10 });
-          setPatientsForSelect(response.data || []);
+          const data = await fetchCachedData(
+            TEST_RESULTS_PATIENT_SELECT_INITIAL_CACHE_KEY,
+            async () => {
+              const response = await patientService.findAll({ page: 1, limit: 10 });
+              return response.data || [];
+            }
+          );
+
+          if (isMounted) {
+            setPatientsForSelect(data);
+          }
         } catch (error) {
           console.error("Bemorlarni yuklashda xatolik:", error);
         }
@@ -181,13 +299,26 @@ export function TestResults() {
 
       setIsSearching(true);
       try {
-        const searchResults = await patientService.searchPatient(searchQuery);
-        setPatientsForSelect(searchResults || []);
+        const searchResults = await fetchCachedData(
+          getTestResultsPatientSearchCacheKey(searchQuery),
+          async () => {
+            const data = await patientService.searchPatient(searchQuery);
+            return data || [];
+          }
+        );
+
+        if (isMounted) {
+          setPatientsForSelect(searchResults);
+        }
       } catch (error) {
         console.error("Qidirishda xatolik:", error);
-        setPatientsForSelect([]);
+        if (isMounted) {
+          setPatientsForSelect([]);
+        }
       } finally {
-        setIsSearching(false);
+        if (isMounted) {
+          setIsSearching(false);
+        }
       }
     };
 
@@ -195,8 +326,11 @@ export function TestResults() {
       searchPatients();
     }, 300);
 
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery]);
+    return () => {
+      isMounted = false;
+      clearTimeout(debounceTimer);
+    };
+  }, [searchQuery, fetchCachedData]);
 
   // Handle patient selection
   const handlePatientSelect = (patientId: string) => {
@@ -445,7 +579,7 @@ export function TestResults() {
     (p) => p.patient_status === "r" || p.patient_status === "l",
   );
 
-  if (loading && page === 1) {
+  if (listLoading && page === 1) {
     return (
       <div className="space-y-8">
         <div>
@@ -803,7 +937,7 @@ export function TestResults() {
                             onValueChange={setSearchQuery}
                           />
                           <CommandList>
-                            {isSearching ? (
+                            {isSearching || selectLoading ? (
                               <div className="p-4 text-sm text-center text-muted-foreground">
                                 Qidirilmoqda...
                               </div>
@@ -1051,7 +1185,7 @@ export function TestResults() {
             </div>
           </div>
 
-          {isListSearching || loading ? (
+          {listLoading ? (
             <div className="space-y-3">
               {[...Array(limit)].map((_, i) => (
                 <Card key={i} className="border-gray-200">

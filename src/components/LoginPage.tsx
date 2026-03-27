@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -17,14 +17,12 @@ import { authService } from "../services/auth.service";
 import { handleStorage } from "../utils/handle-storage";
 import { defaultRoutes } from "../router";
 
-
 export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [tokenForRefetch, setTokenForRefetch] = useState<string | null>(null); // New state
-  const { setUser } = useUserStore();
+  const setUser = useUserStore((state) => state.setUser);
   const navigate = useNavigate();
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -37,34 +35,24 @@ export function LoginPage() {
         phone_number: username,
         password,
       });
+
       handleStorage({ key: "access_token", value: data.access });
-      setTokenForRefetch(data.access); // Trigger useEffect
+
+      try {
+        const user = await authService.findMe();
+        setUser(user);
+        navigate(defaultRoutes[user.role] || "/");
+      } catch (err) {
+        handleStorage({ key: "access_token", value: null });
+        setError("Foydalanuvchi ma'lumotlarini yuklashda xatolik");
+      }
     } catch (err) {
       setError("Noto'g'ri foydalanuvchi nomi yoki parol");
-      setIsSubmitting(false); // Reset submitting state on error
+      handleStorage({ key: "access_token", value: null });
+    } finally {
+      setIsSubmitting(false);
     }
   };
-
-  // This useEffect will handle fetching user and navigation after token is set
-  useEffect(() => {
-    if (tokenForRefetch) {
-      const fetchUserAndNavigate = async () => {
-        try {
-          const user = await authService.findMe();
-          setUser(user);
-          navigate(defaultRoutes[user.role] || "/");
-        } catch (err) {
-          // If findMe fails, clear token and show error
-          handleStorage({ key: "access_token", value: null });
-          setError("Foydalanuvchi ma'lumotlarini yuklashda xatolik");
-        } finally {
-          setIsSubmitting(false);
-          setTokenForRefetch(null); // Reset tokenForRefetch
-        }
-      };
-      fetchUserAndNavigate();
-    }
-  }, [tokenForRefetch, setUser, navigate]); // Dependencies
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">

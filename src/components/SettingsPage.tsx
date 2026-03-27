@@ -12,17 +12,26 @@ import { clinicAboutService } from "../services/clinic-about.service";
 import { useClinicSettings } from "../stores/clinic-settings.store";
 
 export function SettingsPage() {
-  const [clinicSettingsId, setClinicSettingsId] = useState<number | null>(null);
+  const cachedClinicSettingsId = useClinicSettings(
+    (state) => state.clinicSettingsId
+  );
+  const cachedClinicSettings = useClinicSettings((state) => state.clinicSettings);
+  const clinicSettingsLoaded = useClinicSettings((state) => state.hasLoaded);
+  const [clinicSettingsId, setClinicSettingsId] = useState<number | null>(
+    cachedClinicSettingsId
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { setClinicSettings: setClinicSettingsStore } = useClinicSettings();
+  const setClinicSettingsStore = useClinicSettings(
+    (state) => state.setClinicSettings
+  );
 
   const [clinicSettings, setClinicSettings] = useState({
-    name: "",
-    address: "",
-    phone_number: "",
-    email: "",
-    work_time: "",
+    name: cachedClinicSettings?.name || "",
+    address: cachedClinicSettings?.address || "",
+    phone_number: cachedClinicSettings?.phone_number || "",
+    email: cachedClinicSettings?.email || "",
+    work_time: cachedClinicSettings?.work_time || "",
   });
 
   const [notifications, setNotifications] = useState({
@@ -49,6 +58,13 @@ export function SettingsPage() {
   });
 
   useEffect(() => {
+    if (clinicSettingsLoaded && cachedClinicSettings) {
+      setClinicSettings(cachedClinicSettings);
+      setClinicSettingsId(cachedClinicSettingsId);
+      setIsLoading(false);
+      return;
+    }
+
     const fetchClinicSettings = async () => {
       setIsLoading(true);
       try {
@@ -68,7 +84,7 @@ export function SettingsPage() {
             phone_number: settings.phone_number,
             email: settings.email,
             work_time: settings.work_time,
-          });
+          }, settings.id);
           setClinicSettingsId(settings.id);
         }
       } catch (error) {
@@ -78,7 +94,12 @@ export function SettingsPage() {
       }
     };
     fetchClinicSettings();
-  }, []);
+  }, [
+    cachedClinicSettings,
+    cachedClinicSettingsId,
+    clinicSettingsLoaded,
+    setClinicSettingsStore,
+  ]);
 
   const handleSaveClinicSettings = async () => {
     setIsSubmitting(true);
@@ -91,6 +112,8 @@ export function SettingsPage() {
       } else {
         await clinicAboutService.create(clinicSettings);
       }
+
+      setClinicSettingsStore(clinicSettings, clinicSettingsId);
       toast.success("Klinika sozlamalari saqlandi");
     } catch (error) {
       toast.error("Klinika sozlamalarini saqlashda xatolik yuz berdi");

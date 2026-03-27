@@ -21,10 +21,11 @@ import {
 import { UserPlus, Edit, Trash2, Shield, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { authService } from "../../services/auth.service";
-import { departmentService } from "../../services/department.service";
 import { Checkbox } from "../ui/checkbox";
 import { Skeleton } from "../ui/skeleton";
 import { useUserStore } from "@/stores/user.store";
+import { useAppCacheStore } from "../../stores/app-cache.store";
+import { useReferenceDataStore } from "../../stores/reference-data.store";
 
 interface SystemUser {
   id: number;
@@ -51,11 +52,24 @@ interface Department {
   };
 }
 
+const USERS_CACHE_KEY = "user-management:users";
+
 export function UserManagement() {
-  const { user: currentUser } = useUserStore();
-  const [users, setUsers] = useState<SystemUser[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const currentUser = useUserStore((state) => state.user);
+  const cachedUsers = useAppCacheStore.getState().getCachedData<SystemUser[]>(
+    USERS_CACHE_KEY
+  );
+  const fetchCachedData = useAppCacheStore((state) => state.fetchCachedData);
+  const setCachedData = useAppCacheStore((state) => state.setCachedData);
+  const departments = useReferenceDataStore(
+    (state) => state.departments as Department[]
+  );
+  const departmentsLoaded = useReferenceDataStore(
+    (state) => state.departmentsLoaded
+  );
+  const fetchDepartments = useReferenceDataStore((state) => state.fetchDepartments);
+  const [users, setUsers] = useState<SystemUser[]>(cachedUsers || []);
+  const [isLoading, setIsLoading] = useState(!cachedUsers);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
@@ -74,29 +88,64 @@ export function UserManagement() {
   });
 
   useEffect(() => {
-    fetchUsers();
-    fetchDepartments();
-  }, []);
+    let isMounted = true;
+
+    const loadPageData = async () => {
+      const requests: Promise<unknown>[] = [];
+
+      if (!cachedUsers) {
+        setIsLoading(true);
+        requests.push(
+          fetchCachedData(USERS_CACHE_KEY, () => authService.findUsers()).then(
+            (data) => {
+              if (isMounted) {
+                setUsers(data);
+              }
+            }
+          )
+        );
+      }
+
+      if (!departmentsLoaded) {
+        requests.push(fetchDepartments());
+      }
+
+      try {
+        await Promise.all(requests);
+      } catch (error) {
+        toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadPageData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    cachedUsers,
+    departmentsLoaded,
+    fetchCachedData,
+    fetchDepartments,
+  ]);
 
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const data = await authService.findUsers();
+      const data = await fetchCachedData(USERS_CACHE_KEY, () => authService.findUsers(), {
+        force: true,
+      });
       setUsers(data);
+      setCachedData(USERS_CACHE_KEY, data);
     } catch (error) {
       console.error(error);
       toast.error("Foydalanuvchilarni yuklashda xatolik yuz berdi");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const data = await departmentService.findAll();
-      setDepartments(data);
-    } catch (error) {
-      console.error(error);
     }
   };
 

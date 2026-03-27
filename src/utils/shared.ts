@@ -59,7 +59,3 @@ export const API_ENDPOINTS = {
 
 export const serverUrl =
   import.meta.env.VITE_API_URL || "https://api.brosmed.uz";
-
-// image
-import brosmedLogo from "../assets/brosmed-logo.jpg";
-export { brosmedLogo };

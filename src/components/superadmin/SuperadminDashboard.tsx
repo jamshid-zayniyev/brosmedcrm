@@ -30,6 +30,13 @@ import { Calendar } from "../ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
+import { useAppCacheStore } from "../../stores/app-cache.store";
+
+const SUPERADMIN_ACTIVITY_CACHE_KEY = "superadmin-dashboard:daily-activity";
+const getSuperadminDepartmentReportCacheKey = (
+  startDate: string,
+  endDate: string
+) => `superadmin-dashboard:departments:${startDate}:${endDate}`;
 
 export function SuperadminDashboard() {
   // Mock data (kept for other charts as requested)
@@ -102,61 +109,132 @@ export function SuperadminDashboard() {
 
   // Live data for Department Chart
   const [departmentChartData, setDepartmentChartData] = useState<any[]>([]);
-  const [departmentChartLoading, setDepartmentChartLoading] = useState(true);
-  const [dailyActivityData, setDailyActivityData] = useState<any[]>([]);
-  const [dailyActivityLoading, setDailyActivityLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date());
   const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
+  const cachedActivityData = useAppCacheStore
+    .getState()
+    .getCachedData<any[]>(SUPERADMIN_ACTIVITY_CACHE_KEY);
+  const cachedDepartmentChartData = useAppCacheStore
+    .getState()
+    .getCachedData<any[]>(
+      getSuperadminDepartmentReportCacheKey(
+        format(new Date(), "yyyy-MM-dd"),
+        format(new Date(), "yyyy-MM-dd")
+      )
+    );
+  const fetchCachedData = useAppCacheStore((state) => state.fetchCachedData);
+  const [departmentChartLoading, setDepartmentChartLoading] = useState(
+    !cachedDepartmentChartData
+  );
+  const [dailyActivityData, setDailyActivityData] = useState<any[]>(
+    cachedActivityData || []
+  );
+  const [dailyActivityLoading, setDailyActivityLoading] = useState(
+    !cachedActivityData
+  );
 
   useEffect(() => {
+    if (cachedDepartmentChartData) {
+      setDepartmentChartData(cachedDepartmentChartData);
+    }
+  }, [cachedDepartmentChartData]);
+
+  useEffect(() => {
+    let isMounted = true;
+
     const fetchDepartmentReport = async () => {
       if (!dateFrom || !dateTo) {
         return;
       }
-      setDepartmentChartLoading(true);
+
       const requestBody = {
         start_date: format(dateFrom, "yyyy-MM-dd"),
         end_date: format(dateTo, "yyyy-MM-dd"),
       };
+      const cacheKey = getSuperadminDepartmentReportCacheKey(
+        requestBody.start_date,
+        requestBody.end_date
+      );
+      const cachedData = useAppCacheStore.getState().getCachedData<any[]>(cacheKey);
+
+      if (cachedData) {
+        setDepartmentChartData(cachedData);
+        setDepartmentChartLoading(false);
+        return;
+      }
+
+      setDepartmentChartLoading(true);
       try {
-        const data = await reportService.getReport(requestBody);
-        const chartData = data.departments.map((dept) => ({
-          name: dept.department,
-          value: dept.jami_bemorlar,
-        }));
-        setDepartmentChartData(chartData);
+        const chartData = await fetchCachedData(cacheKey, async () => {
+          const data = await reportService.getReport(requestBody);
+          return data.departments.map((dept) => ({
+            name: dept.department,
+            value: dept.jami_bemorlar,
+          }));
+        });
+
+        if (isMounted) {
+          setDepartmentChartData(chartData);
+        }
       } catch (error) {
         toast.error("Bo'limlar hisobotini olishda xatolik yuz berdi");
         console.error(error);
       } finally {
-        setDepartmentChartLoading(false);
+        if (isMounted) {
+          setDepartmentChartLoading(false);
+        }
       }
     };
     fetchDepartmentReport();
-  }, [dateFrom, dateTo]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [dateFrom, dateTo, fetchCachedData]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchDailyActivity = async () => {
+      if (cachedActivityData) {
+        setDailyActivityLoading(false);
+        return;
+      }
+
       setDailyActivityLoading(true);
       try {
-        const data = await reportService.reportLineChartStats();
-        const formattedData = data.map((item: LineChartStat) => ({
-          date: new Date(item.day).toLocaleDateString("uz-UZ", {
-            day: "2-digit",
-            month: "2-digit",
-          }),
-          patients: item.patients,
-          consultations: item.consultations,
-        }));
-        setDailyActivityData(formattedData);
+        const formattedData = await fetchCachedData(
+          SUPERADMIN_ACTIVITY_CACHE_KEY,
+          async () => {
+            const data = await reportService.reportLineChartStats();
+            return data.map((item: LineChartStat) => ({
+              date: new Date(item.day).toLocaleDateString("uz-UZ", {
+                day: "2-digit",
+                month: "2-digit",
+              }),
+              patients: item.patients,
+              consultations: item.consultations,
+            }));
+          }
+        );
+
+        if (isMounted) {
+          setDailyActivityData(formattedData);
+        }
       } catch (error) {
         toast.error("Kunlik faollik yuklanmadi");
       } finally {
-        setDailyActivityLoading(false);
+        if (isMounted) {
+          setDailyActivityLoading(false);
+        }
       }
     };
     fetchDailyActivity();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [cachedActivityData, fetchCachedData]);
 
   // Mock data for other charts
   const genderData = [

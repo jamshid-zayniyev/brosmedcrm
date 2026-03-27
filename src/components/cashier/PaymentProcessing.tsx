@@ -33,6 +33,7 @@ import { Patient as ApiPatient } from "../../interfaces/patient.interface";
 import { User } from "../../interfaces/user.interface";
 import { DepartmentType } from "../../interfaces/department-type.interface";
 import { Skeleton } from "../ui/skeleton";
+import { useAppCacheStore } from "../../stores/app-cache.store";
 
 // Create a local extended User type to include the price field described by the user
 type ExtendedUser = User & {
@@ -46,29 +47,45 @@ type Patient = Omit<ApiPatient, "user"> & {
   partialPaymentAmount?: number; // This is a local calculation field
 };
 
+const PAYMENT_PROCESSING_CACHE_KEY = "payment-processing:patients";
+
 export function PaymentProcessing() {
-  const [allPatients, setAllPatients] = useState<Patient[]>([]);
+  const cachedPatients = useAppCacheStore
+    .getState()
+    .getCachedData<Patient[]>(PAYMENT_PROCESSING_CACHE_KEY);
+  const fetchCachedData = useAppCacheStore((state) => state.fetchCachedData);
+  const setCachedData = useAppCacheStore((state) => state.setCachedData);
+  const [allPatients, setAllPatients] = useState<Patient[]>(cachedPatients || []);
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedPatients);
   const [processingPayment, setProcessingPayment] = useState(false);
 
   const fetchPatients = async () => {
+    if (cachedPatients) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const data = await patientService.findAll();
-      const processedData = data.map((patient: ApiPatient) => {
-        // Safely cast user to ExtendedUser to check for price
-        const extendedUser = patient.user as ExtendedUser | undefined;
+      const processedData = await fetchCachedData(
+        PAYMENT_PROCESSING_CACHE_KEY,
+        async () => {
+          const data = await patientService.findAll();
 
-        const priceString =
-          patient.department_types?.price || extendedUser?.price || "0";
-        const paymentAmount = parseFloat(priceString);
+          return data.map((patient: ApiPatient) => {
+            const extendedUser = patient.user as ExtendedUser | undefined;
+            const priceString =
+              patient.department_types?.price || extendedUser?.price || "0";
 
-        return {
-          ...patient,
-          paymentAmount,
-        };
-      });
+            return {
+              ...patient,
+              paymentAmount: parseFloat(priceString),
+            };
+          });
+        }
+      );
+
       setAllPatients(processedData);
     } catch (error) {
       toast.error("Bemorlarni yuklashda xatolik yuz berdi");
@@ -157,6 +174,15 @@ export function PaymentProcessing() {
         // partial_amount could be sent here if API supports it
       });
 
+      const updatedPatients = allPatients.map((patient) =>
+        patient.id === selectedPatient.id
+          ? { ...patient, payment_status: paymentStatus }
+          : patient
+      );
+
+      setAllPatients(updatedPatients);
+      setCachedData(PAYMENT_PROCESSING_CACHE_KEY, updatedPatients);
+
       // Prepare receipt
       const receipt = {
         patientName: `${selectedPatient.name} ${selectedPatient.last_name}`,
@@ -192,7 +218,6 @@ export function PaymentProcessing() {
       setSearchQuery("");
       setPaymentStatus("p");
       setPartialAmount("");
-      fetchPatients();
     } catch (error) {
       toast.error("To'lovni yangilashda xatolik yuz berdi");
       console.error(error);

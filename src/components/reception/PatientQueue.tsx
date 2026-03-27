@@ -5,7 +5,6 @@ import { Patient, PatientStatus } from "../../interfaces/patient.interface";
 import { User } from "../../interfaces/user.interface";
 import { patientService } from "../../services/patient.service";
 import { departmentService } from "../../services/department.service";
-import { departmentTypeService } from "../../services/department-type.service";
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -30,6 +29,8 @@ import {
 } from "../ui/select";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Skeleton } from "../ui/skeleton";
+import { useAppCacheStore } from "../../stores/app-cache.store";
+import { useReferenceDataStore } from "../../stores/reference-data.store";
 
 interface DepartmentType {
   id: number;
@@ -124,6 +125,8 @@ const formatCurrency = (amount: number): string => {
 const formatDateTime = (date: string): string => {
   return new Date(date).toLocaleString("uz-UZ");
 };
+
+const PATIENT_QUEUE_CACHE_KEY = "patient-queue:patients";
 
 // ==================== DTO MAPPERS ====================
 const toPatientDto = (patient: Partial<Patient>) => {
@@ -708,10 +711,29 @@ const PatientEditDialog = ({
 
 // ==================== MAIN COMPONENT ====================
 export function PatientQueue() {
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const cachedPatients = useAppCacheStore.getState().getCachedData<Patient[]>(
+    PATIENT_QUEUE_CACHE_KEY
+  );
+  const fetchCachedData = useAppCacheStore((state) => state.fetchCachedData);
+  const setCachedData = useAppCacheStore((state) => state.setCachedData);
+  const [patients, setPatients] = useState<Patient[]>(cachedPatients || []);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
+  const departments = useReferenceDataStore(
+    (state) => state.departments as Department[]
+  );
+  const departmentTypes = useReferenceDataStore(
+    (state) => state.departmentTypes as DepartmentType[]
+  );
+  const departmentsLoaded = useReferenceDataStore(
+    (state) => state.departmentsLoaded
+  );
+  const departmentTypesLoaded = useReferenceDataStore(
+    (state) => state.departmentTypesLoaded
+  );
+  const fetchDepartments = useReferenceDataStore((state) => state.fetchDepartments);
+  const fetchDepartmentTypes = useReferenceDataStore(
+    (state) => state.fetchDepartmentTypes
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("all");
@@ -725,34 +747,70 @@ export function PatientQueue() {
   const [showDetails, setShowDetails] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(
+    !cachedPatients || !departmentsLoaded || !departmentTypesLoaded
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
 
   // Load initial data
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
+      if (cachedPatients && departmentsLoaded && departmentTypesLoaded) {
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
-        const [patientData, departmentData, departmentTypeData] =
-          await Promise.all([
-            patientService.findAll(),
-            departmentService.findAll(),
-            departmentTypeService.findAll(),
-          ]);
+        const requests: Promise<unknown>[] = [];
 
-        setPatients(patientData.results || patientData);
-        setDepartments(departmentData.results || departmentData);
-        setDepartmentTypes(departmentTypeData.results || departmentTypeData);
+        if (!cachedPatients) {
+          requests.push(
+            fetchCachedData(PATIENT_QUEUE_CACHE_KEY, async () => {
+              const patientData = await patientService.findAll();
+              return patientData.results || patientData;
+            }).then((data) => {
+              if (isMounted) {
+                setPatients(data);
+              }
+            })
+          );
+        }
+
+        if (!departmentsLoaded) {
+          requests.push(fetchDepartments());
+        }
+
+        if (!departmentTypesLoaded) {
+          requests.push(fetchDepartmentTypes());
+        }
+
+        await Promise.all(requests);
       } catch (error) {
         toast.error("Ma'lumotlarni yuklashda xatolik");
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    cachedPatients,
+    departmentsLoaded,
+    departmentTypesLoaded,
+    fetchCachedData,
+    fetchDepartments,
+    fetchDepartmentTypes,
+  ]);
 
   // Filter patients
   const filteredPatients = useMemo(() => {
@@ -818,12 +876,12 @@ export function PatientQueue() {
       try {
         await patientService.update(toPatientDto(formData));
 
-        // Update local state
-        setPatients((prev) =>
-          prev.map((p) =>
-            p.id === editingPatient?.id ? { ...p, ...formData } : p
-          )
+        const updatedPatients = patients.map((p) =>
+          p.id === editingPatient?.id ? { ...p, ...formData } : p
         );
+
+        setPatients(updatedPatients);
+        setCachedData(PATIENT_QUEUE_CACHE_KEY, updatedPatients);
 
         toast.success("Bemor ma'lumotlari yangilandi");
         setShowEdit(false);
@@ -835,7 +893,7 @@ export function PatientQueue() {
         setIsSaving(false);
       }
     },
-    [editingPatient]
+    [editingPatient, patients, setCachedData]
   );
 
   return (

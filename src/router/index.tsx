@@ -1,21 +1,136 @@
-import { CashierDashboard } from "../components/cashier/CashierDashboard";
-import { PaymentProcessing } from "../components/cashier/PaymentProcessing";
-import { DoctorDashboard } from "../components/doctor/DoctorDashboard";
-import { PatientConsultation } from "../components/doctor/PatientConsultation";
-import { LabDashboard } from "../components/laboratory/LabDashboard";
-import { TestResults } from "../components/laboratory/TestResults";
-import PatientAnalysis from "../components/patient/patient-analysis"; // Import the new component
+import { lazy, Suspense } from "react";
 import { LoginPage } from "../components/LoginPage";
-import { ReportsPage } from "../components/ReportsPage";
-import { PatientQueue } from "../components/reception/PatientQueue";
-import { PatientRegistration } from "../components/reception/PatientRegistration";
-import { ReceptionDashboard } from "../components/reception/ReceptionDashboard";
-import { SettingsPage } from "../components/SettingsPage";
-import { DepartmentPage } from "../components/superadmin/DepartmentPage";
-import { DepartmentTypePage } from "../components/superadmin/DepartmentTypePage";
-import { SuperadminDashboard } from "../components/superadmin/SuperadminDashboard";
-import { UserManagement } from "../components/superadmin/UserManagement";
+import Loading from "../components/loading";
 import { RouteType } from "../interfaces/router.interface";
+
+const loadSuperadminDashboard = () =>
+  import("../components/superadmin/SuperadminDashboard");
+const loadUserManagement = () => import("../components/superadmin/UserManagement");
+const loadDepartmentPage = () => import("../components/superadmin/DepartmentPage");
+const loadDepartmentTypePage = () =>
+  import("../components/superadmin/DepartmentTypePage");
+const loadReceptionDashboard = () =>
+  import("../components/reception/ReceptionDashboard");
+const loadPatientQueue = () => import("../components/reception/PatientQueue");
+const loadPatientRegistration = () =>
+  import("../components/reception/PatientRegistration");
+const loadLabDashboard = () => import("../components/laboratory/LabDashboard");
+const loadTestResults = () => import("../components/laboratory/TestResults");
+const loadPatientAnalysis = () => import("../components/patient/patient-analysis");
+const loadDoctorDashboard = () => import("../components/doctor/DoctorDashboard");
+const loadPatientConsultation = () =>
+  import("../components/doctor/PatientConsultation");
+const loadCashierDashboard = () => import("../components/cashier/CashierDashboard");
+const loadPaymentProcessing = () =>
+  import("../components/cashier/PaymentProcessing");
+const loadReportsPage = () => import("../components/ReportsPage");
+const loadSettingsPage = () => import("../components/SettingsPage");
+
+const privateRoutePreloaders = [
+  loadSuperadminDashboard,
+  loadUserManagement,
+  loadDepartmentPage,
+  loadDepartmentTypePage,
+  loadReceptionDashboard,
+  loadPatientQueue,
+  loadPatientRegistration,
+  loadLabDashboard,
+  loadTestResults,
+  loadPatientAnalysis,
+  loadDoctorDashboard,
+  loadPatientConsultation,
+  loadCashierDashboard,
+  loadPaymentProcessing,
+  loadReportsPage,
+  loadSettingsPage,
+];
+
+export const preloadPrivateRouteModules = () => {
+  privateRoutePreloaders.forEach((preload) => {
+    void preload();
+  });
+};
+
+const SuperadminDashboard = lazy(() =>
+  loadSuperadminDashboard().then((module) => ({
+    default: module.SuperadminDashboard,
+  })),
+);
+const UserManagement = lazy(() =>
+  loadUserManagement().then((module) => ({
+    default: module.UserManagement,
+  })),
+);
+const DepartmentPage = lazy(() =>
+  loadDepartmentPage().then((module) => ({
+    default: module.DepartmentPage,
+  })),
+);
+const DepartmentTypePage = lazy(() =>
+  loadDepartmentTypePage().then((module) => ({
+    default: module.DepartmentTypePage,
+  })),
+);
+const ReceptionDashboard = lazy(() =>
+  loadReceptionDashboard().then((module) => ({
+    default: module.ReceptionDashboard,
+  })),
+);
+const PatientQueue = lazy(() =>
+  loadPatientQueue().then((module) => ({
+    default: module.PatientQueue,
+  })),
+);
+const PatientRegistration = lazy(() =>
+  loadPatientRegistration().then((module) => ({
+    default: module.PatientRegistration,
+  })),
+);
+const LabDashboard = lazy(() =>
+  loadLabDashboard().then((module) => ({
+    default: module.LabDashboard,
+  })),
+);
+const TestResults = lazy(() =>
+  loadTestResults().then((module) => ({
+    default: module.TestResults,
+  })),
+);
+const PatientAnalysis = lazy(() => loadPatientAnalysis());
+const DoctorDashboard = lazy(() =>
+  loadDoctorDashboard().then((module) => ({
+    default: module.DoctorDashboard,
+  })),
+);
+const PatientConsultation = lazy(() =>
+  loadPatientConsultation().then((module) => ({
+    default: module.PatientConsultation,
+  })),
+);
+const CashierDashboard = lazy(() =>
+  loadCashierDashboard().then((module) => ({
+    default: module.CashierDashboard,
+  })),
+);
+const PaymentProcessing = lazy(() =>
+  loadPaymentProcessing().then((module) => ({
+    default: module.PaymentProcessing,
+  })),
+);
+const ReportsPageLazy = lazy(() =>
+  loadReportsPage().then((module) => ({
+    default: module.ReportsPage,
+  })),
+);
+const SettingsPageLazy = lazy(() =>
+  loadSettingsPage().then((module) => ({
+    default: module.SettingsPage,
+  })),
+);
+
+const withPageSuspense = (element: React.ReactNode) => (
+  <Suspense fallback={<Loading />}>{element}</Suspense>
+);
 
 export const publicRoutes: RouteType[] = [
   {
@@ -27,82 +142,82 @@ export const publicRoutes: RouteType[] = [
 export const privateRoutes: (RouteType & { allowedRoles: string[] })[] = [
   {
     path: "/superadmin",
-    element: <SuperadminDashboard />,
+    element: withPageSuspense(<SuperadminDashboard />),
     allowedRoles: ["s"],
   },
   {
     path: "/superadmin/user-management",
-    element: <UserManagement />,
+    element: withPageSuspense(<UserManagement />),
     allowedRoles: ["s"],
   },
   {
     path: "/superadmin/departments",
-    element: <DepartmentPage />,
+    element: withPageSuspense(<DepartmentPage />),
     allowedRoles: ["s"],
   },
   {
     path: "/superadmin/department-types",
-    element: <DepartmentTypePage />,
+    element: withPageSuspense(<DepartmentTypePage />),
     allowedRoles: ["s"],
   },
   {
     path: "/reception",
-    element: <ReceptionDashboard />,
+    element: withPageSuspense(<ReceptionDashboard />),
     allowedRoles: ["r"],
   },
   {
     path: "/reception/patient-queue",
-    element: <PatientQueue />,
+    element: withPageSuspense(<PatientQueue />),
     allowedRoles: ["r"],
   },
   {
     path: "/lab",
-    element: <LabDashboard />,
+    element: withPageSuspense(<LabDashboard />),
     allowedRoles: ["l"],
   },
   {
     path: "/lab/test-results",
-    element: <TestResults />,
+    element: withPageSuspense(<TestResults />),
     allowedRoles: ["l"],
   },
   {
-    path: "/lab/patient-analysis/:id", // NEW ROUTE
-    element: <PatientAnalysis />,
+    path: "/lab/patient-analysis/:id",
+    element: withPageSuspense(<PatientAnalysis />),
     allowedRoles: ["l", "s"],
   },
   {
     path: "/reception/patient-registration",
-    element: <PatientRegistration />,
+    element: withPageSuspense(<PatientRegistration />),
     allowedRoles: ["r", "l"],
   },
   {
     path: "/doctor",
-    element: <DoctorDashboard />,
+    element: withPageSuspense(<DoctorDashboard />),
     allowedRoles: ["d"],
   },
   {
     path: "/doctor/consultation",
-    element: <PatientConsultation />,
+    element: withPageSuspense(<PatientConsultation />),
     allowedRoles: ["d"],
   },
   {
     path: "/cashier",
-    element: <CashierDashboard />,
+    element: withPageSuspense(<CashierDashboard />),
     allowedRoles: ["c"],
   },
   {
     path: "/cashier/payment-processing",
-    element: <PaymentProcessing />,
+    element: withPageSuspense(<PaymentProcessing />),
     allowedRoles: ["c"],
   },
   {
     path: "/reports",
-    element: <ReportsPage />,
+    element: withPageSuspense(<ReportsPageLazy />),
     allowedRoles: ["s", "r"],
   },
   {
     path: "/settings",
-    element: <SettingsPage />,
+    element: withPageSuspense(<SettingsPageLazy />),
     allowedRoles: ["s"],
   },
 ];

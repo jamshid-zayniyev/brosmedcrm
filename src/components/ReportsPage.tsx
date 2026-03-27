@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { reportService, ReportResponse, LineChartStat } from '../services/report.service';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
 import { Skeleton } from './ui/skeleton';
+import { useAppCacheStore } from '../stores/app-cache.store';
 
 // Mock Data Definitions (for charts, as requested)
 interface Patient {
@@ -50,59 +51,123 @@ const mockConsultations: Consultation[] = [
   { id: 2, patientId: 2, doctorId: 102, date: '2023-10-05' },
 ];
 
+const REPORTS_LINE_CHART_CACHE_KEY = 'reports:line-chart';
+const getReportsSummaryCacheKey = (startDate: string, endDate: string) =>
+  `reports:summary:${startDate}:${endDate}`;
+
 export function ReportsPage() {
   const [reportType, setReportType] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('daily');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(new Date());
   const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
-  const [reportData, setReportData] = useState<ReportResponse | null>(null);
-  const [lineChartData, setLineChartData] = useState<any[]>([]);
-  const [lineChartLoading, setLineChartLoading] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const cachedLineChartData = useAppCacheStore
+    .getState()
+    .getCachedData<any[]>(REPORTS_LINE_CHART_CACHE_KEY);
+  const cachedInitialReport = useAppCacheStore
+    .getState()
+    .getCachedData<ReportResponse>(
+      getReportsSummaryCacheKey(
+        format(new Date(), 'yyyy-MM-dd'),
+        format(new Date(), 'yyyy-MM-dd')
+      )
+    );
+  const fetchCachedData = useAppCacheStore((state) => state.fetchCachedData);
+  const [reportData, setReportData] = useState<ReportResponse | null>(
+    cachedInitialReport || null
+  );
+  const [lineChartData, setLineChartData] = useState<any[]>(
+    cachedLineChartData || []
+  );
+  const [lineChartLoading, setLineChartLoading] = useState(!cachedLineChartData);
+  const [loading, setLoading] = useState(!cachedInitialReport);
   const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchDailyStats = async () => {
+      if (cachedLineChartData) {
+        setLineChartLoading(false);
+        return;
+      }
+
       setLineChartLoading(true);
       try {
-        const data = await reportService.reportLineChartStats();
-        const formattedData = data.map((item: LineChartStat) => ({
-          date: new Date(item.day).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' }),
-          bemorlar: item.patients,
-          konsultatsiyalar: item.consultations,
-          tahlillar: item.tahlillar,
-        }));
-        setLineChartData(formattedData);
+        const formattedData = await fetchCachedData(REPORTS_LINE_CHART_CACHE_KEY, async () => {
+          const data = await reportService.reportLineChartStats();
+          return data.map((item: LineChartStat) => ({
+            date: new Date(item.day).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' }),
+            bemorlar: item.patients,
+            konsultatsiyalar: item.consultations,
+            tahlillar: item.tahlillar,
+          }));
+        });
+
+        if (isMounted) {
+          setLineChartData(formattedData);
+        }
       } catch (error) {
         toast.error("Kunlik statistika yuklanmadi");
       } finally {
-        setLineChartLoading(false);
+        if (isMounted) {
+          setLineChartLoading(false);
+        }
       }
     };
     fetchDailyStats();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [cachedLineChartData, fetchCachedData]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchReport = async () => {
       if (!dateFrom || !dateTo) {
         return;
       }
-      setLoading(true);
+
       const requestBody = {
         start_date: format(dateFrom, 'yyyy-MM-dd'),
         end_date: format(dateTo, 'yyyy-MM-dd'),
       };
+      const cacheKey = getReportsSummaryCacheKey(
+        requestBody.start_date,
+        requestBody.end_date
+      );
+      const cachedData = useAppCacheStore
+        .getState()
+        .getCachedData<ReportResponse>(cacheKey);
+
+      if (cachedData) {
+        setReportData(cachedData);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
       try {
-        const data = await reportService.getReport(requestBody);
-        setReportData(data);
+        const data = await fetchCachedData(cacheKey, () =>
+          reportService.getReport(requestBody)
+        );
+
+        if (isMounted) {
+          setReportData(data);
+        }
       } catch (error) {
         toast.error("Hisobot olishda xatolik yuz berdi");
         console.error(error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchReport();
-  }, [dateFrom, dateTo]);
+    return () => {
+      isMounted = false;
+    };
+  }, [dateFrom, dateTo, fetchCachedData]);
 
   const handleReportTypeChange = (value: 'daily' | 'weekly' | 'monthly' | 'custom') => {
     setReportType(value);

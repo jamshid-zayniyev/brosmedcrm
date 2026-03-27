@@ -7,7 +7,7 @@ interface PrivateRouteProps {
 }
 
 const PrivateRoute = ({ allowedRoles }: PrivateRouteProps) => {
-  const { user } = useUserStore();
+  const user = useUserStore((state) => state.user);
 
   if (!user) {
     return <Navigate to="/login" replace />;

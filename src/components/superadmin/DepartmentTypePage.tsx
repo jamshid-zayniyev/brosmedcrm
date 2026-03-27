@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { departmentTypeService } from "../../services/department-type.service";
-import { departmentService } from "../../services/department.service";
+import { useReferenceDataStore } from "../../stores/reference-data.store";
 import {
   Table,
   TableBody,
@@ -41,9 +41,25 @@ interface Department {
 }
 
 export function DepartmentTypePage() {
-  const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const departmentTypes = useReferenceDataStore(
+    (state) => state.departmentTypes as DepartmentType[]
+  );
+  const departments = useReferenceDataStore(
+    (state) => state.departments as Department[]
+  );
+  const departmentTypesLoaded = useReferenceDataStore(
+    (state) => state.departmentTypesLoaded
+  );
+  const departmentsLoaded = useReferenceDataStore(
+    (state) => state.departmentsLoaded
+  );
+  const fetchDepartmentTypes = useReferenceDataStore(
+    (state) => state.fetchDepartmentTypes
+  );
+  const fetchDepartments = useReferenceDataStore((state) => state.fetchDepartments);
+  const [isLoading, setIsLoading] = useState(
+    !departmentTypesLoaded || !departmentsLoaded
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDepartmentType, setEditingDepartmentType] =
@@ -57,30 +73,41 @@ export function DepartmentTypePage() {
   });
 
   useEffect(() => {
-    fetchDepartmentTypes();
-    fetchDepartments();
-  }, []);
+    let isMounted = true;
 
-  const fetchDepartmentTypes = async () => {
-    setIsLoading(true);
-    try {
-      const data = await departmentTypeService.findAll();
-      setDepartmentTypes(data);
-    } catch (error) {
-      toast.error("Bo'lim turlarini yuklashda xatolik yuz berdi");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const loadReferenceData = async () => {
+      if (departmentTypesLoaded && departmentsLoaded) {
+        setIsLoading(false);
+        return;
+      }
 
-  const fetchDepartments = async () => {
-    try {
-      const data = await departmentService.findAll();
-      setDepartments(data);
-    } catch (error) {
-      toast.error("Bo'limlarni yuklashda xatolik yuz berdi");
-    }
-  };
+      setIsLoading(true);
+
+      try {
+        await Promise.all([
+          fetchDepartmentTypes(),
+          fetchDepartments(),
+        ]);
+      } catch (error) {
+        toast.error("Bo'lim turlarini yuklashda xatolik yuz berdi");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadReferenceData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    departmentTypesLoaded,
+    departmentsLoaded,
+    fetchDepartmentTypes,
+    fetchDepartments,
+  ]);
 
   const handleFormChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -143,11 +170,13 @@ export function DepartmentTypePage() {
         await departmentTypeService.create(formData);
         toast.success("Yangi bo'lim turi muvaffaqiyatli qo'shildi");
       }
-      fetchDepartmentTypes();
+      setIsLoading(true);
+      await fetchDepartmentTypes(true);
       handleModalClose();
     } catch (error) {
       toast.error("Jarayonda xatolik yuz berdi");
     } finally {
+      setIsLoading(false);
       setIsSubmitting(false);
     }
   };
@@ -157,9 +186,12 @@ export function DepartmentTypePage() {
       try {
         await departmentTypeService.delete(id);
         toast.success("Bo'lim turi muvaffaqiyatli o'chirildi");
-        fetchDepartmentTypes();
+        setIsLoading(true);
+        await fetchDepartmentTypes(true);
       } catch (error) {
         toast.error("Bo'lim turini o'chirishda xatolik yuz berdi");
+      } finally {
+        setIsLoading(false);
       }
     }
   };
