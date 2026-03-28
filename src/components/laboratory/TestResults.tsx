@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -46,6 +51,7 @@ import { DepartmentType } from "../../interfaces/department-type.interface";
 import { labService } from "../../services/lab.service";
 import { patientService } from "../../services/patient.service";
 import { analysisResultService } from "../../services/analysis-result.service";
+import { departmentTypeService } from "../../services/department-type.service";
 import { AnalysisResultPayload } from "../../interfaces/analysis-result.interface";
 import {
   Command,
@@ -56,17 +62,7 @@ import {
   CommandList,
 } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { useAppCacheStore } from "../../stores/app-cache.store";
-import { useReferenceDataStore } from "../../stores/reference-data.store";
-
-const TEST_RESULTS_PATIENT_SELECT_INITIAL_CACHE_KEY =
-  "test-results:patient-select:initial";
-
-const getTestResultsListCacheKey = (page: number, limit: number, search: string) =>
-  `test-results:list:${page}:${limit}:${search.trim() || "_"}`;
-
-const getTestResultsPatientSearchCacheKey = (search: string) =>
-  `test-results:patient-select:${search.trim() || "_"}`;
+import { useDebouncedValue } from "../../hooks/use-debounced-value";
 
 interface CachedPatientList {
   patients: Patient[];
@@ -75,276 +71,232 @@ interface CachedPatientList {
 }
 
 export function TestResults() {
-  const initialListCache = useAppCacheStore
-    .getState()
-    .getCachedData<CachedPatientList>(getTestResultsListCacheKey(1, 10, ""));
-  const initialPatientsForSelect = useAppCacheStore
-    .getState()
-    .getCachedData<Patient[]>(TEST_RESULTS_PATIENT_SELECT_INITIAL_CACHE_KEY);
-  const fetchCachedData = useAppCacheStore((state) => state.fetchCachedData);
   const navigate = useNavigate();
-  const departmentTypes = useReferenceDataStore(
-    (state) => state.departmentTypes as DepartmentType[]
-  );
-  const departmentTypesLoaded = useReferenceDataStore(
-    (state) => state.departmentTypesLoaded
-  );
-  const fetchDepartmentTypes = useReferenceDataStore(
-    (state) => state.fetchDepartmentTypes
-  );
-  const [patients, setPatients] = useState<Patient[]>(
-    initialListCache?.patients || []
-  );
-  const [listLoading, setListLoading] = useState(!initialListCache);
-  const [selectLoading, setSelectLoading] = useState(!initialPatientsForSelect);
-  const [departmentTypesLoading, setDepartmentTypesLoading] = useState(
-    !departmentTypesLoaded
-  );
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
-  const [totalPages, setTotalPages] = useState(initialListCache?.totalPages || 1);
-  const [totalCount, setTotalCount] = useState(initialListCache?.totalCount || 0);
-
-  // Search filter for patients list tab
+  const limit = 10;
   const [listSearchQuery, setListSearchQuery] = useState("");
-  const [isListSearching, setIsListSearching] = useState(false);
-
   const [analysisResults, setAnalysisResults] = useState<
     AnalysisResultPayload[]
   >([]);
-
-  // New analysis tab - patient search states
-  const [patientsForSelect, setPatientsForSelect] = useState<Patient[]>(
-    initialPatientsForSelect || []
-  );
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
   const [openPatientSelect, setOpenPatientSelect] = useState(false);
-  const skipInitialSelectSearch = useRef(true);
-
-  // --- Edit patient dialog states ---
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [selectedPatientInfo, setSelectedPatientInfo] = useState<Patient | null>(
+    null,
+  );
   const [editForm, setEditForm] = useState({ name: "", last_name: "" });
-  const [isUpdating, setIsUpdating] = useState(false);
-
-  // Fetch department types only once on mount
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadDepartmentTypes = async () => {
-      if (departmentTypesLoaded) {
-        setDepartmentTypesLoading(false);
-        return;
-      }
-
-      try {
-        await fetchDepartmentTypes();
-      } catch (error) {
-        console.error("Department types yuklashda xatolik:", error);
-        toast.error("Tahlil turlarini yuklashda xatolik yuz berdi");
-      } finally {
-        if (isMounted) {
-          setDepartmentTypesLoading(false);
-        }
-      }
-    };
-
-    loadDepartmentTypes();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [departmentTypesLoaded, fetchDepartmentTypes]);
-
-  // Fetch initial patients for select (first 10)
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchInitialPatients = async () => {
-      if (initialPatientsForSelect) {
-        return;
-      }
-
-      try {
-        setSelectLoading(true);
-        const data = await fetchCachedData(
-          TEST_RESULTS_PATIENT_SELECT_INITIAL_CACHE_KEY,
-          async () => {
-            const response = await patientService.findAll({ page: 1, limit: 10 });
-            return response.data || [];
-          }
-        );
-
-        if (isMounted) {
-          setPatientsForSelect(data);
-        }
-      } catch (error) {
-        console.error("Bemorlarni yuklashda xatolik:", error);
-      } finally {
-        if (isMounted) {
-          setSelectLoading(false);
-        }
-      }
-    };
-
-    fetchInitialPatients();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [fetchCachedData, initialPatientsForSelect]);
-
-  // Fetch patients when page changes or search query changes (for list tab)
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchPatients = async () => {
-      if (isMounted) {
-        setListLoading(true);
-      }
-
-      try {
-        const cacheKey = getTestResultsListCacheKey(page, limit, listSearchQuery);
-
-        if (listSearchQuery.trim() === "") {
-          const cachedList = await fetchCachedData(cacheKey, async () => {
-            const response = await patientService.findAll({ page, limit });
-            return {
-              patients: response.data || [],
-              totalCount: response.total || 0,
-              totalPages: response.total_pages || 1,
-            };
-          });
-
-          if (isMounted) {
-            setPatients(cachedList.patients);
-            setTotalCount(cachedList.totalCount);
-            setTotalPages(cachedList.totalPages);
-          }
-        } else {
-          setIsListSearching(true);
-          const searchResults = await fetchCachedData(cacheKey, async () => {
-            const data = await patientService.searchPatient(listSearchQuery);
-            return {
-              patients: data || [],
-              totalCount: data?.length || 0,
-              totalPages: 1,
-            };
-          });
-
-          if (isMounted) {
-            setPatients(searchResults.patients);
-            setTotalCount(searchResults.totalCount);
-            setTotalPages(searchResults.totalPages);
-          }
-        }
-      } catch (error) {
-        console.error("Bemorlarni yuklashda xatolik:", error);
-        toast.error("Bemorlarni yuklashda xatolik yuz berdi");
-        if (isMounted) {
-          setPatients([]);
-          setTotalCount(0);
-          setTotalPages(1);
-        }
-      } finally {
-        if (isMounted) {
-          setListLoading(false);
-          setIsListSearching(false);
-        }
-      }
-    };
-
-    const debounceTimer = setTimeout(
-      () => {
-        fetchPatients();
-      },
-      listSearchQuery.trim() === "" ? 0 : 300,
-    ); // No debounce for empty, 300ms for search
-
-    return () => {
-      isMounted = false;
-      clearTimeout(debounceTimer);
-    };
-  }, [page, limit, listSearchQuery, fetchCachedData]);
-
-  // Search patients with debounce
-  useEffect(() => {
-    let isMounted = true;
-
-    const searchPatients = async () => {
-      if (skipInitialSelectSearch.current && searchQuery.trim() === "") {
-        skipInitialSelectSearch.current = false;
-        return;
-      }
-
-      if (searchQuery.trim() === "") {
-        try {
-          const data = await fetchCachedData(
-            TEST_RESULTS_PATIENT_SELECT_INITIAL_CACHE_KEY,
-            async () => {
-              const response = await patientService.findAll({ page: 1, limit: 10 });
-              return response.data || [];
-            }
-          );
-
-          if (isMounted) {
-            setPatientsForSelect(data);
-          }
-        } catch (error) {
-          console.error("Bemorlarni yuklashda xatolik:", error);
-        }
-        return;
-      }
-
-      setIsSearching(true);
-      try {
-        const searchResults = await fetchCachedData(
-          getTestResultsPatientSearchCacheKey(searchQuery),
-          async () => {
-            const data = await patientService.searchPatient(searchQuery);
-            return data || [];
-          }
-        );
-
-        if (isMounted) {
-          setPatientsForSelect(searchResults);
-        }
-      } catch (error) {
-        console.error("Qidirishda xatolik:", error);
-        if (isMounted) {
-          setPatientsForSelect([]);
-        }
-      } finally {
-        if (isMounted) {
-          setIsSearching(false);
-        }
-      }
-    };
-
-    const debounceTimer = setTimeout(() => {
-      searchPatients();
-    }, 300);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(debounceTimer);
-    };
-  }, [searchQuery, fetchCachedData]);
-
-  // Handle patient selection
-  const handlePatientSelect = (patientId: string) => {
-    setSelectedPatient(patientId);
-    setOpenPatientSelect(false);
-  };
-
   const [selectedPatient, setSelectedPatient] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     departmentTypeId: "",
     status: "n" as "n" | "ip" | "f",
   });
+  const debouncedListSearchQuery = useDebouncedValue(
+    listSearchQuery,
+    listSearchQuery.trim() === "" ? 0 : 350,
+  );
+  const debouncedPatientSearchQuery = useDebouncedValue(searchQuery, 300);
+
+  const listQuery = useQuery({
+    queryKey: [
+      "patients",
+      "test-results-list",
+      page,
+      limit,
+      debouncedListSearchQuery.trim(),
+    ],
+    queryFn: async (): Promise<CachedPatientList> => {
+      if (debouncedListSearchQuery.trim()) {
+        const data = await patientService.searchPatient(
+          debouncedListSearchQuery.trim(),
+        );
+
+        return {
+          patients: data || [],
+          totalCount: data?.length || 0,
+          totalPages: 1,
+        };
+      }
+
+      const response = await patientService.findAll({ page, limit });
+
+      return {
+        patients: response.data || [],
+        totalCount: response.total || 0,
+        totalPages: response.total_pages || 1,
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  const departmentTypesQuery = useQuery({
+    queryKey: ["department-types"],
+    queryFn: async (): Promise<DepartmentType[]> => {
+      const data = await departmentTypeService.findAll();
+      return data?.results || data || [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const patientsForSelectQuery = useQuery({
+    queryKey: [
+      "patients",
+      "test-results-select",
+      debouncedPatientSearchQuery.trim(),
+    ],
+    queryFn: async (): Promise<Patient[]> => {
+      if (debouncedPatientSearchQuery.trim()) {
+        const data = await patientService.searchPatient(
+          debouncedPatientSearchQuery.trim(),
+        );
+        return data || [];
+      }
+
+      const response = await patientService.findAll({ page: 1, limit: 10 });
+      return response.data || [];
+    },
+    enabled: openPatientSelect,
+    placeholderData: (previousData) => previousData,
+  });
+
+  const createAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedPatient || !formData.departmentTypeId) {
+        throw new Error("INVALID_FORM");
+      }
+
+      const patient =
+        selectedPatientInfo ||
+        patientsForSelectQuery.data?.find(
+          (patientItem) => patientItem.id.toString() === selectedPatient,
+        );
+      const departmentType = departmentTypesQuery.data?.find(
+        (departmentTypeItem) =>
+          departmentTypeItem.id.toString() === formData.departmentTypeId,
+      );
+
+      if (!patient || !departmentType) {
+        throw new Error("MISSING_DEPENDENCY");
+      }
+
+      const analysisFormData = new FormData();
+      analysisFormData.append("patient", patient.id.toString());
+      analysisFormData.append("department_types", departmentType.id.toString());
+      analysisFormData.append("status", formData.status);
+
+      files.forEach((file) => {
+        analysisFormData.append("files", file);
+      });
+
+      const newAnalysis = await labService.createAnalysis(analysisFormData);
+      const resultsWithAnalysisId = analysisResults.map((result) => ({
+        ...result,
+        analysis: newAnalysis.id,
+      }));
+
+      await analysisResultService.create(resultsWithAnalysisId);
+    },
+    onSuccess: async () => {
+      toast.success("Tahlil va uning natijalari muvaffaqiyatli saqlandi");
+      setFormData({ departmentTypeId: "", status: "n" });
+      setAnalysisResults([]);
+      setFiles([]);
+      setSelectedPatient("");
+      setSelectedPatientInfo(null);
+      setSearchQuery("");
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["patients"] }),
+        queryClient.invalidateQueries({ queryKey: ["lab"] }),
+      ]);
+    },
+    onError: (error) => {
+      if (
+        error instanceof Error &&
+        (error.message === "INVALID_FORM" ||
+          error.message === "MISSING_DEPENDENCY")
+      ) {
+        toast.error("Bemor va tahlil turini tanlang");
+        return;
+      }
+
+      console.error("Tahlil yaratishda xatolik:", error);
+      toast.error("Tahlil yaratishda xatolik yuz berdi");
+    },
+  });
+
+  const updatePatientMutation = useMutation({
+    mutationFn: async ({
+      id,
+      name,
+      last_name,
+    }: {
+      id: number;
+      name: string;
+      last_name: string;
+    }) =>
+      patientService.update({
+        id,
+        name,
+        last_name,
+      }),
+    onSuccess: async (_, variables) => {
+      if (selectedPatientInfo?.id === variables.id) {
+        setSelectedPatientInfo((currentPatient) =>
+          currentPatient
+            ? {
+                ...currentPatient,
+                name: variables.name,
+                last_name: variables.last_name,
+              }
+            : currentPatient,
+        );
+      }
+
+      toast.success("Bemor ma'lumotlari muvaffaqiyatli yangilandi");
+      setEditDialogOpen(false);
+      setEditingPatient(null);
+
+      await queryClient.invalidateQueries({ queryKey: ["patients"] });
+    },
+    onError: (error) => {
+      console.error("Bemorni yangilashda xatolik:", error);
+      toast.error("Bemorni yangilashda xatolik yuz berdi");
+    },
+  });
+
+  useEffect(() => {
+    if (listQuery.error) {
+      toast.error("Bemorlarni yuklashda xatolik yuz berdi");
+    }
+  }, [listQuery.error]);
+
+  useEffect(() => {
+    if (departmentTypesQuery.error) {
+      toast.error("Tahlil turlarini yuklashda xatolik yuz berdi");
+    }
+  }, [departmentTypesQuery.error]);
+
+  const patients = listQuery.data?.patients || [];
+  const totalCount = listQuery.data?.totalCount || 0;
+  const totalPages = listQuery.data?.totalPages || 1;
+  const listLoading = !listQuery.data && listQuery.isPending;
+  const departmentTypes = departmentTypesQuery.data || [];
+  const departmentTypesLoading =
+    departmentTypesQuery.isPending && !departmentTypesQuery.data;
+  const patientsForSelect = patientsForSelectQuery.data || [];
+  const selectLoading =
+    openPatientSelect && patientsForSelectQuery.isPending && !patientsForSelectQuery.data;
+  const isSearching =
+    openPatientSelect && patientsForSelectQuery.isFetching && !!patientsForSelectQuery.data;
+  const isListSearching =
+    listQuery.isFetching &&
+    !!listQuery.data &&
+    debouncedListSearchQuery.trim().length > 0;
+  const isSubmitting = createAnalysisMutation.isPending;
+  const isUpdating = updatePatientMutation.isPending;
 
   const handleDepartmentTypeChange = (value: string) => {
     setFormData({ ...formData, departmentTypeId: value });
@@ -355,7 +307,7 @@ export function TestResults() {
       const initialResults = selectedType.result.map((res) => ({
         result: res.id,
         analysis_result: "",
-        patient: parseInt(selectedPatient) || 0,
+        patient: selectedPatientInfo?.id || parseInt(selectedPatient, 10) || 0,
       }));
       setAnalysisResults(initialResults);
     } else {
@@ -374,57 +326,10 @@ export function TestResults() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedPatient || !formData.departmentTypeId) {
-      toast.error("Bemor va tahlil turini tanlang");
-      return;
-    }
-
-    const patient = patientsForSelect.find(
-      (p) => p.id.toString() === selectedPatient,
-    );
-    const departmentType = departmentTypes.find(
-      (dt) => dt.id.toString() === formData.departmentTypeId,
-    );
-
-    if (!patient || !departmentType) {
-      toast.error("Bemor yoki tahlil turi topilmadi");
-      return;
-    }
-
-    setIsSubmitting(true);
     try {
-      const analysisFormData = new FormData();
-      analysisFormData.append("patient", patient.id.toString());
-      analysisFormData.append("department_types", departmentType.id.toString());
-      analysisFormData.append("status", formData.status);
-      if (files.length > 0) {
-        files.forEach((file) => {
-          analysisFormData.append("files", file);
-        });
-      }
-      const newAnalysis = await labService.createAnalysis(analysisFormData);
-
-      const resultsWithAnalysisId = analysisResults.map((res) => ({
-        ...res,
-        analysis: newAnalysis.id,
-      }));
-      await analysisResultService.create(resultsWithAnalysisId);
-
-      const response = await patientService.findAll({ page, limit });
-      setPatients(response.data || []);
-
-      toast.success("Tahlil va uning natijalari muvaffaqiyatli saqlandi");
-
-      setFormData({ departmentTypeId: "", status: "n" });
-      setAnalysisResults([]);
-      setFiles([]);
-      setSelectedPatient("");
-      setSearchQuery("");
+      await createAnalysisMutation.mutateAsync();
     } catch (error) {
-      console.error("Tahlil yaratishda xatolik:", error);
-      toast.error("Tahlil yaratishda xatolik yuz berdi");
-    } finally {
-      setIsSubmitting(false);
+      // Mutation callbacks already handle UI state and errors.
     }
   };
 
@@ -476,36 +381,25 @@ export function TestResults() {
       return;
     }
 
-    setIsUpdating(true);
     try {
-      await patientService.update({
+      await updatePatientMutation.mutateAsync({
         id: editingPatient.id,
         name: editForm.name.trim(),
         last_name: editForm.last_name.trim(),
       });
-
-      // Update patient in local state
-      setPatients((prev) =>
-        prev.map((p) =>
-          p.id === editingPatient.id
-            ? {
-                ...p,
-                name: editForm.name.trim(),
-                last_name: editForm.last_name.trim(),
-              }
-            : p,
-        ),
-      );
-
-      toast.success("Bemor ma'lumotlari muvaffaqiyatli yangilandi");
-      setEditDialogOpen(false);
-      setEditingPatient(null);
     } catch (error) {
-      console.error("Bemorni yangilashda xatolik:", error);
-      toast.error("Bemorni yangilashda xatolik yuz berdi");
-    } finally {
-      setIsUpdating(false);
+      // Mutation callbacks already handle UI state and errors.
     }
+  };
+
+  const handlePatientSelect = (patientId: string) => {
+    const patient = patientsForSelect.find(
+      (patientItem) => patientItem.id.toString() === patientId,
+    );
+
+    setSelectedPatient(patientId);
+    setSelectedPatientInfo(patient || null);
+    setOpenPatientSelect(false);
   };
 
   const renderPageNumbers = () => {
@@ -579,7 +473,7 @@ export function TestResults() {
     (p) => p.patient_status === "r" || p.patient_status === "l",
   );
 
-  if (listLoading && page === 1) {
+  if (listLoading && page === 1 && patients.length === 0) {
     return (
       <div className="space-y-8">
         <div>
@@ -911,16 +805,8 @@ export function TestResults() {
                           aria-expanded={openPatientSelect}
                           className="w-full justify-between bg-white border-gray-200 h-10"
                         >
-                          {selectedPatient
-                            ? (() => {
-                                const patient =
-                                  registeredPatientsForSelect.find(
-                                    (p) => p.id.toString() === selectedPatient,
-                                  );
-                                return patient
-                                  ? `${patient.name} ${patient.last_name}`
-                                  : "Bemorni tanlang";
-                              })()
+                          {selectedPatientInfo
+                            ? `${selectedPatientInfo.name} ${selectedPatientInfo.last_name}`
                             : "Bemorni tanlang"}
                           <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -937,49 +823,56 @@ export function TestResults() {
                             onValueChange={setSearchQuery}
                           />
                           <CommandList>
-                            {isSearching || selectLoading ? (
+                            {selectLoading ? (
                               <div className="p-4 text-sm text-center text-muted-foreground">
                                 Qidirilmoqda...
                               </div>
                             ) : registeredPatientsForSelect.length === 0 ? (
                               <CommandEmpty>Bemor topilmadi</CommandEmpty>
                             ) : (
-                              <CommandGroup>
-                                {registeredPatientsForSelect.map((patient) => (
-                                  <CommandItem
-                                    key={patient.id}
-                                    value={patient.id.toString()}
-                                    keywords={[
-                                      patient.name,
-                                      patient.last_name,
-                                      patient.phone_number,
-                                    ]}
-                                    onSelect={(currentValue: string) => {
-                                      handlePatientSelect(currentValue);
-                                    }}
-                                  >
-                                    <div className="flex items-center gap-2 w-full cursor-pointer">
-                                      <Avatar className="h-8 w-8">
-                                        <AvatarImage
-                                          src={`https://api.dicebear.com/7.x/initials/svg?seed=${patient.name} ${patient.last_name}`}
-                                        />
-                                        <AvatarFallback className="text-xs">
-                                          {patient.name.charAt(0)}
-                                          {patient.last_name.charAt(0)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1">
-                                        <div className="font-medium">
-                                          {patient.name} {patient.last_name}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                          {patient.phone_number}
+                              <>
+                                {isSearching ? (
+                                  <div className="px-4 pt-2 text-xs text-muted-foreground">
+                                    Qidiruv yangilanmoqda...
+                                  </div>
+                                ) : null}
+                                <CommandGroup>
+                                  {registeredPatientsForSelect.map((patient) => (
+                                    <CommandItem
+                                      key={patient.id}
+                                      value={patient.id.toString()}
+                                      keywords={[
+                                        patient.name,
+                                        patient.last_name,
+                                        patient.phone_number,
+                                      ]}
+                                      onSelect={(currentValue: string) => {
+                                        handlePatientSelect(currentValue);
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-2 w-full cursor-pointer">
+                                        <Avatar className="h-8 w-8">
+                                          <AvatarImage
+                                            src={`https://api.dicebear.com/7.x/initials/svg?seed=${patient.name} ${patient.last_name}`}
+                                          />
+                                          <AvatarFallback className="text-xs">
+                                            {patient.name.charAt(0)}
+                                            {patient.last_name.charAt(0)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1">
+                                          <div className="font-medium">
+                                            {patient.name} {patient.last_name}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">
+                                            {patient.phone_number}
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </>
                             )}
                           </CommandList>
                         </Command>
@@ -1204,7 +1097,7 @@ export function TestResults() {
           ) : patients.length === 0 ? (
             <Card className="border-gray-200">
               <CardContent className="p-12 text-center">
-                <p className="text-muted-foreground">Internetni tekshiring!</p>
+                <p className="text-muted-foreground">Bemor topilmadi</p>
               </CardContent>
             </Card>
           ) : (

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -21,18 +22,21 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const setUser = useUserStore((state) => state.setUser);
+  const setToken = useUserStore((state) => state.setToken);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    setError("");
-    setIsSubmitting(true);
-
-    try {
+  const loginMutation = useMutation({
+    mutationFn: async ({
+      phone_number,
+      password,
+    }: {
+      phone_number: string;
+      password: string;
+    }) => {
       const { data } = await authService.login({
-        phone_number: username,
+        phone_number,
         password,
       });
 
@@ -40,17 +44,45 @@ export function LoginPage() {
 
       try {
         const user = await authService.findMe();
-        setUser(user);
-        navigate(defaultRoutes[user.role] || "/");
-      } catch (err) {
+        return {
+          user,
+          accessToken: data.access,
+        };
+      } catch (userError) {
         handleStorage({ key: "access_token", value: null });
-        setError("Foydalanuvchi ma'lumotlarini yuklashda xatolik");
+        throw new Error("USER_FETCH_FAILED");
       }
-    } catch (err) {
-      setError("Noto'g'ri foydalanuvchi nomi yoki parol");
+    },
+    onSuccess: ({ user, accessToken }) => {
+      setToken(accessToken);
+      setUser(user);
+      queryClient.setQueryData(["auth", "me", accessToken], user);
+      navigate(defaultRoutes[user.role] || "/lab", { replace: true });
+    },
+    onError: (mutationError) => {
+      setToken(null);
+      setUser(null);
       handleStorage({ key: "access_token", value: null });
-    } finally {
-      setIsSubmitting(false);
+      setError(
+        mutationError instanceof Error &&
+          mutationError.message === "USER_FETCH_FAILED"
+          ? "Foydalanuvchi ma'lumotlarini yuklashda xatolik"
+          : "Noto'g'ri foydalanuvchi nomi yoki parol",
+      );
+    },
+  });
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setError("");
+
+    try {
+      await loginMutation.mutateAsync({
+        phone_number: username,
+        password,
+      });
+    } catch (error) {
+      // Mutation callbacks already handle UI state and errors.
     }
   };
 
@@ -82,11 +114,11 @@ export function LoginPage() {
                   onChange={(e) => setUsername(e.target.value)}
                   className="pl-10"
                   required
-                  disabled={isSubmitting}
+                  disabled={loginMutation.isPending}
                 />
               </div>
             </div>
-                        <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="password">Parol</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -98,7 +130,7 @@ export function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   required
-                  disabled={isSubmitting}
+                  disabled={loginMutation.isPending}
                 />
               </div>
             </div>
@@ -110,8 +142,12 @@ export function LoginPage() {
               </Alert>
             )}
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Kirilmoqda..." : "Kirish"}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loginMutation.isPending}
+            >
+              {loginMutation.isPending ? "Kirilmoqda..." : "Kirish"}
             </Button>
           </form>
         </CardContent>

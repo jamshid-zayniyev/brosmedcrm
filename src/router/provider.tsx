@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   BrowserRouter,
   Routes,
@@ -10,7 +11,6 @@ import {
   publicRoutes,
   privateRoutes,
   defaultRoutes,
-  preloadPrivateRouteModules,
 } from ".";
 import { useUserStore } from "../stores/user.store";
 import { handleStorage } from "../utils/handle-storage";
@@ -22,68 +22,45 @@ import Loading from "../components/loading";
 const AppProvider = () => {
   const user = useUserStore((state) => state.user);
   const setUser = useUserStore((state) => state.setUser);
-  const [loading, setLoading] = useState(true);
+  const setToken = useUserStore((state) => state.setToken);
+  const token = useUserStore((state) => state.token);
+  const storedToken = handleStorage({ key: "access_token" }) as string | null;
+  const accessToken = token ?? storedToken;
+  const currentUserQuery = useQuery({
+    queryKey: ["auth", "me", accessToken],
+    queryFn: authService.findMe,
+    enabled: Boolean(accessToken),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
 
   useEffect(() => {
-    let isMounted = true;
-    const token = handleStorage({ key: "access_token" });
-
-    if (token) {
-      const fetchUser = async () => {
-        try {
-          const currentUser = await authService.findMe();
-          if (isMounted) {
-            setUser(currentUser);
-          }
-        } catch (error) {
-          handleStorage({ key: "access_token", value: null });
-        } finally {
-          if (isMounted) {
-            setLoading(false);
-          }
-        }
-      };
-
-      fetchUser();
-    } else {
-      setLoading(false);
+    if (token !== accessToken) {
+      setToken(accessToken ?? null);
     }
 
-    return () => {
-      isMounted = false;
-    };
-  }, [setUser]);
+    if (!accessToken) {
+      setUser(null);
+    }
+  }, [accessToken, setToken, setUser, token]);
 
   useEffect(() => {
-    if (!user) {
+    if (currentUserQuery.data) {
+      setUser(currentUserQuery.data);
+    }
+  }, [currentUserQuery.data, setUser]);
+
+  useEffect(() => {
+    if (!currentUserQuery.isError) {
       return;
     }
 
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (callback: IdleRequestCallback) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
+    handleStorage({ key: "access_token", value: null });
+    setToken(null);
+    setUser(null);
+  }, [currentUserQuery.isError, setToken, setUser]);
 
-    if (idleWindow.requestIdleCallback) {
-      const handle = idleWindow.requestIdleCallback(() => {
-        preloadPrivateRouteModules();
-      });
-
-      return () => {
-        idleWindow.cancelIdleCallback?.(handle);
-      };
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      preloadPrivateRouteModules();
-    }, 300);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [user]);
-
-  if (loading) {
+  if (accessToken && currentUserQuery.isPending && !user) {
     return <Loading />;
   }
 

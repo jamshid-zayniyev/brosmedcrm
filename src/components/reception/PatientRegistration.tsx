@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -23,9 +24,9 @@ import {
 } from "../ui/dialog";
 import { patientService } from "../../services/patient.service";
 import { departmentService } from "../../services/department.service";
-import { diseaseService } from "../../services/disease.service"; // Import diseaseService
+import { departmentTypeService } from "../../services/department-type.service";
+import { diseaseService } from "../../services/disease.service";
 import { useUserStore } from "../../stores/user.store";
-import { useReferenceDataStore } from "../../stores/reference-data.store";
 
 interface Patient {
   id: number;
@@ -83,59 +84,11 @@ const toPatientForm = (data: Patient) => ({
 
 export function PatientRegistration() {
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const departments = useReferenceDataStore(
-    (state) => state.departments as Department[]
-  );
-  const departmentTypes = useReferenceDataStore(
-    (state) => state.departmentTypes as DepartmentType[]
-  );
-  const departmentsLoaded = useReferenceDataStore(
-    (state) => state.departmentsLoaded
-  );
-  const departmentTypesLoaded = useReferenceDataStore(
-    (state) => state.departmentTypesLoaded
-  );
-  const fetchDepartments = useReferenceDataStore((state) => state.fetchDepartments);
-  const fetchDepartmentTypes = useReferenceDataStore(
-    (state) => state.fetchDepartmentTypes
-  );
   const user = useUserStore((state) => state.user);
-
-  const [isSearching, setIsSearching] = useState(false);
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [mode, setMode] = useState<"types" | "doctors" | null>(null);
-  const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
-
-  // Removed initial patient fetching, now only fetches departments
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const requests: Promise<unknown>[] = [];
-
-        if (!departmentsLoaded) {
-          requests.push(fetchDepartments());
-        }
-
-        if (!departmentTypesLoaded) {
-          requests.push(fetchDepartmentTypes());
-        }
-
-        await Promise.all(requests);
-      } catch (error) {
-        toast.error("Bo'lim ma'lumotlarini yuklashda xatolik");
-      }
-    };
-
-    fetchData();
-  }, [
-    departmentsLoaded,
-    departmentTypesLoaded,
-    fetchDepartments,
-    fetchDepartmentTypes,
-  ]);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -154,27 +107,86 @@ export function PatientRegistration() {
     doctorId: 0,
   });
 
+  const departmentsQuery = useQuery({
+    queryKey: ["departments"],
+    queryFn: async (): Promise<Department[]> => {
+      const data = await departmentService.findAll();
+      return data?.results || data || [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const departmentTypesQuery = useQuery({
+    queryKey: ["department-types"],
+    queryFn: async (): Promise<DepartmentType[]> => {
+      const data = await departmentTypeService.findAll();
+      return data?.results || data || [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const departments = departmentsQuery.data || [];
+  const departmentTypes = departmentTypesQuery.data || [];
+
+  const doctorsQuery = useQuery({
+    queryKey: ["department-doctors", user?.department],
+    queryFn: async (): Promise<Doctor[]> => {
+      if (!user?.department) {
+        return [];
+      }
+
+      const data = await departmentService.findDoctorsByDepartment(user.department);
+      return data?.results || data || [];
+    },
+    enabled: mode === "doctors" && Boolean(user?.department),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const doctors = doctorsQuery.data || [];
+  const isLoadingDoctors = doctorsQuery.isPending;
+  const searchPatientsMutation = useMutation({
+    mutationFn: (search: string) => patientService.searchPatient(search),
+    onSuccess: (results) => {
+      if (results && results.length > 0) {
+        setSearchResults(results);
+        toast.success(`${results.length} ta bemor topildi`);
+        return;
+      }
+
+      setSearchResults([]);
+      toast.info("Bemor topilmadi. Yangi bemor sifatida ro'yxatdan o'ting.");
+    },
+    onError: () => {
+      toast.error("Qidiruvda xatolik yuz berdi");
+      setSearchResults([]);
+    },
+  });
+  const isSearching = searchPatientsMutation.isPending;
+
+  useEffect(() => {
+    if (departmentsQuery.error || departmentTypesQuery.error) {
+      toast.error("Bo'lim ma'lumotlarini yuklashda xatolik");
+    }
+  }, [departmentTypesQuery.error, departmentsQuery.error]);
+
+  useEffect(() => {
+    if (doctorsQuery.error) {
+      toast.error("Shifokorlarni yuklashda xatolik");
+    }
+  }, [doctorsQuery.error]);
+
   const handleSearch = async () => {
     if (!searchQuery) {
       toast.info("Qidiruv uchun ma'lumot kiriting");
       return;
     }
-    setIsSearching(true);
-    setSelectedPatient(null); // Clear previous selection
+
+    setSelectedPatient(null);
+
     try {
-      const results = await patientService.searchPatient(searchQuery);
-      if (results && results.length > 0) {
-        setSearchResults(results);
-        toast.success(`${results.length} ta bemor topildi`);
-      } else {
-        setSearchResults([]);
-        toast.info("Bemor topilmadi. Yangi bemor sifatida ro'yxatdan o'ting.");
-      }
+      await searchPatientsMutation.mutateAsync(searchQuery);
     } catch (error) {
-      toast.error("Qidiruvda xatolik yuz berdi");
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
+      // Mutation callbacks already handle UI state and errors.
     }
   };
 
@@ -199,42 +211,29 @@ export function PatientRegistration() {
   };
 
   useEffect(() => {
-    const setupDepartmentData = async () => {
-      if (user?.department && departments.length > 0) {
-        const department = departments.find((d) => d.id === user.department);
-        if (!department) return;
+    if (!user?.department || departments.length === 0) {
+      return;
+    }
 
-        setFormData((fd) => ({ ...fd, departmentId: user.department }));
+    const department = departments.find((departmentItem) => {
+      return departmentItem.id === user.department;
+    });
 
-        if (
-          department.department_types &&
-          department.department_types.length > 0
-        ) {
-          setMode("types");
-        } else {
-          setMode("doctors");
-          setIsLoadingDoctors(true);
-          try {
-            if (!user?.department) {
-              toast.error("Error", {
-                description: "Tizimga Labarant sifatida qayta kiring!",
-              });
-              return;
-            }
-            const doctorsData = await departmentService.findDoctorsByDepartment(
-              user?.department
-            );
-            setDoctors(doctorsData.results || doctorsData || []);
-          } catch (error) {
-            toast.error("Shifokorlarni yuklashda xatolik");
-          } finally {
-            setIsLoadingDoctors(false);
-          }
-        }
-      }
-    };
-    setupDepartmentData();
-  }, [user, departments]);
+    if (!department) {
+      return;
+    }
+
+    setFormData((currentFormData) => ({
+      ...currentFormData,
+      departmentId: user.department,
+    }));
+
+    setMode(
+      department.department_types && department.department_types.length > 0
+        ? "types"
+        : "doctors",
+    );
+  }, [departments, user?.department]);
 
   const handleDepartmentTypeChange = (value: string) => {
     setFormData({
@@ -284,6 +283,10 @@ export function PatientRegistration() {
         };
         const newPatientData = await patientService.create(newPatientDto);
         patientId = newPatientData.id;
+        await queryClient.refetchQueries({
+          queryKey: ["patients"],
+          type: "all",
+        });
         toast.success("Yangi bemor muvaffaqiyatli yaratildi!");
       }
 

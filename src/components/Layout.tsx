@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useUserStore } from "../stores/user.store";
 import { Button } from "./ui/button";
 import {
@@ -7,16 +8,8 @@ import {
   Moon,
   Menu,
   X,
-  Users,
-  Building,
-  GitMerge,
   UserPlus,
-  List,
-  Stethoscope,
-  DollarSign,
   FlaskConical,
-  FileText,
-  Settings,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -56,30 +49,6 @@ const roleMap: { [key: string]: string } = {
 
 const routeConfig: { [key: string]: { label: string; icon: React.ReactNode } } =
   {
-    "/superadmin": {
-      label: "Boshqaruv paneli",
-      icon: <LayoutDashboard className="w-5 h-5" />,
-    },
-    "/superadmin/user-management": {
-      label: "Foydalanuvchilar",
-      icon: <Users className="w-5 h-5" />,
-    },
-    "/superadmin/departments": {
-      label: "Bo'limlar",
-      icon: <Building className="w-5 h-5" />,
-    },
-    "/superadmin/department-types": {
-      label: "Bo'lim turlari",
-      icon: <GitMerge className="w-5 h-5" />,
-    },
-    "/reception": {
-      label: "Qabulxona paneli",
-      icon: <LayoutDashboard className="w-5 h-5" />,
-    },
-    "/reception/patient-queue": {
-      label: "Bemor navbati",
-      icon: <List className="w-5 h-5" />,
-    },
     "/reception/patient-registration": {
       label: "Bemor ro'yxatga olish",
       icon: <UserPlus className="w-5 h-5" />,
@@ -92,38 +61,19 @@ const routeConfig: { [key: string]: { label: string; icon: React.ReactNode } } =
       label: "Test natijalari",
       icon: <FlaskConical className="w-5 h-5" />,
     },
-    "/doctor": {
-      label: "Shifokor paneli",
-      icon: <LayoutDashboard className="w-5 h-5" />,
-    },
-    "/doctor/consultation": {
-      label: "Konsultatsiya",
-      icon: <Stethoscope className="w-5 h-5" />,
-    },
-    "/cashier": {
-      label: "Kassir paneli",
-      icon: <LayoutDashboard className="w-5 h-5" />,
-    },
-    "/cashier/payment-processing": {
-      label: "To'lovlar",
-      icon: <DollarSign className="w-5 h-5" />,
-    },
-    "/reports": { label: "Hisobotlar", icon: <FileText className="w-5 h-5" /> },
-    "/settings": {
-      label: "Sozlamalar",
-      icon: <Settings className="w-5 h-5" />,
-    },
   };
 
 export function Layout({ children }: LayoutProps) {
   const user = useUserStore((state) => state.user);
   const setUser = useUserStore((state) => state.setUser);
+  const setToken = useUserStore((state) => state.setToken);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(
     (localStorage.getItem("theme") as "light" | "dark") || "light"
   );
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const clinicSettingsLoaded = useClinicSettings((state) => state.hasLoaded);
   const clinicSettings = useClinicSettings((state) => state.clinicSettings);
   const setClinicSettings = useClinicSettings((state) => state.setClinicSettings);
@@ -209,6 +159,8 @@ export function Layout({ children }: LayoutProps) {
 
   const onLogout = () => {
     handleStorage({ key: "access_token", value: null });
+    queryClient.clear();
+    setToken(null);
     setUser(null);
     navigate("/login");
   };
